@@ -1,50 +1,37 @@
-:root {
-    /* Brighter, sharper, more electric */
-    --neon-purple: #bd00ff;
-    --neon-blue: #00d4ff;
-    --neon-green: #39ff14;
-    --neon-pink: #ff007f;
-    --bg-dark: #050510;
-}
-
 body {
-    background: linear-gradient(180deg, #050510 0%, #1a0b2e 100%);
-    color: #fff;
-    font-family: 'Share Tech Mono', monospace;
     margin: 0;
-    /* Adding a subtle grid overlay to mimic a skyscraper window */
-    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: 40px 40px;
+    padding: 0;
+    min-height: 200vh; /* Ensures there is space to scroll */
+    background-color: #050510;
+    font-family: 'Share Tech Mono', monospace;
 }
 
-.hud-panel {
-    background: rgba(20, 0, 40, 0.7); /* Deep violet glass */
-    border: 2px solid var(--neon-pink);
-    box-shadow: 0 0 20px var(--neon-pink);
-    border-radius: 0; /* Sharp, tech-style corners */
+/* The Parallax Skyline Background */
+.background-skyline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-image: url('skyline.jpg');
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(100%) brightness(0.4); /* Makes it moody/grey */
+    transition: transform 0.1s ease-out; /* Smooth movement */
 }
 
-.content-panel {
-    border: 2px solid var(--neon-blue);
-    box-shadow: 0 0 20px var(--neon-blue);
-    background: rgba(0, 20, 40, 0.7);
+/* Adding the "Glisten" effect on top */
+.glitter-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 50%, rgba(0, 245, 212, 0.05), transparent);
+    animation: pulse 4s infinite alternate;
 }
 
-h1, h2 { 
-    color: var(--neon-green); 
-    text-transform: uppercase;
-    letter-spacing: 2px;
-}
-
-button {
-    border: 2px solid var(--neon-purple);
-    color: var(--neon-purple);
-    font-weight: bold;
-}
-button:hover {
-    background: var(--neon-pink);
-    color: white;
-    cursor: crosshair; /* Makes it feel like you're selecting an option */
-    transition: 0.3s;
+@keyframes pulse {
+    from { opacity: 0.3; }
+    to { opacity: 0.7; }
 }
