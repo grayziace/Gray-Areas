@@ -1,48 +1,50 @@
 :root {
-    --bg-dark: #0a0515; /* Bruised Purple */
-    --neon-cyan: #00f5d4;
-    --rose-gold: #ff9fb2;
-    --glass: rgba(255, 255, 255, 0.05);
+    /* Brighter, sharper, more electric */
+    --neon-purple: #bd00ff;
+    --neon-blue: #00d4ff;
+    --neon-green: #39ff14;
+    --neon-pink: #ff007f;
+    --bg-dark: #050510;
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: #e0e1dd;
-    font-family: 'Courier New', monospace; /* Terminal feel */
-    height: 100vh;
+    background: linear-gradient(180deg, #050510 0%, #1a0b2e 100%);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
     margin: 0;
-    display: flex;
+    /* Adding a subtle grid overlay to mimic a skyscraper window */
+    background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
 }
 
-#app { display: flex; width: 100%; padding: 20px; gap: 20px; }
-
 .hud-panel {
-    background: var(--glass);
-    backdrop-filter: blur(15px);
-    border: 1px solid var(--rose-gold);
-    width: 300px;
-    padding: 20px;
-    border-radius: 10px;
+    background: rgba(20, 0, 40, 0.7); /* Deep violet glass */
+    border: 2px solid var(--neon-pink);
+    box-shadow: 0 0 20px var(--neon-pink);
+    border-radius: 0; /* Sharp, tech-style corners */
 }
 
 .content-panel {
-    flex-grow: 1;
-    background: var(--glass);
-    backdrop-filter: blur(15px);
-    border: 1px solid var(--neon-cyan);
-    padding: 30px;
-    border-radius: 10px;
+    border: 2px solid var(--neon-blue);
+    box-shadow: 0 0 20px var(--neon-blue);
+    background: rgba(0, 20, 40, 0.7);
 }
 
-.avatar-placeholder {
-    width: 150px; height: 150px;
-    border: 2px dashed var(--rose-gold);
-    margin: 0 auto 20px;
-    display: flex; align-items: center; justify-content: center;
+h1, h2 { 
+    color: var(--neon-green); 
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 button {
-    display: block; width: 100%; padding: 10px;
-    background: none; border: 1px solid var(--neon-cyan);
-    color: var(--neon-cyan); margin-bottom: 10px; cursor: pointer;
+    border: 2px solid var(--neon-purple);
+    color: var(--neon-purple);
+    font-weight: bold;
+}
+button:hover {
+    background: var(--neon-pink);
+    color: white;
+    cursor: crosshair; /* Makes it feel like you're selecting an option */
+    transition: 0.3s;
 }
