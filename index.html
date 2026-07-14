@@ -3,37 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Colouring Gray Areas | Project Shenzhen</title>
+    <title>COLOURING GRAY AREAS | PROJECT SHENZHEN</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="background-skyline" id="skyline"></div>
-    <div class="glitter-overlay"></div>
-    <div id="app">
-        <!-- Sidebar/HUD Area -->
-        <aside class="hud-panel">
-            <div class="avatar-placeholder">[AVATAR_READY]</div>
-            <h1>PLAYER: GRAY</h1>
-            <p>MISSION: PROJECT SHENZHEN</p>
-            <nav>
-                <button>SYNC LOGS</button>
-                <button>EXPLORE ATLAS</button>
-                <button>IDENTITY MODULES</button>
-                <button>SKILL TREE</button>
+
+    <div class="crt-overlay"></div>
+    <div class="glitch-layer"></div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="avatar-module">
+                <div class="avatar-glow"></div>
+                <div class="avatar-img">[AVATAR_READY]</div>
+            </div>
+            
+            <h1 class="player-tag">PLAYER: GRAY</h1>
+            <div class="status-indicator">
+                <span class="pulse-dot"></span> MISSION: SHENZHEN
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-btn" data-target="logs">SYNC LOGS</button>
+                <button class="nav-btn" data-target="atlas">EXPLORE ATLAS</button>
+                <button class="nav-btn" data-target="modules">IDENTITY MODULES</button>
+                <button class="nav-btn" data-target="skills">SKILL TREE</button>
             </nav>
         </aside>
 
-        <!-- Main Content Area -->
-        <main class="content-panel">
-            <header>
-                <h2>SYSTEM STATUS: ONLINE</h2>
-                <div id="status-light"></div>
+        <main class="content-viewport">
+            <header class="viewport-header">
+                <h2 id="view-title">SYSTEM_READY</h2>
             </header>
-            <section id="mission-brief">
-                <p>Waiting for data input. Initialize mission log...</p>
+            <section id="viewport-content">
+                <p class="boot-text">INITIALIZING_CONNECTIVITY_PROTOCOLS...</p>
             </section>
         </main>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

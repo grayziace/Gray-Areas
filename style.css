@@ -1,90 +1,68 @@
-/* 1. Global Reset & Typography */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
 :root {
-    --bg-dark: #050510;
-    --neon-pink: #ff007f;
-    --neon-cyan: #00f5d4;
-    --neon-purple: #bd00ff;
-    --glass: rgba(20, 0, 40, 0.7);
+    --bg-deep: #050510;
+    --neon-rose: #ff2a6d;
+    --neon-cyan: #05d9e8;
+    --glass: rgba(15, 15, 30, 0.7);
 }
 
 body {
+    background-color: var(--bg-deep);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
     margin: 0;
-    padding: 0;
-    font-family: 'Share Tech Mono', monospace;
-    background-color: var(--bg-dark);
-    color: #ffffff;
     height: 100vh;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
-/* 2. Animated Background System */
-.background-skyline {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: -1;
-    background-image: url('background.jpeg');
-    background-size: cover;
-    background-position: center;
-}
-
-.neon-flicker {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    z-index: -1;
+/* CRT Scanline Texture */
+.crt-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+    background-size: 100% 4px;
     pointer-events: none;
-    background: radial-gradient(circle at 60% 30%, rgba(255, 0, 127, 0.2), transparent 70%);
-    animation: flicker 4s infinite alternate;
+    z-index: 10;
 }
 
-@keyframes flicker {
-    0% { opacity: 0.3; }
-    50% { opacity: 0.6; }
-    100% { opacity: 0.4; }
-}
-
-/* 3. The HUD System (The "Game" Interface) */
-#app {
-    display: flex;
-    gap: 20px;
-    padding: 40px;
+.app-container {
+    display: grid;
+    grid-template-columns: 350px 1fr;
     height: 100vh;
-    box-sizing: border-box;
+    padding: 40px;
+    gap: 40px;
 }
 
-.hud-panel, .content-panel {
+/* Sidebar Styling */
+.sidebar {
     background: var(--glass);
-    backdrop-filter: blur(15px);
-    border: 2px solid var(--neon-cyan);
-    padding: 25px;
-    border-radius: 4px;
-    box-shadow: 0 0 15px rgba(0, 245, 212, 0.2);
+    border: 1px solid var(--neon-rose);
+    padding: 30px;
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.hud-panel { width: 300px; }
-.content-panel { flex-grow: 1; border-color: var(--neon-pink); }
+.avatar-module { width: 150px; height: 150px; border: 2px solid var(--neon-cyan); margin-bottom: 20px; display: flex; align-items: center; justify-content: center; position: relative; }
 
-/* 4. Text & Interactive Elements */
-h1, h2 {
-    color: var(--neon-cyan);
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    margin-top: 0;
+.player-tag { color: var(--neon-cyan); font-size: 1.2rem; margin: 10px 0; text-shadow: 0 0 10px var(--neon-cyan); }
+
+/* Buttons */
+.nav-btn {
+    width: 100%; padding: 15px; margin: 10px 0;
+    background: transparent; border: 1px solid var(--neon-rose);
+    color: var(--neon-rose); cursor: crosshair;
+    transition: 0.4s; text-transform: uppercase;
 }
 
-button {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    background: transparent;
-    border: 1px solid var(--neon-purple);
-    color: var(--neon-purple);
-    cursor: crosshair;
-    margin-bottom: 10px;
-    transition: 0.3s;
-}
+.nav-btn:hover { background: var(--neon-rose); color: white; box-shadow: 0 0 15px var(--neon-rose); }
 
-button:hover {
-    background: var(--neon-purple);
-    color: white;
-    box-shadow: 0 0 10px var(--neon-purple);
+/* Content Viewport */
+.content-viewport {
+    background: var(--glass);
+    border: 1px solid var(--neon-cyan);
+    padding: 40px;
+    backdrop-filter: blur(20px);
+    overflow-y: auto;
 }
