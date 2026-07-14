@@ -1,0 +1,48 @@
+:root {
+    --bg-dark: #0a0515; /* Bruised Purple */
+    --neon-cyan: #00f5d4;
+    --rose-gold: #ff9fb2;
+    --glass: rgba(255, 255, 255, 0.05);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #e0e1dd;
+    font-family: 'Courier New', monospace; /* Terminal feel */
+    height: 100vh;
+    margin: 0;
+    display: flex;
+}
+
+#app { display: flex; width: 100%; padding: 20px; gap: 20px; }
+
+.hud-panel {
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--rose-gold);
+    width: 300px;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.content-panel {
+    flex-grow: 1;
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--neon-cyan);
+    padding: 30px;
+    border-radius: 10px;
+}
+
+.avatar-placeholder {
+    width: 150px; height: 150px;
+    border: 2px dashed var(--rose-gold);
+    margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: center;
+}
+
+button {
+    display: block; width: 100%; padding: 10px;
+    background: none; border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan); margin-bottom: 10px; cursor: pointer;
+}
