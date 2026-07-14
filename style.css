@@ -1,19 +1,23 @@
+/* Global Reset & Typography */
 :root {
     --bg-dark: #050510;
     --neon-pink: #ff007f;
     --neon-cyan: #00f5d4;
     --neon-purple: #bd00ff;
+    --glass: rgba(20, 0, 40, 0.7);
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: white;
-    font-family: 'Courier New', monospace;
     margin: 0;
-    overflow: hidden; /* No scrolling for the city base */
+    padding: 0;
+    font-family: 'Courier New', monospace;
+    background-color: var(--bg-dark);
+    color: #ffffff;
+    height: 100vh;
+    overflow: hidden;
 }
 
-/* The Skyline Generator */
+/* Skyline Generator */
 .skyline-base {
     position: fixed;
     bottom: 0;
@@ -22,22 +26,78 @@ body {
     height: 30vh;
     display: flex;
     align-items: flex-end;
-    gap: 5px;
+    gap: 8px;
     z-index: -1;
+    padding: 0 20px;
 }
 
 .building {
-    background: #2a2a35; /* Dark grey block */
+    background: #1a1a24;
     flex-grow: 1;
-    border-top: 1px solid #444;
+    border-top: 2px solid #333;
 }
 
-/* Neon flashing lights */
 .neon-pulse {
     animation: pulse 2s infinite alternate;
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 0 5px var(--neon-cyan); }
-    100% { box-shadow: 0 0 20px var(--neon-cyan); }
+    0% { box-shadow: 0 -5px 10px rgba(0, 245, 212, 0.2); }
+    100% { box-shadow: 0 -10px 20px rgba(0, 245, 212, 0.6); }
+}
+
+/* The HUD System */
+#app {
+    display: flex;
+    gap: 20px;
+    padding: 40px;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+.hud-panel, .content-panel {
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 2px solid var(--neon-cyan);
+    padding: 25px;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(0, 245, 212, 0.2);
+}
+
+.hud-panel { width: 300px; }
+.content-panel { flex-grow: 1; border-color: var(--neon-pink); }
+
+/* Text & Buttons */
+h1, h2 {
+    color: var(--neon-cyan);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-top: 0;
+}
+
+.avatar-placeholder {
+    width: 150px; height: 150px;
+    border: 2px dashed var(--neon-pink);
+    margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--neon-pink);
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--neon-purple);
+    color: var(--neon-purple);
+    cursor: crosshair;
+    margin-bottom: 10px;
+    transition: 0.3s;
+    font-family: inherit;
+}
+
+button:hover {
+    background: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 10px var(--neon-purple);
 }
