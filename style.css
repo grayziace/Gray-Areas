@@ -1,37 +1,90 @@
+/* 1. Global Reset & Typography */
+:root {
+    --bg-dark: #050510;
+    --neon-pink: #ff007f;
+    --neon-cyan: #00f5d4;
+    --neon-purple: #bd00ff;
+    --glass: rgba(20, 0, 40, 0.7);
+}
+
 body {
     margin: 0;
     padding: 0;
-    min-height: 200vh; /* Ensures there is space to scroll */
-    background-color: #050510;
     font-family: 'Share Tech Mono', monospace;
+    background-color: var(--bg-dark);
+    color: #ffffff;
+    height: 100vh;
+    overflow-x: hidden;
 }
 
-/* The Parallax Skyline Background */
+/* 2. Animated Background System */
 .background-skyline {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     z-index: -1;
-    background-image: url('https://i.pinimg.com/736x/8e/cf/31/8ecf31a4c32dd6b031f159be279aef67.jpg');
+    background-image: url('background.jpg');
     background-size: cover;
     background-position: center;
-    filter: grayscale(100%) brightness(0.4); /* Makes it moody/grey */
-    transition: transform 0.1s ease-out; /* Smooth movement */
 }
 
-/* Adding the "Glisten" effect on top */
-.glitter-overlay {
+.neon-flicker {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
     z-index: -1;
     pointer-events: none;
-    background: radial-gradient(circle at 50% 50%, rgba(0, 245, 212, 0.05), transparent);
-    animation: pulse 4s infinite alternate;
+    background: radial-gradient(circle at 60% 30%, rgba(255, 0, 127, 0.2), transparent 70%);
+    animation: flicker 4s infinite alternate;
 }
 
-@keyframes pulse {
-    from { opacity: 0.3; }
-    to { opacity: 0.7; }
+@keyframes flicker {
+    0% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+    100% { opacity: 0.4; }
+}
+
+/* 3. The HUD System (The "Game" Interface) */
+#app {
+    display: flex;
+    gap: 20px;
+    padding: 40px;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+.hud-panel, .content-panel {
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    border: 2px solid var(--neon-cyan);
+    padding: 25px;
+    border-radius: 4px;
+    box-shadow: 0 0 15px rgba(0, 245, 212, 0.2);
+}
+
+.hud-panel { width: 300px; }
+.content-panel { flex-grow: 1; border-color: var(--neon-pink); }
+
+/* 4. Text & Interactive Elements */
+h1, h2 {
+    color: var(--neon-cyan);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-top: 0;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--neon-purple);
+    color: var(--neon-purple);
+    cursor: crosshair;
+    margin-bottom: 10px;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 10px var(--neon-purple);
 }
