@@ -36,17 +36,17 @@
         "abilities": [
           {
             "name": "So Socially Adaptable",
-            "effect": "Passive ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
+            "effect": "Passive ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Fringes",
-          "effect": "Fringe Phobia ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters."
+          "effect": "Fringe Phobia ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters."
         },
         "resistance": {
           "name": "Rocks",
-          "effect": "Rock-solid ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you."
+          "effect": "Rock-solid ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you."
         },
         "retreatCost": "1",
         "quote": "I promise I don't have a fringe kink",
@@ -58,7 +58,7 @@
       "strengths": "Art, So Socially adaptable",
       "weaknesses": "Fringes",
       "resistances": "Rocks",
-      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
+      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person",
@@ -114,17 +114,17 @@
         "abilities": [
           {
             "name": "Big D*ck",
-            "effect": "Big d*ck is your edge ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room."
+            "effect": "Big d*ck is your edge ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Too Cool",
-          "effect": "Too Cool ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder."
+          "effect": "Too Cool ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder."
         },
         "resistance": {
           "name": "Anesthetic",
-          "effect": "Immune to anesthetic ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ you shrug off what would bend others."
+          "effect": "Immune to anesthetic ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you shrug off what would bend others."
         },
         "retreatCost": "1",
         "quote": "Sup Slags",
@@ -149,7 +149,24 @@
       ]
     }
   ],
-  "quests": [],
+  "quests": [
+    {
+      "id": "quest-1784139493388-8000",
+      "createdAt": "2026-07-15T18:18:13.388Z",
+      "updatedAt": "2026-07-15T18:34:48.747Z",
+      "fromCharacterId": "coder-1784129011494-5pqk",
+      "fromName": "Nick",
+      "type": "chaos",
+      "title": "I miss you",
+      "body": "I miss you",
+      "place": "",
+      "food": "",
+      "status": "declined",
+      "votes": {},
+      "comments": [],
+      "playerNote": ""
+    }
+  ],
   "videoDiary": [],
   "coderActivityPulses": [
     {
@@ -158,7 +175,7 @@
       "type": "xp_award",
       "coderId": "coder-1784129011494-5pqk",
       "name": "Nick",
-      "detail": "Nick +5 XP · Quest sent",
+      "detail": "Nick +5 XP Â· Quest sent",
       "amount": 5,
       "reason": "quest_submit"
     },
@@ -168,7 +185,7 @@
       "type": "xp_award",
       "coderId": "coder-1784129011494-5pqk",
       "name": "Nick",
-      "detail": "Nick +3 XP Â· Daily login",
+      "detail": "Nick +3 XP ÃÂ· Daily login",
       "amount": 3,
       "reason": "login"
     }
