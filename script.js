@@ -1817,16 +1817,39 @@ function renderAbout(){
   if(isAdmin()) mountMoodPicker('profileMoodPicker', getCurrentMood(), { name: 'profileMood', compact: true, onChange: id => { setCurrentMood(id); renderAbout(); renderHomeCheckIn(); } });
 }
 
+const CONSOLE_HEARTS = '<3 <3 <3';
+
+function resetConsoleInput(input){
+  if(input) input.value = CONSOLE_HEARTS;
+}
+
 function bindCommunityConsole(){
   const input = document.getElementById('communityConsoleInput');
   if(!input || input.dataset.bound) return;
   input.dataset.bound = '1';
+  resetConsoleInput(input);
+  input.addEventListener('focus', () => {
+    if(input.value === CONSOLE_HEARTS) input.select();
+  });
+  input.addEventListener('blur', () => {
+    if(!input.value.trim()) resetConsoleInput(input);
+  });
   input.addEventListener('keydown', e => {
     if(e.key !== 'Enter') return;
+    e.preventDefault();
     const v = e.target.value.trim();
-    e.target.value = '';
+    if(v === CONSOLE_HEARTS || !v){
+      resetConsoleInput(input);
+      return;
+    }
+    if(v === ':)'){
+      unlockAdmin({ toast: true, view: 'profile' });
+      resetConsoleInput(input);
+      return;
+    }
     if(v === '<3'){
-      unlockAdmin({ toast: true });
+      lockAdmin();
+      resetConsoleInput(input);
       return;
     }
     if(v === ':('){
@@ -1837,6 +1860,9 @@ function bindCommunityConsole(){
           OverloadLog.enterChannel();
         }
       }
+      resetConsoleInput(input);
+    } else {
+      resetConsoleInput(input);
     }
   });
 }
@@ -3456,7 +3482,6 @@ function fmtPinDateTime(iso){
 function renderPinboard(){
   const wall = document.getElementById('pinWall');
   if(!wall) return;
-  bindCommunityConsole();
   const posts = (state.pinboard || []).map(normalizePinPost);
   if(!posts.length){ wall.innerHTML = '<p class="empty-hint pin-empty">Be the first to leave a note on the board.</p>'; return; }
 
