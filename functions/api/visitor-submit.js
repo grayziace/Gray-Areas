@@ -102,6 +102,8 @@ export async function onRequestPost(context) {
       const idx = store.quests.findIndex(q => q.id === payload.id);
       if (idx >= 0) store.quests[idx] = { ...store.quests[idx], ...payload };
       else store.quests.push(payload);
+    } else if (action === 'deleteCharacter') {
+      store.viewerCharacters = (store.viewerCharacters || []).filter(c => c.id !== payload.id);
     } else {
       return jsonResponse({ error: 'Unknown action' }, 400);
     }

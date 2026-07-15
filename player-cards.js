@@ -321,6 +321,8 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   const focus = { x: item.imageFocusX, y: item.imageFocusY };
   const spirit = !hideSpirit && unlocked && pc.spiritAnimalImage
     ? `<div class="pc-spirit-sticker"><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : '';
+  const xpBadge = (item.isCoderCard || (typeof state !== 'undefined' && (state.viewerCharacters || []).some(v => v.id === item.id)))
+    ? `<span class="pc-xp-badge">${item.points || 0} XP</span>` : '';
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
@@ -328,6 +330,7 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
       <span class="pc-lv">Lv ${unlocked ? pc.level : '??'}</span>
+      ${xpBadge}
     </div>
     <div class="pc-art">${buildCardPhotoHtml(artSrc, unlocked, item.name, focus)}${spirit}</div>
     ${brief ? `<p class="pc-blurb">${esc(brief)}</p>` : ''}
@@ -392,9 +395,6 @@ function openCardEditor(fig){
   const id = fig.dataset.cardId;
   if(t === 'player') openContentEditor('player', 'player', false);
   else if(t === 'place') openContentEditor('place', id, false);
-  else if(typeof getCoderById === 'function' && getCoderById(id) && typeof isAdmin === 'function' && isAdmin() && typeof ViewerWorld !== 'undefined'){
-    ViewerWorld.openPlayerCoderEdit(id);
-  }
   else openContentEditor('character', id, false);
 }
 

@@ -400,6 +400,22 @@ function awardCoderPoints(characterId, amount, reason){
   if(c.pokeCard) c.pokeCard.level = lvl.level;
   if(reason === 'quest_complete') c.questsCompleted = (c.questsCompleted || 0) + 1;
   if(reason === 'quest_submit') c.questsSent = (c.questsSent || 0) + 1;
+  const label = XP_AWARDS[reason]?.label || (reason === 'custom' ? 'Custom XP' : String(reason || 'XP'));
+  if(!c.xpHistory) c.xpHistory = [];
+  c.xpHistory.unshift({
+    id: uid('xp'),
+    at: new Date().toISOString(),
+    amount,
+    reason: reason || 'custom',
+    label,
+  });
+  logCoderActivity('xp_award', {
+    coderId: characterId,
+    name: c.name,
+    detail: `${c.name} +${amount} XP · ${label}`,
+    amount,
+    reason,
+  });
   saveState();
   postVisitorData('updateCharacter', c);
 }
@@ -693,6 +709,42 @@ function buildDefaultInstructionsHtml(){
     </div>`;
 }
 
+function logCoderActivity(type, payload = {}){
+  if(!state.coderActivity) state.coderActivity = [];
+  state.coderActivity.unshift({
+    id: uid('act'),
+    at: new Date().toISOString(),
+    type,
+    ...payload,
+  });
+  state.coderActivity = state.coderActivity.slice(0, 120);
+  saveState();
+  if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
+}
+
+function renderXpHistoryRail(history){
+  const items = (history || []).slice();
+  if(!items.length){
+    return `<p class="empty-hint">No XP logged yet — send quests, get missions completed, or wait for Gray to award bonus XP.</p>`;
+  }
+  return `<div class="live-rail-track xp-history-rail">
+    <div class="live-rail-spine" aria-hidden="true"></div>
+    <div class="live-rail-nodes">${items.map(entry => {
+      const when = entry.at ? new Date(entry.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      return `<article class="live-node" style="--ln-neon:#fbbf24">
+        <div class="live-node-marker"><span class="live-node-glow"></span><span class="live-node-core"></span></div>
+        <div class="live-node-card">
+          <div class="live-node-top">
+            <time class="live-node-time">${esc(when)}</time>
+            <span class="live-node-type">↑ +${entry.amount || 0} XP</span>
+          </div>
+          <p class="live-node-text">${esc(entry.label || entry.reason || 'XP')}</p>
+        </div>
+      </article>`;
+    }).join('')}</div>
+  </div>`;
+}
+
 function bindInstructionsActions(host){
   if(!host) return;
   host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
@@ -788,46 +840,20 @@ const ViewerWorld = {
     const host = document.getElementById('instructionsSpread');
     if(!host) return;
     if(isAdmin()){
-      const draft = state.instructionsHtml || buildDefaultInstructionsHtml();
       host.innerHTML = `
         <div class="player-mode-banner sketch-card">
           <span class="player-mode-banner-dot" aria-hidden="true"></span>
           <div>
             <p class="player-mode-banner-kicker">Player Gray mode</p>
-            <p class="player-mode-banner-text">You're running the board. Edit instructions below — coders see your preview. Quest Inbox, coder XP, and card edits are in <strong>Quest Inbox</strong> and <strong>Coder Cards</strong>.</p>
+            <p class="player-mode-banner-text">Click the instructions below to edit what coders see.</p>
           </div>
         </div>
-        <div class="instructions-admin-edit sketch-card">
-          <h3 class="viewer-wizard-title">Edit instructions</h3>
-          <p class="field-hint">HTML allowed. Save updates what coders read. Reset restores the default draft.</p>
-          <textarea id="instructionsEditor" class="instructions-editor" rows="18">${esc(draft)}</textarea>
-          <div class="modal-actions">
-            <button type="button" class="btn" id="resetInstructions">Reset to default</button>
-            <button type="button" class="btn primary" id="saveInstructions">Save instructions</button>
-          </div>
-        </div>
-        <div id="instructionsPreview">${getInstructionsHtml()}</div>`;
-      host.querySelector('#saveInstructions')?.addEventListener('click', () => {
-        state.instructionsHtml = document.getElementById('instructionsEditor')?.value || '';
+        <div class="instructions-panel sketch-card instructions-gray-voice instructions-editable" id="instructionsEditor" contenteditable="true">${getInstructionsHtml()}</div>`;
+      const ed = host.querySelector('#instructionsEditor');
+      ed?.addEventListener('blur', () => {
+        state.instructionsHtml = ed.innerHTML;
         saveState();
-        const preview = host.querySelector('#instructionsPreview');
-        if(preview){
-          preview.innerHTML = getInstructionsHtml();
-          bindInstructionsActions(preview);
-        }
       });
-      host.querySelector('#resetInstructions')?.addEventListener('click', () => {
-        state.instructionsHtml = '';
-        saveState();
-        const editor = document.getElementById('instructionsEditor');
-        if(editor) editor.value = buildDefaultInstructionsHtml();
-        const preview = host.querySelector('#instructionsPreview');
-        if(preview){
-          preview.innerHTML = getInstructionsHtml();
-          bindInstructionsActions(preview);
-        }
-      });
-      bindInstructionsActions(host.querySelector('#instructionsPreview'));
       return;
     }
     host.innerHTML = getInstructionsHtml();
@@ -879,7 +905,6 @@ const ViewerWorld = {
     if(!mine) return;
 
     const lvl = coderLevelFromPoints(mine.points);
-    const editing = this.editingCardId === mine.id;
     host.innerHTML = `
       <div class="viewer-card-hero">
         <div class="viewer-fire-badge" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
@@ -888,33 +913,22 @@ const ViewerWorld = {
           <span class="viewer-fire-label">XP</span>
         </div>
         <div class="viewer-level-pill">Lv ${lvl.level}</div>
-        <button type="button" class="btn" id="editMyCardBtn">${editing ? 'Cancel edit' : 'Edit card'}</button>
+        <button type="button" class="btn primary" id="editMyCardBtn">Edit My Card</button>
       </div>
-      ${editing ? `<div class="viewer-wizard sketch-card" id="myCardEditPanel">
-        <h3 class="viewer-wizard-title">Edit My Card</h3>
-        <form id="myCardEditForm">${cardWizardFieldsHtml('edit', mine)}
-          <div class="modal-actions">
-            <button type="button" class="btn" id="regenPortraitBtn">Regenerate portrait</button>
-            <button type="button" class="btn" id="regenSpiritBtn">Regenerate spirit</button>
-            <button type="submit" class="btn primary">Save card</button>
-          </div>
-        </form>
-      </div>` : ''}
-      <div class="viewer-card-deck" ${editing ? 'style="opacity:0.55"' : ''}>${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor }) : ''}</div>
+      <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor }) : ''}</div>
       <div class="viewer-card-stats sketch-card">
         <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
         <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
         ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
-        <p class="field-hint">Edit and regenerate your look anytime. Gray awards bonus XP by hand.</p>
-      </div>`;
+      </div>
+      <section class="xp-history-board sketch-card">
+        <h3 class="viewer-wizard-title">XP history</h3>
+        ${renderXpHistoryRail(mine.xpHistory)}
+      </section>`;
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => {
-      this.editingCardId = this.editingCardId === mine.id ? null : mine.id;
-      this.renderViewerCard();
+      if(typeof openContentEditor === 'function') openContentEditor('character', mine.id, false);
     });
-    host.querySelector('#myCardEditForm')?.addEventListener('submit', e => { e.preventDefault(); this.saveCardEdit(mine.id, 'edit'); });
-    host.querySelector('#regenPortraitBtn')?.addEventListener('click', () => this.regenerateCardLook(mine.id, 'portrait'));
-    host.querySelector('#regenSpiritBtn')?.addEventListener('click', () => this.regenSpiritBtn(mine.id));
   },
 
   async regenSpiritBtn(cardId){
@@ -985,52 +999,7 @@ const ViewerWorld = {
   },
 
   openPlayerCoderEdit(coderId){
-    const c = getCoderById(coderId);
-    if(!c || !isAdmin()) return;
-    this.playerEditingCoderId = coderId;
-    const back = document.getElementById('coderEditBack');
-    const formHost = document.getElementById('coderEditForm');
-    if(!back || !formHost) return;
-    document.getElementById('coderEditTitle').textContent = `Edit card — ${c.name}`;
-    formHost.innerHTML = `<form id="playerCoderEditForm">${cardWizardFieldsHtml('pedit', c)}
-      <div class="modal-actions">
-        <button type="button" class="btn" id="peditRegenPortrait">Regenerate portrait</button>
-        <button type="button" class="btn" id="peditRegenSpirit">Regenerate spirit</button>
-        <button type="button" class="btn" onclick="document.getElementById('coderEditBack').classList.add('hidden')">Cancel</button>
-        <button type="submit" class="btn primary">Save</button>
-      </div></form>`;
-    back.classList.remove('hidden');
-    formHost.querySelector('#playerCoderEditForm')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
-      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
-      state.viewerCharacters[idx] = buildCoderCardFromWizard(form, c);
-      saveState();
-      await postVisitorData('updateCharacter', state.viewerCharacters[idx]);
-      back.classList.add('hidden');
-      if(typeof renderCharacters === 'function') renderCharacters();
-      this.renderQuests();
-    });
-    formHost.querySelector('#peditRegenPortrait')?.addEventListener('click', async () => {
-      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
-      const card = buildCoderCardFromWizard(form, c);
-      await generateCoderCardImages(card, { portrait: true, spirit: false });
-      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
-      state.viewerCharacters[idx] = card;
-      saveState();
-      await postVisitorData('updateCharacter', card);
-      this.openPlayerCoderEdit(coderId);
-    });
-    formHost.querySelector('#peditRegenSpirit')?.addEventListener('click', async () => {
-      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
-      const card = buildCoderCardFromWizard(form, c);
-      await generateCoderCardImages(card, { portrait: false, spirit: true });
-      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
-      state.viewerCharacters[idx] = card;
-      saveState();
-      await postVisitorData('updateCharacter', card);
-      this.openPlayerCoderEdit(coderId);
-    });
+    if(typeof openContentEditor === 'function') openContentEditor('character', coderId, false);
   },
 
   async submitCharacterWizard(){
@@ -1054,6 +1023,7 @@ const ViewerWorld = {
     state.viewerCharacters.push(card);
     saveState();
     await postVisitorData('createCharacter', card);
+    logCoderActivity('card_created', { coderId: card.id, name: card.name, detail: `${card.name} created their Coders Card` });
     unlockCoderSession(card.id);
     if(btn) btn.disabled = false;
     if(typeof renderCharacters === 'function') renderCharacters();
@@ -1185,6 +1155,7 @@ const ViewerWorld = {
     if(!quest.title || !quest.body) return;
     state.quests.push(quest);
     awardCoderPoints(mine.id, POINTS.quest_submit, 'quest_submit');
+    logCoderActivity('quest_sent', { coderId: mine.id, name: mine.name, detail: `${mine.name} sent quest: ${quest.title}` });
     saveState();
     await postVisitorData('submitQuest', quest);
     document.getElementById('questForm')?.reset();
@@ -1268,6 +1239,7 @@ const ViewerWorld = {
     q.completedAt = new Date().toISOString();
     q.updatedAt = q.completedAt;
     awardCoderPoints(q.fromCharacterId, POINTS.quest_complete, 'quest_complete');
+    logCoderActivity('quest_complete', { coderId: q.fromCharacterId, name: q.fromName, detail: `Quest completed: ${q.title} (${q.fromName})` });
     const key = todayKey();
     const stream = getDayStream(key);
     if(stream.startedAt){

@@ -214,8 +214,8 @@ body.is-editing .card-edit-front.edit-when-editing{display:inline-block !importa
 
 /* ===== App shell ===== */
 #app{
-  position:relative;z-index:1;max-width:1180px;margin:0 auto;
-  padding:26px 20px 110px;display:flex;gap:28px;
+  position:relative;z-index:1;max-width:1400px;margin:0 auto;
+  padding:26px 20px 110px;display:flex;gap:28px;min-height:100vh;
 }
 
 .sidebar{width:230px;flex-shrink:0;}
@@ -554,6 +554,7 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
 .admin-unlock:hover{opacity:0.7;color:var(--neon-cyan);}
 
 /* ===== Main column ===== */
+.workspace-col{flex:1;display:flex;min-width:0;gap:0;}
 .main-col{flex:1;min-width:0;}
 section.view{display:none;animation:fadein 0.45s ease;}
 section.view.active{display:block;}
@@ -2374,6 +2375,7 @@ body.mind-repair-active #view-mind{
   .ol-meta-row{grid-template-columns:1fr;}
   .live-broadcast{grid-template-columns:1fr;min-height:auto;}
   .live-rail-col{max-height:42vh;}
+  .coder-notify-rail{display:none !important;}
   .mind-hub{grid-template-columns:1fr;}
 }
 
@@ -2501,6 +2503,22 @@ body.is-player-gray .sidebar .brand .name{color:#ff4fd8;text-shadow:0 0 18px rgb
 body.is-player-gray .admin-bar{border-color:#ff4fd8;background:rgba(255,79,216,0.1);}
 body.is-player-gray .admin-bar-label{color:#ff4fd8;}
 body.is-player-gray .admin-bar-dot{background:#ff4fd8;box-shadow:0 0 8px #ff4fd8;}
+.coder-notify-rail{
+  width:min(300px,28vw);flex-shrink:0;display:flex;flex-direction:column;min-height:0;
+  border-left:2px solid color-mix(in srgb,#3ad6e0 35%,var(--border-glass));
+  background:linear-gradient(180deg,rgba(6,4,12,0.98),rgba(10,8,18,0.92));
+  box-shadow:-8px 0 24px rgba(0,0,0,0.35);
+}
+.coder-notify-head{display:flex;justify-content:space-between;align-items:center;padding:14px 12px 10px;border-bottom:1px solid var(--border-glass);}
+.coder-notify-scroll{flex:1;overflow-y:auto;padding:12px 8px 16px;}
+.instructions-editable{outline:2px dashed rgba(232,197,71,0.25);min-height:200px;}
+.instructions-editable:focus{outline-color:rgba(232,197,71,0.55);}
+.pc-xp-badge{
+  font-family:var(--font-data);font-size:9px;letter-spacing:0.08em;
+  color:#fcd34d;padding:2px 6px;border:1px solid rgba(252,211,77,0.35);border-radius:3px;
+}
+.xp-history-board{margin-top:18px;}
+.xp-history-rail{max-height:360px;overflow-y:auto;padding-right:6px;}
 
 /* Live to-do board */
 .live-todo-board{

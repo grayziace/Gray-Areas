@@ -38,8 +38,10 @@ function applyAdminUI(){
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
+  if(admin && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
-  document.getElementById('pinForm')?.classList.toggle('hidden', !canPost);
+  const pinForm = document.getElementById('pinForm');
+  if(pinForm) pinForm.classList.toggle('hidden', !canPost);
   const pinGuestHint = document.getElementById('pinGuestHint');
   if(pinGuestHint) pinGuestHint.classList.toggle('hidden', canPost);
   const pinPreview = document.getElementById('pinAuthorPreview');
@@ -135,6 +137,7 @@ function defaultState(){
     videoDiary: [],
     liveTodos: [],
     instructionsHtml: '',
+    coderActivity: [],
   };
 }
 
@@ -171,6 +174,7 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
   if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
   if(typeof s.instructionsHtml === 'string') state.instructionsHtml = s.instructionsHtml;
+  if(Array.isArray(s.coderActivity)) state.coderActivity = s.coderActivity;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -284,10 +288,17 @@ function getCharacters(){
   const merged = [...base];
   (state.viewerCharacters || []).forEach(c => {
     if(!c?.id || seen.has(c.id)) return;
-    merged.push(c);
+    merged.push({ ...c, isCoderCard: c.isCoderCard !== false });
     seen.add(c.id);
   });
-  return merged;
+  const isCoder = c => c?.isCoderCard || (state.viewerCharacters || []).some(v => v.id === c.id);
+  const staticChars = merged.filter(c => !isCoder(c));
+  const coderChars = merged.filter(c => isCoder(c)).sort((a, b) => (b.points || 0) - (a.points || 0));
+  return [...staticChars, ...coderChars];
+}
+
+function isCoderDeckCard(c){
+  return !!(c && (c.isCoderCard || (state.viewerCharacters || []).some(v => v.id === c.id)));
 }
 
 function getPlaces(){
@@ -373,6 +384,7 @@ function openContentEditor(type, id, isNew){
       + fieldHtml('Since', 'ce_since', item.since);
   } else if(type === 'character'){
     item = isNew ? {} : getCharacters().find(c => c.id === id);
+    if(!item && id && typeof getCoderById === 'function') item = getCoderById(id);
     title = isNew ? 'New player card' : 'Edit player card';
     fields = playerCardEditorHtml(item, { isPlace: false })
       + fieldHtml('Kind', 'ce_type', item?.type || 'Person');
@@ -539,13 +551,31 @@ function saveContentEdit(){
   const type = document.getElementById('contentEditType').value;
   const id = document.getElementById('contentEditId').value;
   const data = readContentForm(type);
+  const viewerCard = id && typeof getCoderById === 'function' ? getCoderById(id) : null;
   ensureContentState();
 
   if(type === 'player'){
     state.content.player = { ...state.content.player, ...data };
   } else if(type === 'character'){
     if(!data.name) return;
-    if(id){
+    if(viewerCard){
+      const idx = state.viewerCharacters.findIndex(c => c.id === id);
+      if(idx >= 0){
+        const merged = {
+          ...viewerCard,
+          ...data,
+          isCoderCard: true,
+          consoleKey: viewerCard.consoleKey,
+          points: viewerCard.points,
+          xpHistory: viewerCard.xpHistory,
+          questsSent: viewerCard.questsSent,
+          questsCompleted: viewerCard.questsCompleted,
+        };
+        state.viewerCharacters[idx] = merged;
+        saveState();
+        if(typeof postVisitorData === 'function') postVisitorData('updateCharacter', merged);
+      }
+    } else if(id){
       const i = state.content.characters.findIndex(c => c.id === id);
       if(i >= 0) state.content.characters[i] = { ...state.content.characters[i], ...data };
     } else {
@@ -595,7 +625,16 @@ function deleteContentItem(type, id){
   if(!id || !confirm('Delete this?')) return;
   ensureContentState();
 
-  if(type === 'character') state.content.characters = state.content.characters.filter(c => c.id !== id);
+  if(type === 'character'){
+    if(typeof getCoderById === 'function' && getCoderById(id)){
+      state.viewerCharacters = (state.viewerCharacters || []).filter(c => c.id !== id);
+      saveState();
+      if(typeof postVisitorData === 'function') postVisitorData('deleteCharacter', { id });
+    } else {
+      state.content.characters = state.content.characters.filter(c => c.id !== id);
+      saveState();
+    }
+  }
   else if(type === 'place') state.content.places = state.content.places.filter(p => p.id !== id);
   else if(type === 'gallery') state.content.gallery = state.content.gallery.filter(g => g.id !== id);
   else if(type === 'article') state.content.articles = state.content.articles.filter(a => a.id !== id);
@@ -2555,6 +2594,54 @@ const HomeCheckIn = {
   },
 };
 
+/* ---------- Coder activity rail (Player Gray) ---------- */
+const CODER_ACTIVITY_META = {
+  card_created: { label: 'Card created', icon: '◆', neon: '#fcd34d' },
+  quest_sent: { label: 'Quest sent', icon: '▶', neon: '#4ade80' },
+  quest_complete: { label: 'Quest completed', icon: '★', neon: '#3ad6e0' },
+  xp_award: { label: 'XP awarded', icon: '↑', neon: '#fbbf24' },
+  community_post: { label: 'Community post', icon: '◎', neon: '#38bdf8' },
+  community_reply: { label: 'Reply', icon: '↩', neon: '#a78bfa' },
+};
+
+function renderCoderNotifyRail(){
+  const rail = document.getElementById('coderNotifyRail');
+  if(!rail) return;
+  if(!isAdmin()){
+    rail.classList.add('hidden');
+    rail.innerHTML = '';
+    return;
+  }
+  rail.classList.remove('hidden');
+  const acts = (state.coderActivity || []).slice(0, 80);
+  const nodes = acts.length ? acts.map(act => {
+    const meta = CODER_ACTIVITY_META[act.type] || { label: act.type, icon: '·', neon: '#94a3b8' };
+    const when = act.at ? new Date(act.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const detail = act.detail || act.name || '';
+    return `<article class="live-node coder-act-node" style="--ln-neon:${meta.neon}">
+      <div class="live-node-marker"><span class="live-node-glow"></span><span class="live-node-core"></span></div>
+      <div class="live-node-card">
+        <div class="live-node-top">
+          <time class="live-node-time">${esc(when)}</time>
+          <span class="live-node-type">${meta.icon} ${meta.label}</span>
+        </div>
+        <p class="live-node-text">${esc(detail)}</p>
+      </div>
+    </article>`;
+  }).join('') : `<p class="live-rail-empty">Coder activity will show here — quests, posts, XP, new cards.</p>`;
+  rail.innerHTML = `
+    <div class="coder-notify-head">
+      <span class="live-rail-label">Coder signal</span>
+      <span class="live-rail-count">${acts.length}</span>
+    </div>
+    <div class="coder-notify-scroll">
+      <div class="live-rail-track">
+        <div class="live-rail-spine" aria-hidden="true"></div>
+        <div class="live-rail-nodes">${nodes}</div>
+      </div>
+    </div>`;
+}
+
 function renderHomeCheckIn(){
   const spread = document.getElementById('homeSpread');
   if(!spread) return;
@@ -2602,12 +2689,12 @@ function renderHomeCheckIn(){
 
       ${HomeCheckIn.renderLiveTodos(admin)}
 
-      ${admin ? `<div class="live-controls admin-only">
+      ${admin ? `<div class="live-controls">
         <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
         <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
       </div>` : ''}
 
-      ${admin ? `<section class="live-pulse-board admin-only">
+      ${admin ? `<section class="live-pulse-board">
         <div class="live-pulse-head">
           <div>
             <h3 class="live-pulse-title">Drop a pulse</h3>
@@ -2915,12 +3002,6 @@ function renderPlaces(){
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
-  const hint = document.querySelector('#view-characters .gallery-hint');
-  if(hint){
-    hint.textContent = isAdmin()
-      ? 'Rena, Merlin, and every coder who makes a card — click a coder card to edit their deck entry.'
-      : 'Click to flip.';
-  }
   const chars = getCharacters();
   deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i)).join('');
   bindFlipPlayerCards(deck);
@@ -3875,7 +3956,14 @@ document.getElementById('pinForm')?.addEventListener('submit', e => {
       replies: [],
     });
     saveState();
-    LiveSync?.pinPosted(name, location);
+    if(typeof logCoderActivity === 'function'){
+      logCoderActivity(author.characterId ? 'community_post' : 'community_post', {
+        coderId: author.characterId || '',
+        name: author.name,
+        detail: `${author.name} posted on Community`,
+      });
+    }
+    LiveSync?.pinPosted(author.name, location);
     document.getElementById('pinForm').reset();
     renderPinboard();
   };
@@ -3918,4 +4006,5 @@ function renderAll(){
     () => { if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll(); },
   ].forEach(safeRender);
   applyAdminUI();
+  if(isAdmin() && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
 }
