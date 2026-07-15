@@ -1,37 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROJECT SHENZHEN // GRAY</title>
-    <link rel="stylesheet" href="style.css">
-</head>
 <body>
-    <div class="background-grain"></div>
-    <div class="app-container">
-        <!-- Sidebar: The "Tech-Wear" Controller -->
-        <aside class="sidebar">
-            <div class="avatar-module">
-                <img src="gray_character.png" alt="Gray" class="avatar-img">
-            </div>
-            <h1 class="player-tag">PLAYER: YUÈLÍNG (GRAY)</h1>
-            <nav class="nav-menu">
-                <button class="nav-btn" data-target="logs">SYNC // LOGS</button>
-                <button class="nav-btn" data-target="atlas">EXPLORE // ATLAS</button>
-                <button class="nav-btn" data-target="modules">IDENTITY // MODULES</button>
-            </nav>
-        </aside>
-
-        <!-- Main Viewport: The "Cyber-Frame" -->
-        <main class="content-viewport">
-            <header class="viewport-header">
-                <h2 id="view-title">SYSTEM_READY</h2>
-            </header>
-            <section id="viewport-content">
-                <p class="boot-text">INITIALIZING_CONNECTIVITY_PROTOCOLS...</p>
-            </section>
-        </main>
+    <!-- The atmospheric background is set via CSS -->
+    <div class="hero-character"></div>
+    
+    <div class="ui-frame">
+        <h1 style="color:var(--electric-cyan)">PLAYER: GRAY</h1>
+        <nav>
+            <button class="nav-btn">SYNC // LOGS</button>
+            <button class="nav-btn">ATLAS // MAP</button>
+            <button class="nav-btn">IDENTITY // MODULES</button>
+        </nav>
     </div>
-    <script src="script.js"></script>
 </body>
 </html>

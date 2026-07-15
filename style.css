@@ -1,57 +1,64 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
 :root {
-    --bg-void: #050209;         /* Crushed Black */
-    --neon-rose: #bf00ff;       /* Primary Ambient Magenta */
-    --neon-cyan: #00f2ff;       /* Secondary Rim-light Blue */
-    --glass: rgba(10, 5, 15, 0.85);
+    /* Precise colors derived from the reference image neon palette */
+    --void-black: #050209;
+    --neon-magenta: #bf00ff;
+    --electric-cyan: #00f2ff;
 }
 
 body {
-    background: radial-gradient(circle at top right, #2a0033 0%, var(--bg-void) 70%);
-    color: #fff;
+    margin: 0; height: 100vh;
     font-family: 'Orbitron', sans-serif;
-    margin: 0;
-    height: 100vh;
+    /* The reference city background */
+    background: url('Rebecca_3.jpeg') no-repeat center center fixed;
+    background-size: cover;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
-/* Texture overlay to replicate the "sketched/grainy" aesthetic */
-.background-grain {
-    position: fixed; width: 100%; height: 100%;
-    background-image: url('data:image/svg+xml;utf8,<svg ...grainy-noise...</svg>');
-    opacity: 0.15; pointer-events: none; z-index: 0;
+/* This layer adds the "sophisticated haze" */
+body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 60% 40%, rgba(191, 0, 255, 0.15), rgba(5, 2, 9, 0.6));
+    backdrop-filter: blur(5px);
+    z-index: -1;
 }
 
-.app-container {
-    display: grid; grid-template-columns: 320px 1fr;
-    height: 100vh; padding: 40px; gap: 30px; position: relative; z-index: 1;
+/* The Player Gray Hero Image (Fixed, non-obstructive) */
+.hero-character {
+    width: 45vw; height: 100vh;
+    background: url('gray_character_3.png') no-repeat left bottom;
+    background-size: contain;
+    z-index: 1;
+    filter: drop-shadow(0 0 20px rgba(0, 242, 255, 0.2));
 }
 
-.sidebar, .content-viewport {
-    background: var(--glass);
-    border: 1px solid var(--neon-rose);
-    box-shadow: 0 0 15px rgba(191, 0, 255, 0.2);
-    padding: 30px;
-}
-
-/* Avatar "Halo" Glow */
-.avatar-img {
-    width: 140px; height: 140px;
-    border: 2px solid var(--neon-cyan);
-    box-shadow: 0 0 20px var(--neon-cyan);
-    border-radius: 50%;
+/* The Interface: Glassmorphism with "complication" */
+.ui-frame {
+    z-index: 2;
+    background: rgba(10, 5, 15, 0.6);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    padding: 40px;
+    height: 100vh;
+    width: 300px;
+    display: flex; flex-direction: column;
+    justify-content: center;
 }
 
 .nav-btn {
-    width: 100%; padding: 15px; margin: 10px 0;
-    background: transparent; border: 1px solid var(--neon-rose);
-    color: var(--neon-rose); text-transform: uppercase;
-    cursor: crosshair; transition: 0.4s;
+    background: transparent;
+    border: 1px solid var(--neon-magenta);
+    color: white; padding: 20px; margin: 15px 0;
+    text-transform: uppercase; letter-spacing: 3px;
+    transition: 0.5s; cursor: crosshair;
 }
 
 .nav-btn:hover {
-    background: var(--neon-rose); color: white;
-    text-shadow: 0 0 10px white;
-    box-shadow: 0 0 20px var(--neon-rose);
+    background: var(--neon-magenta);
+    box-shadow: 0 0 25px var(--neon-magenta);
 }
