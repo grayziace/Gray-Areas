@@ -831,13 +831,196 @@ function ensureTodayStream(){
   return key;
 }
 
+function ensureStreamForDate(dateStr){
+  const key = dateStr || todayKey();
+  if(!state.entries[key]) state.entries[key] = {};
+  if(!state.entries[key].stream) state.entries[key].stream = { nodes: [] };
+  return key;
+}
+
 const STREAM_NODE_META = {
   wake: { label: 'Wake', neon: '#6ee7a0', icon: '◉' },
   sleep: { label: 'Sleep', neon: '#71717a', icon: '◎' },
+  note: { label: 'Note', neon: '#3ad6e0', icon: '◆' },
+  photo: { label: 'Photo', neon: '#38bdf8', icon: '📷' },
+  mood: { label: 'Mood', neon: '#f472b6', icon: '◎' },
+  food: { label: 'Food', neon: '#fb923c', icon: '🍜' },
+  drink: { label: 'Drink', neon: '#fbbf24', icon: '☕' },
+  person: { label: 'Person', neon: '#a78bfa', icon: '👤' },
+  place: { label: 'Place', neon: '#4ade80', icon: '📍' },
   song: { label: 'Song', neon: '#f472b6', icon: '♫' },
   book: { label: 'Book', neon: '#a78bfa', icon: '▣' },
   film: { label: 'Film', neon: '#f43f8e', icon: '▶' },
-  note: { label: 'Note', neon: '#3ad6e0', icon: '◆' },
+  workout: { label: 'Workout', neon: '#ef4444', icon: '⚡' },
+  health: { label: 'Health', neon: '#22d3ee', icon: '✚' },
+  work: { label: 'Work', neon: '#60a5fa', icon: '⌁' },
+  travel: { label: 'Travel', neon: '#2dd4bf', icon: '✈' },
+  weather: { label: 'Weather', neon: '#94a3b8', icon: '☁' },
+  purchase: { label: 'Purchase', neon: '#fcd34d', icon: '¥' },
+  idea: { label: 'Idea', neon: '#c084fc', icon: '💡' },
+  dream: { label: 'Dream', neon: '#818cf8', icon: '☾' },
+  anxiety: { label: 'Anxiety', neon: '#f87171', icon: '!' },
+  win: { label: 'Win', neon: '#4ade80', icon: '★' },
+  gratitude: { label: 'Gratitude', neon: '#f9a8d4', icon: '♥' },
+  mandarin: { label: 'Mandarin', neon: '#dc2626', icon: '文' },
+  hobby: { label: 'Hobby', neon: '#e879f9', icon: '✦' },
+  nap: { label: 'Rest', neon: '#64748b', icon: '⋯' },
+  event: { label: 'Event', neon: '#f97316', icon: '◈' },
+  call: { label: 'Call', neon: '#34d399', icon: '☎' },
+  message: { label: 'Message', neon: '#7dd3fc', icon: '✉' },
+  news: { label: 'News', neon: '#fca5a5', icon: '▤' },
+  learn: { label: 'Learned', neon: '#86efac', icon: '?' },
+  vibe: { label: 'Vibe', neon: '#e879f9', icon: '◇' },
+  memory: { label: 'Memory', neon: '#fda4af', icon: '⌛' },
+};
+
+const PULSE_TYPE_DEFS = {
+  note: { fields: [
+    { id: 'title', label: 'Headline', type: 'text', placeholder: 'Short label for the rail' },
+    { id: 'body', label: 'Message', type: 'textarea', rows: 8, required: true, placeholder: 'Full update — as detailed as you need' },
+  ]},
+  photo: { fields: [
+    { id: 'photo', label: 'Photo', type: 'photo', required: true },
+    { id: 'caption', label: 'Description', type: 'textarea', rows: 4, placeholder: 'What is this? Why does it matter?' },
+    { id: 'place', label: 'Where', type: 'text', placeholder: 'Location, venue, room…' },
+  ]},
+  mood: { fields: [
+    { id: 'mood', label: 'Mood (1–10)', type: 'range', min: 1, max: 10, default: 7 },
+    { id: 'body', label: 'How you feel', type: 'textarea', rows: 5, placeholder: 'Name it, unpack it, no filter' },
+  ]},
+  food: { fields: [
+    { id: 'what', label: 'What', type: 'text', required: true, placeholder: 'Dish, snack, meal…' },
+    { id: 'where', label: 'Where', type: 'text', placeholder: 'Restaurant, home, street stall…' },
+    { id: 'rating', label: 'Rating (1–10)', type: 'number', min: 1, max: 10 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
+  ]},
+  drink: { fields: [
+    { id: 'what', label: 'What', type: 'text', required: true },
+    { id: 'where', label: 'Where', type: 'text' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
+  ]},
+  person: { fields: [
+    { id: 'name', label: 'Who', type: 'text', required: true, placeholder: 'Name or handle' },
+    { id: 'context', label: 'Context', type: 'text', placeholder: 'How you met, relationship, vibe…' },
+    { id: 'where', label: 'Where', type: 'text' },
+    { id: 'body', label: 'Details', type: 'textarea', rows: 5, placeholder: 'Everything worth remembering' },
+  ]},
+  place: { fields: [
+    { id: 'name', label: 'Place', type: 'text', required: true },
+    { id: 'area', label: 'Area / address', type: 'text' },
+    { id: 'body', label: 'Discovery notes', type: 'textarea', rows: 5, placeholder: 'What you found, why it matters' },
+  ]},
+  song: { fields: [
+    { id: 'title', label: 'Track', type: 'text', required: true, placeholder: 'Song · artist' },
+    { id: 'context', label: 'Context', type: 'text', placeholder: 'Why now, where listening…' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
+  ]},
+  book: { fields: [
+    { id: 'title', label: 'Book', type: 'text', required: true, placeholder: 'Title · author' },
+    { id: 'progress', label: 'Chapter / page', type: 'text' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  film: { fields: [
+    { id: 'title', label: 'Film / show', type: 'text', required: true },
+    { id: 'progress', label: 'Episode / scene', type: 'text' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  workout: { fields: [
+    { id: 'what', label: 'Activity', type: 'text', required: true },
+    { id: 'duration', label: 'Duration (min)', type: 'number', min: 0 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
+  ]},
+  health: { fields: [
+    { id: 'what', label: 'What', type: 'text', required: true, placeholder: 'Symptom, meds, sleep, body…' },
+    { id: 'body', label: 'Details', type: 'textarea', rows: 5 },
+  ]},
+  work: { fields: [
+    { id: 'what', label: 'What', type: 'text', required: true },
+    { id: 'hours', label: 'Hours', type: 'number', min: 0, step: 0.5 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  travel: { fields: [
+    { id: 'from', label: 'From', type: 'text' },
+    { id: 'to', label: 'To', type: 'text', required: true },
+    { id: 'mode', label: 'Mode', type: 'text', placeholder: 'metro, taxi, walk…' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
+  ]},
+  weather: { fields: [
+    { id: 'what', label: 'Conditions', type: 'text', required: true, placeholder: 'Hot, humid, storm…' },
+    { id: 'temp', label: 'Temp (°C)', type: 'text' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 2 },
+  ]},
+  purchase: { fields: [
+    { id: 'what', label: 'What', type: 'text', required: true },
+    { id: 'cost', label: 'Cost', type: 'text' },
+    { id: 'body', label: 'Why / notes', type: 'textarea', rows: 3 },
+  ]},
+  idea: { fields: [
+    { id: 'title', label: 'Idea', type: 'text', required: true },
+    { id: 'body', label: 'Expand', type: 'textarea', rows: 6 },
+  ]},
+  dream: { fields: [
+    { id: 'title', label: 'Title / hook', type: 'text' },
+    { id: 'body', label: 'Dream log', type: 'textarea', rows: 7, required: true },
+  ]},
+  anxiety: { fields: [
+    { id: 'trigger', label: 'Trigger', type: 'text' },
+    { id: 'intensity', label: 'Intensity (1–10)', type: 'range', min: 1, max: 10, default: 5 },
+    { id: 'body', label: 'What is happening', type: 'textarea', rows: 6, required: true },
+  ]},
+  win: { fields: [
+    { id: 'title', label: 'Win', type: 'text', required: true },
+    { id: 'body', label: 'Details', type: 'textarea', rows: 4 },
+  ]},
+  gratitude: { fields: [
+    { id: 'what', label: 'Grateful for', type: 'text', required: true },
+    { id: 'body', label: 'Why', type: 'textarea', rows: 4 },
+  ]},
+  mandarin: { fields: [
+    { id: 'what', label: 'Session', type: 'text', required: true, placeholder: 'Lesson, practice, conversation…' },
+    { id: 'hours', label: 'Hours', type: 'number', min: 0, step: 0.5 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  hobby: { fields: [
+    { id: 'what', label: 'Hobby', type: 'text', required: true },
+    { id: 'hours', label: 'Hours', type: 'number', min: 0, step: 0.5 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  nap: { fields: [
+    { id: 'duration', label: 'Duration (min)', type: 'number', min: 0 },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3, placeholder: 'Quality, dreams, why you crashed…' },
+  ]},
+  event: { fields: [
+    { id: 'title', label: 'Event', type: 'text', required: true },
+    { id: 'where', label: 'Where', type: 'text' },
+    { id: 'body', label: 'What happened', type: 'textarea', rows: 6 },
+  ]},
+  call: { fields: [
+    { id: 'who', label: 'Who', type: 'text', required: true },
+    { id: 'duration', label: 'Duration (min)', type: 'number', min: 0 },
+    { id: 'body', label: 'Summary', type: 'textarea', rows: 5 },
+  ]},
+  message: { fields: [
+    { id: 'who', label: 'Who / where', type: 'text', required: true },
+    { id: 'body', label: 'Message / thread', type: 'textarea', rows: 6, required: true },
+  ]},
+  news: { fields: [
+    { id: 'title', label: 'Headline', type: 'text', required: true },
+    { id: 'source', label: 'Source', type: 'text' },
+    { id: 'body', label: 'Your take', type: 'textarea', rows: 4 },
+  ]},
+  learn: { fields: [
+    { id: 'what', label: 'Learned', type: 'text', required: true },
+    { id: 'body', label: 'Details', type: 'textarea', rows: 5 },
+  ]},
+  vibe: { fields: [
+    { id: 'title', label: 'Vibe', type: 'text', required: true, placeholder: 'Energy, atmosphere, mood of the moment' },
+    { id: 'body', label: 'Expand', type: 'textarea', rows: 5 },
+  ]},
+  memory: { fields: [
+    { id: 'title', label: 'Memory hook', type: 'text' },
+    { id: 'body', label: 'Memory', type: 'textarea', rows: 7, required: true },
+  ]},
 };
 
 function fmtClockTime(tz){
@@ -851,16 +1034,103 @@ function fmtNodeTime(iso){
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function fmtNodeDateShort(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function fmtNodeStamp(iso, refDayKey){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if(!refDayKey || dayKey !== refDayKey){
+    return `${fmtNodeDateShort(iso)} · ${time}`;
+  }
+  return time;
+}
+
 function fmtNodeTimeFull(iso){
-  if(!iso) return '—:—:—';
-  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  return fmtNodeStamp(iso, null);
+}
+
+function composePulseAt(dateStr, timeStr){
+  const [y, m, d] = (dateStr || todayKey()).split('-').map(Number);
+  const parts = (timeStr || '12:00').split(':').map(Number);
+  return new Date(y, m - 1, d, parts[0] || 0, parts[1] || 0, parts[2] || 0).toISOString();
+}
+
+function nowTimeInputValue(){
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}:${String(n.getSeconds()).padStart(2, '0')}`;
+}
+
+function compressPulsePhoto(dataUrl, maxW = 900){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function buildPulseSummary(type, data){
+  const join = (...parts) => parts.filter(Boolean).join(' · ');
+  switch(type){
+    case 'note': return data.title || (data.body || '').slice(0, 120);
+    case 'photo': return join(data.caption?.split('\n')[0], data.place);
+    case 'mood': return join(`Mood ${data.mood || '?'}/10`, (data.body || '').slice(0, 80));
+    case 'food': return join(data.what, data.where, data.rating ? `${data.rating}/10` : '');
+    case 'drink': return join(data.what, data.where);
+    case 'person': return join('Met', data.name, data.context);
+    case 'place': return join('Found', data.name, data.area);
+    case 'song':
+    case 'book':
+    case 'film': return join(data.title, data.progress || data.context);
+    case 'workout': return join(data.what, data.duration ? `${data.duration}m` : '');
+    case 'health': return data.what;
+    case 'work': return join(data.what, data.hours ? `${data.hours}h` : '');
+    case 'travel': return join(data.from ? `${data.from} →` : '', data.to, data.mode);
+    case 'weather': return join(data.what, data.temp ? `${data.temp}°C` : '');
+    case 'purchase': return join(data.what, data.cost);
+    case 'idea':
+    case 'dream':
+    case 'win':
+    case 'event':
+    case 'news':
+    case 'vibe':
+    case 'memory': return data.title || (data.body || '').slice(0, 100);
+    case 'anxiety': return join(data.trigger, data.intensity ? `intensity ${data.intensity}/10` : '');
+    case 'gratitude': return data.what;
+    case 'mandarin':
+    case 'hobby': return join(data.what, data.hours ? `${data.hours}h` : '');
+    case 'nap': return join('Rest', data.duration ? `${data.duration}m` : '');
+    case 'call': return join('Call', data.who, data.duration ? `${data.duration}m` : '');
+    case 'message': return join(data.who, (data.body || '').slice(0, 60));
+    case 'learn': return data.what;
+    default: return data.body || data.title || data.what || data.name || '';
+  }
 }
 
 function streamDiaryDraft(nodes){
   return nodes
     .filter(n => n.type !== 'wake' && n.type !== 'sleep')
-    .map(n => `[${fmtNodeTime(n.at)}] ${STREAM_NODE_META[n.type]?.label || n.type}: ${n.text}`)
-    .join('\n');
+    .map(n => {
+      const label = STREAM_NODE_META[n.type]?.label || n.type;
+      const stamp = fmtNodeStamp(n.at, null);
+      const extra = n.body && n.body !== n.text ? `\n  ${n.body}` : '';
+      return `[${stamp}] ${label}: ${n.text || ''}${extra}`;
+    })
+    .join('\n\n');
 }
 
 function last7Entries(){
@@ -1378,6 +1648,8 @@ function renderAbout(){
 const HomeCheckIn = {
   clockTimer: null,
   inited: false,
+  pulseType: 'note',
+  pulsePhotoData: '',
 
   init(){
     if(this.inited) return;
@@ -1391,24 +1663,199 @@ const HomeCheckIn = {
     document.getElementById('endDayBack')?.addEventListener('click', e => {
       if(e.target.id === 'endDayBack') this.closeEndDay();
     });
+    document.getElementById('closePulseComposer')?.addEventListener('click', () => this.closePulseComposer());
+    document.getElementById('cancelPulseComposer')?.addEventListener('click', () => this.closePulseComposer());
+    document.getElementById('savePulseComposer')?.addEventListener('click', () => this.submitPulse());
+    document.getElementById('pulseComposerBack')?.addEventListener('click', e => {
+      if(e.target.id === 'pulseComposerBack') this.closePulseComposer();
+    });
     this.startClock();
   },
 
   bindSpread(spread){
     spread.querySelector('#homeStartDay')?.addEventListener('click', () => this.startDay());
     spread.querySelector('#homeEndDay')?.addEventListener('click', () => this.openEndDay());
-    spread.querySelector('#homeAddSong')?.addEventListener('click', () => this.addPulse('song', 'homeSongInput'));
-    spread.querySelector('#homeAddBook')?.addEventListener('click', () => this.addPulse('book', 'homeBookInput'));
-    spread.querySelector('#homeAddFilm')?.addEventListener('click', () => this.addPulse('film', 'homeFilmInput'));
-    spread.querySelector('#homeAddNote')?.addEventListener('click', () => this.addPulse('note', 'homeNoteInput'));
-    ['homeSongInput', 'homeBookInput', 'homeFilmInput', 'homeNoteInput'].forEach(id => {
-      spread.querySelector('#' + id)?.addEventListener('keydown', e => {
-        if(e.key === 'Enter'){
-          const map = { homeSongInput: 'song', homeBookInput: 'book', homeFilmInput: 'film', homeNoteInput: 'note' };
-          this.addPulse(map[id], id);
-        }
+    spread.querySelector('#homeOpenPulse')?.addEventListener('click', () => this.openPulseComposer());
+    spread.querySelectorAll('[data-pulse-quick]').forEach(btn => {
+      btn.addEventListener('click', () => this.openPulseComposer(btn.dataset.pulseQuick));
+    });
+  },
+
+  requireActiveDay(){
+    const stream = getDayStream(todayKey());
+    if(!stream.startedAt){
+      alert('Tap Start day first.');
+      return false;
+    }
+    if(stream.endedAt){
+      alert('Day already ended. Start a new day tomorrow.');
+      return false;
+    }
+    return true;
+  },
+
+  openPulseComposer(type){
+    if(!isAdmin()) return;
+    if(!this.requireActiveDay()) return;
+    this.pulseType = type && PULSE_TYPE_DEFS[type] ? type : (type || this.pulseType || 'note');
+    this.pulsePhotoData = '';
+    document.getElementById('pulseDate').value = todayKey();
+    document.getElementById('pulseTime').value = nowTimeInputValue();
+    this.renderPulseTypeGrid();
+    this.renderPulseFields();
+    document.getElementById('pulseComposerBack')?.classList.remove('hidden');
+  },
+
+  closePulseComposer(){
+    document.getElementById('pulseComposerBack')?.classList.add('hidden');
+    this.pulsePhotoData = '';
+  },
+
+  renderPulseTypeGrid(){
+    const grid = document.getElementById('pulseTypeGrid');
+    if(!grid) return;
+    grid.innerHTML = Object.entries(STREAM_NODE_META)
+      .filter(([id]) => id !== 'wake' && id !== 'sleep' && PULSE_TYPE_DEFS[id])
+      .map(([id, meta]) => `
+        <button type="button" class="pulse-type-btn ${id === this.pulseType ? 'active' : ''}" data-pulse-type="${id}" style="--pt-neon:${meta.neon}" title="${meta.label}">
+          <span class="pulse-type-icon">${meta.icon}</span>
+          <span class="pulse-type-label">${meta.label}</span>
+        </button>`).join('');
+    grid.querySelectorAll('[data-pulse-type]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.pulseType = btn.dataset.pulseType;
+        this.pulsePhotoData = '';
+        this.renderPulseTypeGrid();
+        this.renderPulseFields();
       });
     });
+  },
+
+  renderPulseFields(){
+    const root = document.getElementById('pulseFields');
+    if(!root) return;
+    const def = PULSE_TYPE_DEFS[this.pulseType];
+    if(!def){
+      root.innerHTML = '';
+      return;
+    }
+    root.innerHTML = def.fields.map(field => {
+      const id = `pulseField_${field.id}`;
+      if(field.type === 'textarea'){
+        return `<div class="field"><label>${field.label}</label><textarea id="${id}" rows="${field.rows || 4}" placeholder="${esc(field.placeholder || '')}"></textarea></div>`;
+      }
+      if(field.type === 'range'){
+        const val = field.default ?? 7;
+        return `<div class="field"><label>${field.label}</label><input type="range" id="${id}" min="${field.min}" max="${field.max}" value="${val}"><span class="range-val" id="${id}_val">${val}</span></div>`;
+      }
+      if(field.type === 'photo'){
+        return `<div class="field"><label>${field.label}</label>
+          <input type="file" id="${id}" accept="image/*">
+          <div class="pulse-photo-preview" id="${id}_preview"></div></div>`;
+      }
+      const inputType = field.type === 'number' ? 'number' : 'text';
+      const extra = field.type === 'number'
+        ? ` min="${field.min ?? ''}" max="${field.max ?? ''}" step="${field.step ?? 1}"`
+        : '';
+      return `<div class="field"><label>${field.label}</label><input type="${inputType}" id="${id}"${extra} placeholder="${esc(field.placeholder || '')}"></div>`;
+    }).join('');
+
+    def.fields.forEach(field => {
+      const el = document.getElementById(`pulseField_${field.id}`);
+      if(!el) return;
+      if(field.type === 'range'){
+        const valEl = document.getElementById(`pulseField_${field.id}_val`);
+        el.addEventListener('input', () => { if(valEl) valEl.textContent = el.value; });
+      }
+      if(field.type === 'photo'){
+        el.addEventListener('change', async e => {
+          const file = e.target.files?.[0];
+          if(!file) return;
+          const reader = new FileReader();
+          reader.onload = async () => {
+            this.pulsePhotoData = await compressPulsePhoto(reader.result);
+            const prev = document.getElementById(`pulseField_${field.id}_preview`);
+            if(prev) prev.innerHTML = `<img src="${this.pulsePhotoData}" alt="">`;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+  },
+
+  readPulseForm(){
+    const def = PULSE_TYPE_DEFS[this.pulseType];
+    const data = {};
+    if(!def) return data;
+    def.fields.forEach(field => {
+      const el = document.getElementById(`pulseField_${field.id}`);
+      if(!el) return;
+      if(field.type === 'photo') data.photo = this.pulsePhotoData;
+      else data[field.id] = el.value?.trim?.() ?? el.value;
+    });
+    return data;
+  },
+
+  validatePulseForm(data){
+    const def = PULSE_TYPE_DEFS[this.pulseType];
+    if(!def) return 'Unknown pulse type.';
+    for(const field of def.fields){
+      if(!field.required) continue;
+      if(field.type === 'photo' && !data.photo) return `Add a ${field.label.toLowerCase()}.`;
+      if(field.type !== 'photo' && !data[field.id]) return `Fill in ${field.label.toLowerCase()}.`;
+    }
+    return '';
+  },
+
+  async submitPulse(){
+    if(!isAdmin()) return;
+    if(!this.requireActiveDay()) return;
+    const data = this.readPulseForm();
+    const err = this.validatePulseForm(data);
+    if(err){ alert(err); return; }
+
+    const dateStr = document.getElementById('pulseDate')?.value || todayKey();
+    const timeStr = document.getElementById('pulseTime')?.value || nowTimeInputValue();
+    const at = composePulseAt(dateStr, timeStr);
+    const text = buildPulseSummary(this.pulseType, data);
+    const body = data.body || data.caption || data.message || '';
+    const node = {
+      id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      at,
+      type: this.pulseType,
+      text,
+      body: body || undefined,
+      data: { ...data },
+    };
+    if(data.photo) node.photo = data.photo;
+    if(data.mood) node.mood = Number(data.mood);
+    if(data.intensity) node.intensity = Number(data.intensity);
+    if(data.rating) node.rating = Number(data.rating);
+
+    const streamKey = ensureTodayStream();
+    const stream = getDayStream(streamKey);
+    stream.nodes.push(node);
+    state.entries[streamKey].stream = stream;
+
+    const metaKey = ensureStreamForDate(dateStr);
+    const entry = normalizeEntry(state.entries[metaKey]);
+    const patch = {};
+    if(this.pulseType === 'person' && data.name && !entry.people.includes(data.name)){
+      patch.people = [...entry.people, data.name];
+    }
+    if(this.pulseType === 'place' && data.name && !entry.places.includes(data.name)){
+      patch.places = [...entry.places, data.name];
+      if(!state.unlockedZones.includes(data.name)) state.unlockedZones.push(data.name);
+    }
+    if(this.pulseType === 'mood' && data.mood) patch.mood = data.mood;
+    if(this.pulseType === 'photo' && data.photo) patch.photos = [...entry.photos, data.photo];
+    if(Object.keys(patch).length) state.entries[metaKey] = { ...state.entries[metaKey], ...patch };
+
+    saveState();
+    this.closePulseComposer();
+    renderHomeCheckIn();
+    renderLogCalendar();
+    safeRender(renderAbout);
   },
 
   startClock(){
@@ -1421,39 +1868,6 @@ const HomeCheckIn = {
     };
     tick();
     this.clockTimer = setInterval(tick, 1000);
-  },
-
-  addNode(type, text){
-    const key = ensureTodayStream();
-    const stream = getDayStream(key);
-    stream.nodes.push({
-      id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-      at: new Date().toISOString(),
-      type,
-      text: text.trim(),
-    });
-    state.entries[key].stream = stream;
-    saveState();
-    renderHomeCheckIn();
-    renderLogCalendar();
-  },
-
-  addPulse(type, inputId){
-    if(!isAdmin()) return;
-    const input = document.getElementById(inputId);
-    const text = input?.value?.trim();
-    if(!text) return;
-    const stream = getDayStream(todayKey());
-    if(!stream.startedAt){
-      alert('Tap Start day first.');
-      return;
-    }
-    if(stream.endedAt){
-      alert('Day already ended. Start a new day tomorrow.');
-      return;
-    }
-    this.addNode(type, text);
-    if(input) input.value = '';
   },
 
   startDay(){
@@ -1542,7 +1956,7 @@ const HomeCheckIn = {
     document.querySelector('.node-btn[data-view="ledger"]')?.click();
   },
 
-  renderTimeline(stream){
+  renderTimeline(stream, refDayKey){
     if(!stream.nodes.length){
       return `<div class="live-rail-empty">
         <div class="live-rail-spine"></div>
@@ -1562,6 +1976,10 @@ const HomeCheckIn = {
             if(mins >= 60) gap = Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
             else gap = mins + 'm';
           }
+          const moodBadge = node.mood ? `<span class="live-node-mood">${node.mood}/10</span>` : (node.intensity ? `<span class="live-node-mood">${node.intensity}/10</span>` : (node.rating ? `<span class="live-node-mood">${node.rating}/10</span>` : ''));
+          const photoHtml = node.photo ? `<div class="live-node-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : '';
+          const body = node.body && node.body !== node.text ? node.body : '';
+          const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 220 ? body.slice(0, 220) + '…' : body)}</p>` : '';
           return `<article class="live-node" style="--ln-neon:${meta.neon}">
             <div class="live-node-marker" title="${meta.label}">
               <span class="live-node-glow"></span>
@@ -1569,11 +1987,14 @@ const HomeCheckIn = {
             </div>
             <div class="live-node-card">
               <div class="live-node-top">
-                <time class="live-node-time">${fmtNodeTimeFull(node.at)}</time>
+                <time class="live-node-time">${fmtNodeStamp(node.at, refDayKey)}</time>
                 <span class="live-node-type">${meta.icon} ${meta.label}</span>
+                ${moodBadge}
                 ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
               </div>
               <p class="live-node-text">${esc(node.text || '')}</p>
+              ${bodyHtml}
+              ${photoHtml}
             </div>
           </article>`;
         }).join('')}
@@ -1613,7 +2034,7 @@ function renderHomeCheckIn(){
         <span class="live-rail-label">Transmission log</span>
         <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}</span>
       </div>
-      <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream)}</div>
+      <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
     </aside>
 
     <main class="live-stage-col">
@@ -1638,8 +2059,8 @@ function renderHomeCheckIn(){
 
       <div class="live-status-bar">
         <span>${esc(HomeCheckIn.dayStatus(stream))}</span>
-        ${stream.startedAt ? `<span>Wake ${fmtNodeTimeFull(stream.startedAt)}</span>` : ''}
-        ${stream.endedAt ? `<span>Sleep ${fmtNodeTimeFull(stream.endedAt)}</span>` : ''}
+        ${stream.startedAt ? `<span>Wake ${fmtNodeStamp(stream.startedAt, key)}</span>` : ''}
+        ${stream.endedAt ? `<span>Sleep ${fmtNodeStamp(stream.endedAt, key)}</span>` : ''}
       </div>
 
       ${admin ? `<div class="live-controls admin-only">
@@ -1648,29 +2069,18 @@ function renderHomeCheckIn(){
       </div>` : ''}
 
       ${admin ? `<section class="live-pulse-board admin-only">
-        <h3 class="live-pulse-title">Drop a pulse</h3>
-        <p class="live-pulse-hint">Quick updates timestamped on the rail. Enter or + to send.</p>
-        <div class="live-pulse-grid">
-          <div class="live-pulse-row" style="--lp-neon:#f472b6">
-            <span class="live-pulse-icon">♫</span>
-            <input type="text" id="homeSongInput" placeholder="Song — track · artist">
-            <button type="button" class="btn" id="homeAddSong">+</button>
+        <div class="live-pulse-head">
+          <div>
+            <h3 class="live-pulse-title">Drop a pulse</h3>
+            <p class="live-pulse-hint">Photos, moods, food, people, places, long messages — set date &amp; time when it didn't happen just now.</p>
           </div>
-          <div class="live-pulse-row" style="--lp-neon:#a78bfa">
-            <span class="live-pulse-icon">▣</span>
-            <input type="text" id="homeBookInput" placeholder="Book — title · chapter/page">
-            <button type="button" class="btn" id="homeAddBook">+</button>
-          </div>
-          <div class="live-pulse-row" style="--lp-neon:#f43f8e">
-            <span class="live-pulse-icon">▶</span>
-            <input type="text" id="homeFilmInput" placeholder="Film — title · scene/ep">
-            <button type="button" class="btn" id="homeAddFilm">+</button>
-          </div>
-          <div class="live-pulse-row" style="--lp-neon:#3ad6e0">
-            <span class="live-pulse-icon">◆</span>
-            <input type="text" id="homeNoteInput" placeholder="Note — thought, update, moment">
-            <button type="button" class="btn" id="homeAddNote">+</button>
-          </div>
+          <button type="button" class="btn primary" id="homeOpenPulse">+ Compose pulse</button>
+        </div>
+        <div class="live-pulse-quick">
+          ${['note','photo','mood','food','person','place','message','song','vibe','anxiety','win','travel','health'].map(id => {
+            const meta = STREAM_NODE_META[id];
+            return `<button type="button" class="pulse-quick-btn" data-pulse-quick="${id}" style="--pq-neon:${meta.neon}" title="${meta.label}"><span>${meta.icon}</span> ${meta.label}</button>`;
+          }).join('')}
         </div>
       </section>` : ''}
 
@@ -1728,8 +2138,9 @@ function buildDayDetailHTML(key, e){
   if(stream?.nodes?.length){
     html += `<div class="day-detail-section"><h4>Day stream</h4><div class="day-stream-mini">`;
     [...stream.nodes].sort((a,b) => (a.at||'').localeCompare(b.at||'')).forEach(node => {
-      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0' };
-      html += `<div class="dsm-row" style="--dsm-neon:${meta.neon}"><span>${fmtNodeTime(node.at)}</span><span>${meta.label}</span><span>${esc(node.text||'')}</span></div>`;
+      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
+      const extra = node.body && node.body !== node.text ? ` — ${(node.body || '').slice(0, 140)}` : '';
+      html += `<div class="dsm-row" style="--dsm-neon:${meta.neon}"><span>${fmtNodeStamp(node.at, null)}</span><span>${meta.icon} ${meta.label}</span><span>${esc((node.text || '') + extra)}</span></div>`;
     });
     html += `</div></div>`;
   }

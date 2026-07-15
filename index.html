@@ -385,6 +385,27 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="pulseComposerBack">
+  <div class="modal sketch-card pulse-composer-modal">
+    <button class="modal-close" id="closePulseComposer" type="button">×</button>
+    <h3>Drop a pulse</h3>
+    <p class="field-hint">Set when it happened. Timeline shows date + time. Mood, people, places &amp; photos attach to the selected date.</p>
+    <div class="pulse-when-row">
+      <div class="field"><label>Date</label><input type="date" id="pulseDate"></div>
+      <div class="field"><label>Time</label><input type="time" id="pulseTime" step="1"></div>
+    </div>
+    <div class="field">
+      <label>Pulse type</label>
+      <div class="pulse-type-grid" id="pulseTypeGrid"></div>
+    </div>
+    <div id="pulseFields"></div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelPulseComposer" type="button">Cancel</button>
+      <button class="btn primary" id="savePulseComposer" type="button">Drop pulse</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="endDayBack">
   <div class="modal sketch-card end-day-modal">
     <button class="modal-close" id="closeEndDay">×</button>
