@@ -17,6 +17,14 @@ const SITE_STATE = {
             "at": "2026-07-15T12:15:46.754Z",
             "type": "film",
             "text": "The First Frost"
+          },
+          {
+            "id": "n-auto-1784122808538-ydec",
+            "at": "2026-07-15T13:40:08.538Z",
+            "type": "mood",
+            "source": "mood",
+            "text": "Mood → Focused",
+            "auto": true
           }
         ]
       }
@@ -35,5 +43,7 @@ const SITE_STATE = {
   "hiddenDramas": [
     "example-drama"
   ],
-  "overloadLogs": []
+  "overloadLogs": [],
+  "currentMood": "focused",
+  "moodCatalog": []
 };
