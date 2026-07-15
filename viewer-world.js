@@ -157,6 +157,18 @@ function getLoggedInCoderDisplayName(){
   }
 }
 
+function getCoderWelcomeAccent(){
+  const card = getMyCoderCard();
+  const raw = card?.pokeCard?.cardColor || card?.cardColor || '#4ade80';
+  return typeof toNeonAccent === 'function' ? (toNeonAccent(raw) || raw) : raw;
+}
+
+function displayInboxName(name){
+  if(!name) return 'Someone';
+  if(name === 'Player Gray' || name === 'Player grey') return 'Gray';
+  return name;
+}
+
 function renderCoderWelcomeBar(){
   const host = document.getElementById('coderWelcomeBar');
   if(!host) return;
@@ -167,7 +179,8 @@ function renderCoderWelcomeBar(){
   }
   if(isCoderLoggedIn()){
     const name = getLoggedInCoderDisplayName() || 'Coder';
-    host.innerHTML = `<div class="coder-welcome-bar"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong></span></div>`;
+    const neon = getCoderWelcomeAccent();
+    host.innerHTML = `<div class="coder-welcome-bar" style="--coder-neon:${esc(neon)}"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong></span></div>`;
     host.classList.remove('hidden');
     return;
   }
@@ -295,7 +308,7 @@ function getInboxUserId(){
 }
 
 function getInboxUserName(){
-  if(isAdmin()) return 'Player Gray';
+  if(isAdmin()) return 'Gray';
   const card = getMyCoderCard();
   return card?.name || getLoggedInCoderDisplayName() || 'Coder';
 }
@@ -527,12 +540,12 @@ function showUnreadInboxPopup(userId){
     sessionStorage.setItem(key, '1');
   }catch(e){}
   const preview = unread.slice(0, 3).map(m =>
-    `<div class="inbox-popup-msg"><strong>${esc(m.fromName || 'Someone')}</strong><p>${esc((m.body || '').slice(0, 160))}${(m.body || '').length > 160 ? '…' : ''}</p></div>`,
+    `<div class="inbox-popup-msg"><strong>${esc(displayInboxName(m.fromName))}</strong><p>${esc((m.body || '').slice(0, 160))}${(m.body || '').length > 160 ? '…' : ''}</p></div>`,
   ).join('');
   const more = unread.length > 3 ? `<p class="field-hint">+ ${unread.length - 3} more in your inbox</p>` : '';
   showWelcomeModal(
     unread.length === 1 ? 'New message for you' : `${unread.length} new messages`,
-    `${preview}${more}<p class="field-hint">Private messages — not on the Community board.</p>`,
+    `${preview}${more}`,
     { onDismiss: () => {
       markInboxRead(userId, unread.map(m => m.id));
       if(typeof navigateToView === 'function') navigateToView('inbox');
@@ -1920,7 +1933,7 @@ const ViewerWorld = {
       fromId,
       fromName,
       toId,
-      toName: toName || (toId === GRAY_INBOX_ID ? 'Player Gray' : 'Coder'),
+      toName: toName || (toId === GRAY_INBOX_ID ? 'Gray' : 'Coder'),
       body: body.trim(),
       at: new Date().toISOString(),
       readBy: [fromId],
@@ -2021,7 +2034,7 @@ const ViewerWorld = {
     if(!host) return;
     const userId = getInboxUserId();
     if(!userId){
-      host.innerHTML = `<p class="empty-hint">Log in to use private inbox — messages stay off the Community board.</p>`;
+      host.innerHTML = `<p class="empty-hint">Log in to use private messages.</p>`;
       return;
     }
     const messages = getInboxForUser(userId);
@@ -2029,7 +2042,7 @@ const ViewerWorld = {
     const coders = getInboxableCoders().filter(c => c.id !== userId);
     const recipientOptions = isAdmin()
       ? coders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
-      : [`<option value="${GRAY_INBOX_ID}">Player Gray</option>`,
+      : [`<option value="${GRAY_INBOX_ID}">Gray</option>`,
         ...coders.filter(c => c.id !== getCoderSessionId()).map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`),
       ].join('');
 
@@ -2040,13 +2053,13 @@ const ViewerWorld = {
         const when = m.at ? new Date(m.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         return `<article class="inbox-msg${isUnread ? ' is-unread' : ''}${mine ? ' is-sent' : ''}">
           <div class="inbox-msg-head">
-            <span class="inbox-msg-who">${mine ? `To <strong>${esc(m.toName)}</strong>` : `From <strong>${esc(m.fromName)}</strong>`}</span>
+            <span class="inbox-msg-who">${mine ? `To <strong>${esc(displayInboxName(m.toName))}</strong>` : `From <strong>${esc(displayInboxName(m.fromName))}</strong>`}</span>
             <time class="inbox-msg-time">${esc(when)}</time>
           </div>
           <p class="inbox-msg-body">${esc(m.body)}</p>
         </article>`;
       }).join('')
-      : `<p class="empty-hint">No messages yet. Say hi privately — coders ↔ Gray ↔ coders, never on Community.</p>`;
+      : `<p class="empty-hint">No messages yet.</p>`;
 
     let adminPanels = '';
     if(isAdmin()){
@@ -2068,8 +2081,6 @@ const ViewerWorld = {
 
     host.innerHTML = `
       <div class="inbox-compose sketch-card">
-        <h3 class="viewer-wizard-title">Private inbox</h3>
-        <p class="field-hint">${unread.length ? `<strong>${unread.length} unread</strong> — ` : ''}Direct messages only you and the recipient see.${isAdmin() ? ' Send coders a note — it pops up when they next log in.' : ''}</p>
         <form id="inboxComposeForm">
           <div class="field-row">
             <div class="field"><label>To</label><select id="inboxTo" required>${recipientOptions}</select></div>
@@ -2080,7 +2091,6 @@ const ViewerWorld = {
       </div>
       ${adminPanels}
       <section class="inbox-thread sketch-card">
-        <h3 class="viewer-wizard-title">Your messages</h3>
         <div class="inbox-msg-list">${msgList}</div>
         ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
       </section>`;

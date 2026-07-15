@@ -141,22 +141,23 @@
   <aside class="sidebar">
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
-      <button data-view="instructions" class="node-btn active" style="--nc:#e8c547"><span class="node-dot"></span><span>Instructions</span></button>
-      <button data-view="profile" class="node-btn" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player Profile</span></button>
-      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Coming To You Live</span></button>
-      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
-      <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
-      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Coder Cards</span></button>
-      <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>Skill Cards</span></button>
-      <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span>Media Log</span></button>
-      <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
-      <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
-      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
-      <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span>System Overload</span></button>
-      <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
-      <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
-      <button data-view="inbox" class="node-btn inbox-nav hidden" style="--nc:#c084fc"><span class="node-dot"></span><span>Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
-      <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
+      <button data-view="profile" class="node-btn"><span>Player Profile</span></button>
+      <button data-view="sync" class="node-btn active"><span>Coming To You Live</span></button>
+      <button data-view="ledger" class="node-btn"><span>Daily Log</span></button>
+      <button data-view="places" class="node-btn"><span>Place Cards</span></button>
+      <button data-view="characters" class="node-btn"><span>Coder Cards</span></button>
+      <button data-view="skills" class="node-btn"><span>Skill Cards</span></button>
+      <button data-view="drama" class="node-btn"><span>Media Log</span></button>
+      <button data-view="press" class="node-btn"><span>The Press</span></button>
+      <button data-view="gallery" class="node-btn"><span>Photo Wall</span></button>
+      <div class="sidebar-nav-break" aria-hidden="true"></div>
+      <button data-view="instructions" class="node-btn"><span>Instructions</span></button>
+      <button data-view="comm" class="node-btn"><span>Community</span></button>
+      <button data-view="mind" class="node-btn admin-only hidden"><span>System Overload</span></button>
+      <button data-view="viewer-card" class="node-btn viewer-only-nav"><span>My Card</span></button>
+      <button data-view="quests" class="node-btn"><span>Quests</span></button>
+      <button data-view="inbox" class="node-btn inbox-nav hidden"><span>Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
+      <button data-view="vlog" class="node-btn"><span>Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
         <div class="sidebar-console-row">
@@ -179,7 +180,7 @@
   <div class="main-col">
     <div id="coderWelcomeBar" class="coder-welcome-host hidden" aria-live="polite"></div>
 
-    <section class="view neon-section active" id="view-instructions" style="--sec-neon:#e8c547">
+    <section class="view neon-section" id="view-instructions" style="--sec-neon:#e8c547">
       <h2 class="view-title sketch-title">Instructions</h2>
       <div id="instructionsSpread"></div>
     </section>
@@ -189,7 +190,7 @@
       <div class="about-root" id="aboutSpread"></div>
     </section>
 
-    <section class="view neon-section" id="view-sync" style="--sec-neon:#3ad6e0">
+    <section class="view neon-section active" id="view-sync" style="--sec-neon:#3ad6e0">
       <h2 class="view-title sketch-title">Coming To You Live</h2>
       <div class="live-broadcast" id="homeSpread"></div>
     </section>
@@ -345,8 +346,7 @@
     </section>
 
     <section class="view neon-section" id="view-inbox" style="--sec-neon:#c084fc">
-      <h2 class="view-title sketch-title">Inbox</h2>
-      <p class="gallery-hint viewer-hint">Private messages — coders ↔ Gray ↔ coders. Not on the Community board.</p>
+      <h2 class="view-title sketch-title">Private messages</h2>
       <div id="inboxSpread"></div>
     </section>
 
