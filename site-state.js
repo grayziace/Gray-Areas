@@ -1,2 +1,10 @@
-/* Site data exported from admin — null until you use Export to code in editing mode */
-const SITE_STATE = null;
+/* Exported from Gray Areas — commit this file and redeploy */
+const SITE_STATE = {
+  "entries": {},
+  "skillHours": {},
+  "pinboard": [],
+  "arrivalDate": "2026-08-21",
+  "unlockedZones": [],
+  "dramaState": {},
+  "hiddenDramas": []
+};
