@@ -1,6 +1,6 @@
-/* ===== Colouring Gray Areas: Project Shenzhen — app logic ===== */
+/* ===== Gray Areas: Project Shenzhen — app logic ===== */
 
-const STORAGE_KEY = 'shenzhen-diary-v1';
+const STORAGE_KEY = 'gray-areas-shenzhen-v2';
 
 const ZONES = [
   'Futian CBD', 'Nanshan', 'OCT Loft', 'Shekou Sea World',
@@ -10,16 +10,21 @@ const ZONES = [
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw) return Object.assign(defaultState(), JSON.parse(raw));
   }catch(e){}
+  return defaultState();
+}
+
+function defaultState(){
   return {
-    entries: {},          // 'YYYY-MM-DD' -> {mood, steps, zone, person, hobby, thoughts}
+    entries: {},
     unlockedZones: [],
     characters: [],
     dramas: [],
     mandarinPct: 0,
+    bio: '',
     messages: [
-      {who:'Mum', text:'Made it to the flat okay? Send a photo when you can 💛'}
+      {who:'Home', text:'Made it to the flat okay? Send word when you can.'}
     ]
   };
 }
@@ -30,7 +35,7 @@ function saveState(){
 
 let state = loadState();
 
-/* ---------- Loading sequence ---------- */
+/* ---------- Loading sequence: UK -> Shenzhen ---------- */
 (function loadingSequence(){
   const el = document.getElementById('loading');
   const label = document.getElementById('loadingLabel');
@@ -47,40 +52,68 @@ let state = loadState();
   setTimeout(()=>{
     el.classList.add('phase-flight');
     label.textContent = 'In transit';
-    title.textContent = 'London → Shenzhen';
-  }, 1600);
+    title.textContent = 'UK → Shenzhen';
+  }, 1700);
 
   setTimeout(()=>{
     el.classList.add('phase-shenzhen');
     label.textContent = 'Shenzhen';
     title.textContent = 'System online';
-  }, 3400);
+  }, 3600);
 
-  setTimeout(finish, 5000);
+  setTimeout(finish, 5200);
 })();
 
-/* ---------- Tabs ---------- */
+/* ---------- Node navigation ---------- */
 document.getElementById('tabs').addEventListener('click', (e)=>{
   const btn = e.target.closest('button[data-view]');
   if(!btn) return;
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.node-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-' + btn.dataset.view).classList.add('active');
 });
 
 /* ---------- Helpers ---------- */
-function todayKey(offset=0){
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0,10);
-}
 function fmtDate(key){
   const d = new Date(key + 'T00:00:00');
   return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
 }
 
-/* ---------- Sync Station ---------- */
+function last7Entries(){
+  return Object.entries(state.entries).filter(([key])=>{
+    const d = (new Date() - new Date(key+'T00:00:00')) / 86400000;
+    return d >= 0 && d < 7;
+  });
+}
+
+/* ---------- Player Profile ---------- */
+function renderProfile(){
+  const totalDays = Object.keys(state.entries).length;
+  const level = Math.floor(totalDays / 5) + 1;
+  document.getElementById('profileRank').textContent = `Level ${level} explorer`;
+  document.getElementById('profileStats').textContent =
+    `${totalDays} days logged · ${state.unlockedZones.length} zones unlocked · ${state.characters.length} characters met`;
+  document.getElementById('profileBio').value = state.bio || '';
+
+  const last7 = last7Entries();
+  const totalSteps = last7.reduce((s,[,e])=> s + (Number(e.steps)||0), 0);
+  const avgMood = last7.length ? Math.round(last7.reduce((s,[,e])=> s + (Number(e.mood)||0),0) / last7.length) : 0;
+
+  document.getElementById('profileMoodLabel').textContent = avgMood ? (avgMood + '/10') : '—';
+  document.getElementById('profileMoodFill').style.width = (avgMood*10) + '%';
+  document.getElementById('profileStepsLabel').textContent = totalSteps.toLocaleString();
+  document.getElementById('profileStepsFill').style.width = Math.min(100,(totalSteps/70000)*100) + '%';
+  document.getElementById('profileMandarinLabel').textContent = state.mandarinPct + '%';
+  document.getElementById('profileMandarinFill').style.width = state.mandarinPct + '%';
+}
+
+document.getElementById('saveBio').addEventListener('click', ()=>{
+  state.bio = document.getElementById('profileBio').value;
+  saveState();
+});
+
+/* ---------- The Relay ---------- */
 function renderSyncStation(){
   const ticker = document.getElementById('discoveryTicker');
   const entries = Object.entries(state.entries).sort((a,b)=> b[0].localeCompare(a[0])).slice(0,5);
@@ -93,15 +126,11 @@ function renderSyncStation(){
       if(e.person) bits.push(`met ${e.person}`);
       if(e.hobby) bits.push(`practiced ${e.hobby}`);
       const text = bits.length ? bits.join(' · ') : 'logged a quiet day';
-      return `<div class="ticker-row"><span class="dot"></span><span>${text}</span><span class="when">${fmtDate(key)}</span></div>`;
+      return `<div class="ticker-row"><span class="dot"></span><span>Gray ${text}</span><span class="when">${fmtDate(key)}</span></div>`;
     }).join('');
   }
 
-  const last7 = Object.entries(state.entries)
-    .filter(([key])=> {
-      const d = (new Date() - new Date(key+'T00:00:00')) / 86400000;
-      return d >= 0 && d < 7;
-    });
+  const last7 = last7Entries();
   const totalSteps = last7.reduce((s,[,e])=> s + (Number(e.steps)||0), 0);
   const avgMood = last7.length ? Math.round(last7.reduce((s,[,e])=> s + (Number(e.mood)||0),0) / last7.length) : 7;
 
@@ -113,7 +142,7 @@ function renderSyncStation(){
   const bell = document.getElementById('bellText');
   if(state.characters.length){
     const last = state.characters[state.characters.length-1];
-    bell.textContent = `New character added: ${last.name} (${last.charClass})`;
+    bell.textContent = `New character added: ${last.name} (${last.charClass || 'data pending'})`;
   }
 }
 
@@ -183,19 +212,19 @@ document.getElementById('saveLog').addEventListener('click', ()=>{
   renderAll();
 });
 
-/* ---------- Atlas ---------- */
+/* ---------- The Grid ---------- */
 function renderAtlas(){
   const grid = document.getElementById('atlasGrid');
   grid.innerHTML = ZONES.map(z=>{
     const unlocked = state.unlockedZones.includes(z);
     return `<div class="zone ${unlocked?'unlocked':''}">
       <div class="zone-name">${unlocked ? z : '???'}</div>
-      <div class="zone-status">${unlocked ? 'unlocked' : 'fog of war'}</div>
+      <div class="zone-status">${unlocked ? 'unlocked' : 'unmapped'}</div>
     </div>`;
   }).join('');
 }
 
-/* ---------- Characters ---------- */
+/* ---------- The Roster ---------- */
 function renderCharacters(){
   const grid = document.getElementById('charGrid');
   const cards = state.characters.map(c=>`
@@ -230,7 +259,7 @@ document.getElementById('saveChar').addEventListener('click', ()=>{
   renderAll();
 });
 
-/* ---------- Archive ---------- */
+/* ---------- The Archive ---------- */
 function renderArchive(){
   document.getElementById('mandarinPct').textContent = state.mandarinPct + '%';
   document.getElementById('mandarinFill').style.width = state.mandarinPct + '%';
@@ -251,6 +280,7 @@ document.getElementById('bumpMandarin').addEventListener('click', ()=>{
   state.mandarinPct = Math.min(100, state.mandarinPct + 5);
   saveState();
   renderArchive();
+  renderProfile();
 });
 
 document.getElementById('addDramaBtn').addEventListener('click', ()=>{
@@ -274,7 +304,7 @@ document.getElementById('saveDrama').addEventListener('click', ()=>{
   renderAll();
 });
 
-/* ---------- Comm-Link ---------- */
+/* ---------- The Wire ---------- */
 function renderComm(){
   const term = document.getElementById('terminal');
   term.innerHTML = state.messages.map(m=>
@@ -299,6 +329,7 @@ function sendComm(){
 
 /* ---------- Render all ---------- */
 function renderAll(){
+  renderProfile();
   renderSyncStation();
   renderLedger();
   renderAtlas();

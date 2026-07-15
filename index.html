@@ -3,139 +3,217 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Colouring Gray Areas: Project Shenzhen</title>
+<title>Gray Areas — Project Shenzhen</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
- 
-<svg id="skyline" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
-  <rect x="40" y="180" width="60" height="220" fill="#241a3a"/>
-  <rect x="120" y="140" width="40" height="260" fill="#1e1330"/>
-  <rect x="180" y="200" width="50" height="200" fill="#241a3a"/>
-  <rect x="900" y="150" width="55" height="250" fill="#1e1330"/>
-  <rect x="970" y="190" width="45" height="210" fill="#241a3a"/>
-  <rect x="1040" y="120" width="60" height="280" fill="#1e1330"/>
-  <g fill="#3ad6e0" opacity="0.5">
-    <rect x="55" y="200" width="4" height="6"/><rect x="70" y="200" width="4" height="6"/>
-    <rect x="55" y="230" width="4" height="6"/><rect x="70" y="260" width="4" height="6"/>
-    <rect x="915" y="180" width="4" height="6"/><rect x="930" y="210" width="4" height="6"/>
-    <rect x="1055" y="150" width="4" height="6"/><rect x="1070" y="180" width="4" height="6"/>
-  </g>
-</svg>
- 
-<!-- Loading sequence -->
-<div id="loading" class="phase-london">
-  <div class="loading-label" id="loadingLabel">London</div>
+
+<div id="backdrop">
+  <div class="glow a"></div>
+  <div class="glow b"></div>
+  <div class="glow c"></div>
+  <div class="grain"></div>
+  <svg id="skyline" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="200" width="70" height="220" fill="#1b1030"/>
+    <rect x="110" y="150" width="45" height="270" fill="#160c26"/>
+    <rect x="180" y="220" width="55" height="200" fill="#1b1030"/>
+    <rect x="260" y="180" width="40" height="240" fill="#160c26"/>
+    <rect x="880" y="160" width="60" height="260" fill="#160c26"/>
+    <rect x="950" y="210" width="50" height="210" fill="#1b1030"/>
+    <rect x="1010" y="130" width="65" height="290" fill="#160c26"/>
+    <rect x="1090" y="190" width="45" height="230" fill="#1b1030"/>
+    <g fill="#e94ff5" opacity="0.55">
+      <rect x="45" y="220" width="5" height="7"/><rect x="65" y="240" width="5" height="7"/>
+      <rect x="45" y="270" width="5" height="7"/><rect x="65" y="300" width="5" height="7"/>
+      <rect x="895" y="190" width="5" height="7"/><rect x="915" y="220" width="5" height="7"/>
+    </g>
+    <g fill="#4fa3ff" opacity="0.5">
+      <rect x="120" y="180" width="5" height="7"/><rect x="135" y="210" width="5" height="7"/>
+      <rect x="120" y="240" width="5" height="7"/>
+      <rect x="1025" y="160" width="5" height="7"/><rect x="1045" y="200" width="5" height="7"/>
+      <rect x="1025" y="240" width="5" height="7"/>
+    </g>
+    <g fill="#3ad6e0" opacity="0.5">
+      <rect x="190" y="250" width="5" height="7"/><rect x="210" y="280" width="5" height="7"/>
+      <rect x="960" y="240" width="5" height="7"/><rect x="980" y="270" width="5" height="7"/>
+    </g>
+    <rect x="1145" y="80" width="10" height="340" fill="#e94ff5" opacity="0.3"/>
+    <rect x="1160" y="140" width="6" height="280" fill="#4fa3ff" opacity="0.3"/>
+  </svg>
+</div>
+
+<!-- Loading sequence: UK -> Shenzhen -->
+<div id="loading" class="phase-uk">
+  <div class="scene-tiles">
+    <div class="tile">
+      <div class="uk-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="6" y="4" width="18" height="24" rx="2" fill="#c0323f"/><rect x="10" y="9" width="10" height="2" fill="#f3ecfb" opacity="0.6"/><rect x="10" y="14" width="10" height="2" fill="#f3ecfb" opacity="0.4"/></svg>
+      </div>
+      <div class="sz-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="9" y="2" width="6" height="26" fill="#e94ff5"/><rect x="17" y="8" width="6" height="20" fill="#4fa3ff"/></svg>
+      </div>
+    </div>
+    <div class="tile">
+      <div class="uk-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="4" y="6" width="8" height="20" fill="#8a5a3a"/><rect x="13" y="4" width="8" height="22" fill="#6b4226"/><rect x="22" y="7" width="6" height="19" fill="#8a5a3a"/></svg>
+      </div>
+      <div class="sz-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="9" fill="none" stroke="#3ad6e0" stroke-width="2"/><circle cx="15" cy="15" r="3" fill="#3ad6e0"/></svg>
+      </div>
+    </div>
+    <div class="tile">
+      <div class="uk-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><path d="M8 24 L15 6 L22 24 Z" fill="#c9a35a"/><rect x="6" y="24" width="18" height="3" fill="#e9d9c8"/></svg>
+      </div>
+      <div class="sz-glyph">
+        <svg width="30" height="30" viewBox="0 0 30 30"><line x1="6" y1="4" x2="2" y2="26" stroke="#9b5cff" stroke-width="2"/><line x1="16" y1="4" x2="12" y2="26" stroke="#4fa3ff" stroke-width="2"/><line x1="26" y1="4" x2="22" y2="26" stroke="#3ad6e0" stroke-width="2"/></svg>
+      </div>
+    </div>
+  </div>
+  <div class="loading-label" id="loadingLabel">United Kingdom</div>
   <div class="loading-title" id="loadingTitle">Departure</div>
   <div class="plane-track"><div class="plane-dot"></div></div>
   <button class="skip-btn" id="skipLoading">Skip intro</button>
 </div>
- 
+
 <div id="app">
- 
-  <header class="top">
+
+  <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark"></div>
-      <div class="brand-text">
-        <div class="name">Colouring Gray Areas</div>
-        <div class="sub">PROJECT SHENZHEN</div>
-      </div>
+      <div class="name">Gray Areas</div>
+      <div class="sub">PROJECT SHENZHEN</div>
     </div>
-    <nav class="tabs" id="tabs">
-      <button data-view="sync" class="active">Sync Station</button>
-      <button data-view="ledger">Chronos Ledger</button>
-      <button data-view="atlas">Atlas</button>
-      <button data-view="characters">Characters</button>
-      <button data-view="archive">Archive</button>
-      <button data-view="comm">Comm-Link</button>
+    <nav class="node-nav" id="tabs">
+      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player: Gray</span></button>
+      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>The Relay</span></button>
+      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Chronos Ledger</span></button>
+      <button data-view="atlas" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>The Grid</span></button>
+      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>The Roster</span></button>
+      <button data-view="archive" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>The Archive</span></button>
+      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>The Wire</span></button>
     </nav>
-  </header>
- 
-  <!-- Sync Station -->
-  <section class="view active" id="view-sync">
-    <h2 class="view-title">Sync Station</h2>
-    <p class="view-sub">A peaceful overview for anyone checking in from home.</p>
-    <div class="grid-2col">
+  </aside>
+
+  <div class="main-col">
+
+    <!-- Player Profile -->
+    <section class="view active" id="view-profile">
+      <h2 class="view-title">Player profile</h2>
+      <p class="view-sub">Your character sheet for this run.</p>
       <div class="card">
-        <h3 style="margin-top:0;font-size:15px;">Recent discoveries</h3>
-        <div id="discoveryTicker"></div>
-      </div>
-      <div class="card">
-        <h3 style="margin-top:0;font-size:15px;">Vitals</h3>
-        <div class="vital">
-          <div class="vital-label"><span>Current mood</span><span id="moodLabel">Good</span></div>
-          <div class="vital-bar"><div class="vital-fill" id="moodFill" style="width:70%"></div></div>
+        <div class="profile-hero">
+          <div class="profile-avatar">G</div>
+          <div class="profile-info">
+            <div class="profile-name">Gray</div>
+            <div class="profile-class">Class: Newcomer // Rank: <span id="profileRank">Level 1 explorer</span></div>
+            <div class="profile-rank" id="profileStats">0 days logged · 0 zones unlocked · 0 characters met</div>
+            <textarea class="profile-bio" id="profileBio" placeholder="write your character's bio here..."></textarea>
+            <div style="margin-top:10px;"><button class="btn primary" id="saveBio">Save bio</button></div>
+          </div>
         </div>
-        <div class="vital">
-          <div class="vital-label"><span>Steps this week</span><span id="stepsLabel">0</span></div>
-          <div class="vital-bar"><div class="vital-fill" id="stepsFill" style="width:0%"></div></div>
+        <div class="stat-grid">
+          <div class="vital">
+            <div class="vital-label"><span>Mood</span><span id="profileMoodLabel">—</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="profileMoodFill" style="width:0%"></div></div>
+          </div>
+          <div class="vital">
+            <div class="vital-label"><span>Steps this week</span><span id="profileStepsLabel">0</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="profileStepsFill" style="width:0%"></div></div>
+          </div>
+          <div class="vital">
+            <div class="vital-label"><span>Mandarin</span><span id="profileMandarinLabel">0%</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="profileMandarinFill" style="width:0%"></div></div>
+          </div>
         </div>
-        <div class="bell">🔔 <span id="bellText">No new updates yet — log a day to get started.</span></div>
       </div>
-    </div>
-  </section>
- 
-  <!-- Chronos Ledger -->
-  <section class="view" id="view-ledger">
-    <h2 class="view-title">Chronos Ledger</h2>
-    <p class="view-sub" id="monthLabel"></p>
-    <div class="card">
-      <div class="month-grid" id="monthGrid"></div>
-    </div>
-  </section>
- 
-  <!-- Atlas -->
-  <section class="view" id="view-atlas">
-    <h2 class="view-title">Atlas of Discoveries</h2>
-    <p class="view-sub">Unlock a zone whenever you log a new place in your daily entry.</p>
-    <div class="card">
-      <div class="atlas-grid" id="atlasGrid"></div>
-    </div>
-  </section>
- 
-  <!-- Characters -->
-  <section class="view" id="view-characters">
-    <h2 class="view-title">Character Gallery</h2>
-    <p class="view-sub">Everyone you've met so far — people, cats, whoever counts.</p>
-    <div class="char-grid" id="charGrid"></div>
-  </section>
- 
-  <!-- Archive -->
-  <section class="view" id="view-archive">
-    <h2 class="view-title">Archive of Interests</h2>
-    <p class="view-sub">Language progress, dramas, hobbies.</p>
-    <div class="grid-2col">
-      <div class="card">
-        <h3 style="margin-top:0;font-size:15px;">Mandarin module</h3>
-        <div class="skill-row">
-          <div class="vital-label"><span>Progress</span><span id="mandarinPct">0%</span></div>
-          <div class="vital-bar"><div class="vital-fill" id="mandarinFill" style="width:0%"></div></div>
+    </section>
+
+    <!-- The Relay -->
+    <section class="view" id="view-sync">
+      <h2 class="view-title">The Relay</h2>
+      <p class="view-sub">A peaceful overview for anyone checking in from home.</p>
+      <div class="grid-2col">
+        <div class="card">
+          <h3>Recent discoveries</h3>
+          <div id="discoveryTicker"></div>
         </div>
-        <button class="btn" id="bumpMandarin">+ Log practice</button>
+        <div class="card">
+          <h3>Vitals</h3>
+          <div class="vital">
+            <div class="vital-label"><span>Current mood</span><span id="moodLabel">Good</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="moodFill" style="width:70%"></div></div>
+          </div>
+          <div class="vital">
+            <div class="vital-label"><span>Steps this week</span><span id="stepsLabel">0</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="stepsFill" style="width:0%"></div></div>
+          </div>
+          <div class="bell">◈ <span id="bellText">No new updates yet — log a day to get started.</span></div>
+        </div>
       </div>
+    </section>
+
+    <!-- Chronos Ledger -->
+    <section class="view" id="view-ledger">
+      <h2 class="view-title">Chronos Ledger</h2>
+      <p class="view-sub" id="monthLabel"></p>
       <div class="card">
-        <h3 style="margin-top:0;font-size:15px;">CDrama database</h3>
-        <div class="drama-list" id="dramaList"></div>
-        <button class="btn" id="addDramaBtn" style="margin-top:10px;">+ Add drama</button>
+        <div class="month-grid" id="monthGrid"></div>
       </div>
-    </div>
-  </section>
- 
-  <!-- Comm-Link -->
-  <section class="view" id="view-comm">
-    <h2 class="view-title">Comm-Link</h2>
-    <p class="view-sub">Encrypted comms from home.</p>
-    <div class="card">
-      <div class="terminal" id="terminal"></div>
-      <div class="comm-input">
-        <input type="text" id="commInput" placeholder="type a message to Shenzhen...">
-        <button class="btn primary" id="commSend">Send</button>
+    </section>
+
+    <!-- The Grid -->
+    <section class="view" id="view-atlas">
+      <h2 class="view-title">The Grid</h2>
+      <p class="view-sub">Unlock a zone whenever you log a new place in your daily entry.</p>
+      <div class="card">
+        <div class="atlas-grid" id="atlasGrid"></div>
       </div>
-    </div>
-  </section>
- 
+    </section>
+
+    <!-- The Roster -->
+    <section class="view" id="view-characters">
+      <h2 class="view-title">The Roster</h2>
+      <p class="view-sub">Everyone you've met so far — people, cats, whoever counts.</p>
+      <div class="char-grid" id="charGrid"></div>
+    </section>
+
+    <!-- The Archive -->
+    <section class="view" id="view-archive">
+      <h2 class="view-title">The Archive</h2>
+      <p class="view-sub">Language progress, dramas, hobbies.</p>
+      <div class="grid-2col">
+        <div class="card">
+          <h3>Mandarin module</h3>
+          <div class="skill-row">
+            <div class="vital-label"><span>Progress</span><span id="mandarinPct">0%</span></div>
+            <div class="vital-bar"><div class="vital-fill" id="mandarinFill" style="width:0%"></div></div>
+          </div>
+          <button class="btn" id="bumpMandarin">+ Log practice</button>
+        </div>
+        <div class="card">
+          <h3>CDrama database</h3>
+          <div class="drama-list" id="dramaList"></div>
+          <button class="btn" id="addDramaBtn" style="margin-top:10px;">+ Add drama</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- The Wire -->
+    <section class="view" id="view-comm">
+      <h2 class="view-title">The Wire</h2>
+      <p class="view-sub">Messages from home, whenever they're ready.</p>
+      <div class="card">
+        <div class="terminal" id="terminal"></div>
+        <div class="comm-input">
+          <input type="text" id="commInput" placeholder="type a message to Shenzhen...">
+          <button class="btn primary" id="commSend">Send</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
 </div>
- 
+
 <!-- Day log modal -->
 <div class="modal-back hidden" id="dayModalBack">
   <div class="modal">
@@ -174,7 +252,7 @@
     </div>
   </div>
 </div>
- 
+
 <!-- Character add modal -->
 <div class="modal-back hidden" id="charModalBack">
   <div class="modal">
@@ -197,7 +275,7 @@
     </div>
   </div>
 </div>
- 
+
 <!-- Drama add modal -->
 <div class="modal-back hidden" id="dramaModalBack">
   <div class="modal">
@@ -222,8 +300,7 @@
     </div>
   </div>
 </div>
- 
+
 <script src="script.js"></script>
 </body>
 </html>
- 
