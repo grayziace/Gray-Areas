@@ -310,12 +310,16 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   min-height:min(72vh,720px);padding:12px 0 8px;position:relative;
 }
-.about-stage .player-card-hero{width:min(380px,94vw);}
+.about-stage .player-card-hero.poke-flip,
+.about-stage .player-card-hero{
+  width:min(460px,94vw);
+  max-width:min(460px,94vw);
+}
 .about-stage .player-card-hero .poke-flip-inner,
 .about-stage .player-card-hero .poke-flip-front{
-  height:min(72vh,560px);
-  min-height:460px;
-  max-height:min(72vh,560px);
+  height:min(78vh,640px);
+  min-height:520px;
+  max-height:min(78vh,640px);
 }
 .about-stage .player-card-hero .pc-front,
 .about-stage .player-card-hero .pc-front-hero{
@@ -325,41 +329,41 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
   display:flex;
   flex-direction:column;
   overflow:hidden;
-  padding:12px 12px 24px;
+  padding:14px 14px 26px;
 }
 .about-stage .player-card-hero .pc-back{
   height:100%;
   min-height:0;
   max-height:100%;
 }
-.about-stage .player-card-hero .pc-head{flex-shrink:0;margin-bottom:8px;}
+.about-stage .player-card-hero .pc-head{flex-shrink:0;margin-bottom:10px;}
 .about-stage .player-card-hero .pc-art{
   flex:1 1 auto;
   min-height:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  margin-bottom:6px;
+  width:100%;
+  position:relative;
+  margin-bottom:8px;
 }
 .about-stage .player-card-hero .card-photo-frame{
-  width:min(100%,calc(min(46vh,360px) * 0.75));
-  max-height:min(46vh,360px);
-  aspect-ratio:3/4;
-  margin:0 auto;
-  flex-shrink:1;
+  width:100%;
+  height:100%;
+  max-height:min(54vh,460px);
+  min-height:280px;
+  aspect-ratio:unset;
+  margin:0;
 }
 .about-stage .player-card-hero .card-photo-frame img{
   object-fit:cover;
   object-position:center top;
 }
 .about-stage .player-card-hero .pc-spirit-sticker{
-  width:56px;
-  height:56px;
-  bottom:10px;
-  right:10px;
-  border-width:2px;
+  width:72px;
+  height:72px;
+  bottom:12px;
+  right:12px;
+  border-width:3px;
   transform:rotate(6deg);
-  box-shadow:0 0 10px var(--pc-accent),0 3px 8px rgba(0,0,0,0.45);
+  box-shadow:0 0 14px var(--pc-accent),0 4px 10px rgba(0,0,0,0.45);
 }
 .about-stage .player-card-hero .pc-spirit-sticker img{
   object-fit:contain;
@@ -369,14 +373,16 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
 .about-stage .player-card-hero .pc-blurb{
   flex-shrink:0;
   margin-top:auto;
-  font-size:12px;
+  font-size:13px;
   -webkit-line-clamp:3;
 }
 .about-stage .player-card-hero .flip-hint-front{
   flex-shrink:0;
-  margin-top:4px;
+  margin-top:6px;
+  font-size:10px;
 }
-.about-stage .player-card-hero .pc-name{font-size:clamp(20px,3vw,26px);}
+.about-stage .player-card-hero .pc-name{font-size:clamp(22px,3.2vw,28px);}
+.about-stage .player-card-hero .pc-lv{font-size:15px;}
 .about-meta{font-size:10px;color:var(--text-low);letter-spacing:0.14em;text-transform:uppercase;margin:10px 0 0;text-align:center;}
 .about-edit-btn{margin-top:12px;}
 .about-pin-wall{
