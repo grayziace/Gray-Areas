@@ -1,56 +1,57 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
 :root {
-    --bg-deep: #050209;         /* Deep cyber-purple */
-    --neon-rose: #bf00ff;       /* Ambient pink/magenta */
-    --neon-cyan: #00f2ff;       /* Electric highlight blue */
-    --glass: rgba(10, 5, 15, 0.7);
+    --bg-void: #050209;         /* Crushed Black */
+    --neon-rose: #bf00ff;       /* Primary Ambient Magenta */
+    --neon-cyan: #00f2ff;       /* Secondary Rim-light Blue */
+    --glass: rgba(10, 5, 15, 0.85);
 }
 
 body {
-    background: radial-gradient(circle at top right, #2a0033 0%, var(--bg-deep) 60%);
-    color: #e0e0e0;
+    background: radial-gradient(circle at top right, #2a0033 0%, var(--bg-void) 70%);
+    color: #fff;
     font-family: 'Orbitron', sans-serif;
     margin: 0;
     height: 100vh;
     overflow: hidden;
 }
 
-.crt-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-    background-size: 100% 4px;
-    pointer-events: none;
-    z-index: 10;
+/* Texture overlay to replicate the "sketched/grainy" aesthetic */
+.background-grain {
+    position: fixed; width: 100%; height: 100%;
+    background-image: url('data:image/svg+xml;utf8,<svg ...grainy-noise...</svg>');
+    opacity: 0.15; pointer-events: none; z-index: 0;
 }
 
-.sidebar {
+.app-container {
+    display: grid; grid-template-columns: 320px 1fr;
+    height: 100vh; padding: 40px; gap: 30px; position: relative; z-index: 1;
+}
+
+.sidebar, .content-viewport {
     background: var(--glass);
     border: 1px solid var(--neon-rose);
-    box-shadow: 0 0 20px rgba(191, 0, 255, 0.2);
+    box-shadow: 0 0 15px rgba(191, 0, 255, 0.2);
     padding: 30px;
 }
 
+/* Avatar "Halo" Glow */
 .avatar-img {
-    width: 150px; height: 150px;
-    border: 2px solid var(--neon-rose);
-    box-shadow: 0 0 15px var(--neon-rose);
+    width: 140px; height: 140px;
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 20px var(--neon-cyan);
     border-radius: 50%;
 }
 
 .nav-btn {
     width: 100%; padding: 15px; margin: 10px 0;
     background: transparent; border: 1px solid var(--neon-rose);
-    color: var(--neon-rose); cursor: crosshair;
-    text-transform: uppercase; transition: 0.3s;
+    color: var(--neon-rose); text-transform: uppercase;
+    cursor: crosshair; transition: 0.4s;
 }
 
-.nav-btn:hover { background: var(--neon-rose); color: white; text-shadow: 0 0 10px white; }
-
-.content-viewport {
-    background: var(--glass);
-    border: 1px solid var(--neon-cyan);
-    padding: 40px;
-    color: var(--neon-cyan);
-    text-shadow: 0 0 5px var(--neon-cyan);
+.nav-btn:hover {
+    background: var(--neon-rose); color: white;
+    text-shadow: 0 0 10px white;
+    box-shadow: 0 0 20px var(--neon-rose);
 }
