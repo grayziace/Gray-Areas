@@ -18,6 +18,11 @@
 <link rel="stylesheet" href="style.css">
 <script>
 (function(){
+  var bootWatchdog = null;
+  function hideBootError(){
+    var err = document.getElementById('bootError');
+    if(err) err.classList.add('hidden');
+  }
   function finishBoot(){
     document.body.classList.add('app-ready');
     var el = document.getElementById('loading');
@@ -26,18 +31,35 @@
     el.classList.add('is-dismissed');
     setTimeout(function(){ if(el.parentNode) el.remove(); }, 500);
   }
+  function earlyDismiss(){
+    finishBoot();
+    hideBootError();
+    try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
+  }
   window.__gaFinishBoot = finishBoot;
+  window.__gaHideBootError = hideBootError;
+  window.__gaCancelBootWatchdog = function(){
+    if(bootWatchdog){ clearTimeout(bootWatchdog); bootWatchdog = null; }
+  };
   window.addEventListener('pageshow', function(e){
-    if(e.persisted) finishBoot();
+    if(e.persisted) earlyDismiss();
   });
   document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){
-      if(!window.__grayAreasReady){
-        finishBoot();
-        var err = document.getElementById('bootError');
-        if(err) err.classList.remove('hidden');
+    document.getElementById('enterSiteBtn')?.addEventListener('click', earlyDismiss);
+    document.getElementById('skipLoading')?.addEventListener('click', earlyDismiss);
+    document.getElementById('bootErrorContinue')?.addEventListener('click', hideBootError);
+    setInterval(function(){
+      if(window.__grayAreasReady){
+        hideBootError();
+        window.__gaCancelBootWatchdog?.();
       }
-    }, 18000);
+    }, 400);
+    bootWatchdog = setTimeout(function(){
+      if(window.__grayAreasReady) return;
+      if(!window.__gaScriptsDone) return;
+      finishBoot();
+      document.getElementById('bootError')?.classList.remove('hidden');
+    }, 30000);
   });
 })();
 </script>
@@ -74,8 +96,11 @@
 </div>
 
 <div id="bootError" class="boot-error hidden" role="alert">
-  The site is still loading. If this stays blank, refresh or use
-  <a href="https://grayziace.github.io/Gray-Areas/">grayziace.github.io/Gray-Areas</a>.
+  <div class="boot-error-inner">
+    <p>The site is still loading. If this stays blank, refresh or use
+    <a href="https://grayziace.github.io/Gray-Areas/">grayziace.github.io/Gray-Areas</a>.</p>
+    <button type="button" class="btn primary" id="bootErrorContinue">Continue anyway →</button>
+  </div>
 </div>
 
 <div id="app">
@@ -355,10 +380,11 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'code-export.js', 'code-sync.js', 'character-gen.js', 'image-tools.js', 'player-cards.js', 'place-cards.js', 'script.js'];
+  var files = ['content.js', 'site-state.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
+      window.__gaScriptsDone = true;
       if(!window.__grayAreasReady){
         window.__gaFinishBoot?.();
         console.error('Gray Areas did not start — check the browser console for errors.');

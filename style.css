@@ -170,6 +170,8 @@ body{
   padding:24px;text-align:center;background:rgba(11,7,20,0.94);
   font-size:14px;line-height:1.6;color:var(--text-hi);
 }
+.boot-error.hidden{display:none !important;}
+.boot-error-inner{max-width:420px;display:flex;flex-direction:column;gap:16px;align-items:center;}
 .boot-error a{color:var(--neon-cyan);}
 body:not(.is-editing) .edit-when-editing{display:none !important;}
 body.is-editing .edit-when-editing.card-edit-front,

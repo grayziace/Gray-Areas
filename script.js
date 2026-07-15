@@ -1056,17 +1056,17 @@ function bootApp(){
     bindIntroSkip();
     if(sessionStorage.getItem('ga-saw-intro') === '1') dismissLoading();
     else introSequence();
-
     wireNavigation();
     initGlobalEditHandlers();
-    DailyLog.init();
-    applyAdminUI();
-    renderAll();
   }catch(err){
     console.error('Gray Areas boot failed:', err);
     dismissLoading();
-    document.getElementById('bootError')?.classList.remove('hidden');
   }
+  try{ DailyLog.init(); }catch(err){ console.error('DailyLog init failed:', err); }
+  try{ applyAdminUI(); }catch(err){ console.error('Admin UI failed:', err); }
+  try{ renderAll(); }catch(err){ console.error('Render failed:', err); }
+  document.getElementById('bootError')?.classList.add('hidden');
+  window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
 }
 
