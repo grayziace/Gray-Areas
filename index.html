@@ -107,7 +107,8 @@
   <aside class="sidebar">
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
-      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player Profile</span></button>
+      <button data-view="instructions" class="node-btn active" style="--nc:#e8c547"><span class="node-dot"></span><span>Instructions</span></button>
+      <button data-view="profile" class="node-btn" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player Profile</span></button>
       <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Coming To You Live</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
@@ -117,7 +118,7 @@
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
       <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
-      <button data-view="viewer-card" class="node-btn" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
+      <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>Coders Card</span></button>
       <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
       <div class="sidebar-console-wrap">
@@ -129,9 +130,9 @@
       </div>
     </nav>
     <div class="admin-bar admin-only hidden" id="adminBar">
-      <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Editing</span></div>
+      <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Player mode</span></div>
       <span class="sync-status" id="syncStatus" aria-live="polite"></span>
-      <button type="button" class="btn admin-exit" id="exitEditing">Exit editing</button>
+      <button type="button" class="btn admin-exit" id="exitEditing">Exit player mode</button>
       <button type="button" class="btn" id="exportCodeBtn" title="Manual fallback — download content.js + site-state.js">Export to code</button>
     </div>
     <button class="admin-unlock" id="adminUnlock">·</button>
@@ -139,7 +140,12 @@
 
   <div class="main-col">
 
-    <section class="view active neon-section" id="view-profile" style="--sec-neon:#ff4fd8">
+    <section class="view neon-section active" id="view-instructions" style="--sec-neon:#e8c547">
+      <h2 class="view-title sketch-title">Instructions</h2>
+      <div id="instructionsSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-profile" style="--sec-neon:#ff4fd8">
       <h2 class="view-title sketch-title" id="profileTitle">Player Profile</h2>
       <div class="about-root" id="aboutSpread"></div>
     </section>
@@ -288,8 +294,8 @@
     </section>
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
-      <h2 class="view-title sketch-title">My Character</h2>
-      <p class="gallery-hint viewer-hint">Create your viewer card once, then send quests to Gray. You level up when missions complete.</p>
+      <h2 class="view-title sketch-title">Coders Card</h2>
+      <p class="gallery-hint viewer-hint">Your viewer character — quest Gray, earn points, level up. One card per console key.</p>
       <div id="viewerCardSpread"></div>
     </section>
 
@@ -494,7 +500,7 @@
   </div>
 </div>
 
-<div id="editToast" class="edit-toast hidden" aria-live="polite">Editing.</div>
+<div id="editToast" class="edit-toast hidden" aria-live="polite">Player mode.</div>
 
 <div id="pageCrackOverlay" class="page-crack-overlay hidden" aria-hidden="true">
   <div class="crack-flash"></div>
@@ -527,9 +533,54 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="coderKeyGate">
+  <div class="modal sketch-card coder-key-gate">
+    <h3>Log in to Gray Areas</h3>
+    <p class="field-hint">Enter the <strong>name</strong> and <strong>console key</strong> from your Coders Card — or continue as a guest, or create a new card. Player uses the sidebar console.</p>
+    <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
+    <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
+    <div class="modal-actions coder-gate-actions">
+      <button type="button" class="btn" id="coderGateGuest">Continue as guest</button>
+      <button type="button" class="btn" id="coderGateCreate">Create a Coders Card</button>
+      <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="welcomeBack">
+  <div class="modal sketch-card welcome-modal">
+    <h3 id="welcomeTitle">Welcome</h3>
+    <div id="welcomeBody"></div>
+    <button type="button" class="btn primary" id="welcomeDismiss">Continue</button>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="birthdayBack">
+  <div class="modal sketch-card birthday-modal">
+    <p class="birthday-kicker">◆ Coders Card celebration</p>
+    <h3 id="birthdayTitle">Happy Birthday!</h3>
+    <div id="birthdayBody"></div>
+    <button type="button" class="btn primary" id="birthdayDismiss">Let's go</button>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="questCompleteBack">
+  <div class="modal sketch-card quest-complete-modal">
+    <h3>Complete quest — video response</h3>
+    <p class="field-hint">Add clips that answer the quest. They post as your response reel.</p>
+    <input type="hidden" id="questCompleteId">
+    <div class="field"><label>Completion note</label><textarea id="questCompleteNote" rows="3"></textarea></div>
+    <div class="field"><label>Response clips (multiple allowed, &lt;4MB each)</label><input type="file" id="questCompleteClips" accept="video/*" multiple></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" onclick="document.getElementById('questCompleteBack').classList.add('hidden')">Cancel</button>
+      <button type="button" class="btn primary" id="questCompleteSave">Post completion</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="adminModalBack">
   <div class="modal sketch-card">
-    <h3>Unlock editing</h3>
+    <h3>Unlock player mode</h3>
     <div class="field"><label>Key</label><input type="password" id="adminKeyInput"></div>
     <div class="modal-actions"><button class="btn" id="cancelAdmin">Cancel</button><button class="btn primary" id="confirmAdmin">Go</button></div>
   </div>

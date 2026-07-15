@@ -1,5 +1,16 @@
 /* ===== Player card parse, render, editor ===== */
 
+function formatBirthdayDisplay(birthday){
+  if(!birthday) return '';
+  const parts = birthday.split('-');
+  if(parts.length < 2) return birthday;
+  const m = parseInt(parts[parts.length - 2], 10);
+  const d = parseInt(parts[parts.length - 1], 10);
+  if(!m || !d) return birthday;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${months[m - 1] || m}`;
+}
+
 function normalizePokeCard(item){
   const base = typeof defaultPokeCard === 'function' ? defaultPokeCard() : {
     level: 1, mbti: '', spiritAnimalImage: '', spiritPrompt: '', cardColor: '', colorPalette: '',
@@ -12,6 +23,7 @@ function normalizePokeCard(item){
   if(!pc.cardColor && item?.cardColor) pc.cardColor = item.cardColor;
   if(!pc.quote && item?.quote) pc.quote = item.quote;
   if(!pc.subtitle && item?.cardSubtitle) pc.subtitle = item.cardSubtitle;
+  if(!pc.birthday && item?.birthday) pc.birthday = item.birthday;
   if(!pc.abilities?.length) pc.abilities = base.abilities;
   if(!pc.moves?.length) pc.moves = base.moves;
   return pc;
@@ -339,6 +351,7 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
     <div class="pc-back-title">${esc(item.name)}</div>
     ${pc.subtitle || item.cardSubtitle ? `<div class="pc-row"><span>Title</span><span>${esc(pc.subtitle || item.cardSubtitle)}</span></div>` : ''}
     ${row('Level', pc.level)}${row('MBTI', pc.mbti)}${row('Palette', pc.colorPalette)}
+    ${row('Birthday', formatBirthdayDisplay(pc.birthday || item.birthday))}
     ${pc.vibe ? `<div class="pc-block"><div class="pc-block-title">Vibe</div><p>${esc(pc.vibe)}</p></div>` : ''}
     ${!hideSpirit ? (pc.spiritAnimalImage ? `<div class="pc-spirit-row"><span>Spirit</span><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : row('Spirit', pc.spiritPrompt)) : ''}
     ${pc.abilities.filter(a => a.name).map(a => block('Ability', a.name, a.effect)).join('')}

@@ -164,6 +164,7 @@ function buildSiteStateSource(){
     viewerCharacters: state.viewerCharacters || [],
     quests: state.quests || [],
     videoDiary: state.videoDiary || [],
+    liveTodos: state.liveTodos || [],
   };
   return `/* Exported from Gray Areas — commit this file and redeploy */\nconst SITE_STATE = ${jsLiteral(payload, 0)};\n`;
 }

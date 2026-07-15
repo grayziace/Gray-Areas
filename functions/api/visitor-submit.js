@@ -89,9 +89,19 @@ export async function onRequestPost(context) {
         store.viewerCharacters = store.viewerCharacters || [];
         store.viewerCharacters.push(payload);
       }
+    } else if (action === 'updateCharacter') {
+      store.viewerCharacters = store.viewerCharacters || [];
+      const idx = store.viewerCharacters.findIndex(c => c.id === payload.id);
+      if (idx >= 0) store.viewerCharacters[idx] = { ...store.viewerCharacters[idx], ...payload };
+      else store.viewerCharacters.push(payload);
     } else if (action === 'submitQuest') {
       store.quests = store.quests || [];
       store.quests.push(payload);
+    } else if (action === 'updateQuest') {
+      store.quests = store.quests || [];
+      const idx = store.quests.findIndex(q => q.id === payload.id);
+      if (idx >= 0) store.quests[idx] = { ...store.quests[idx], ...payload };
+      else store.quests.push(payload);
     } else {
       return jsonResponse({ error: 'Unknown action' }, 400);
     }

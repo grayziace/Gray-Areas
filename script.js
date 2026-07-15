@@ -5,28 +5,33 @@ const STORAGE_KEY = 'gray-areas-shenzhen-v6';
 function checkAdminFromUrl(){
   const key = new URLSearchParams(location.search).get('key');
   if(key && key === ADMIN_KEY){
-    sessionStorage.setItem('ga-admin', '1');
     history.replaceState({}, '', location.pathname);
-    queueMicrotask(() => unlockAdmin({ toast: false }));
   }
 }
 function isAdmin(){ return sessionStorage.getItem('ga-admin') === '1'; }
 
 function applyAdminUI(){
   const admin = isAdmin();
+  const guest = typeof isGuest === 'function' && isGuest();
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
   document.querySelectorAll('.player-only').forEach(el => el.classList.toggle('hidden', !admin));
+  document.querySelectorAll('.viewer-only-nav').forEach(el => el.classList.toggle('hidden', admin));
   document.getElementById('adminBar')?.classList.toggle('hidden', !admin);
   document.getElementById('adminUnlock')?.classList.toggle('hidden', admin);
   document.body.classList.toggle('is-editing', admin);
   document.body.classList.toggle('is-player', admin);
   document.body.classList.toggle('is-viewer', !admin);
+  document.body.classList.toggle('is-guest', guest && !admin);
   const qt = document.getElementById('questViewTitle');
   const qh = document.getElementById('questViewHint');
   if(qt) qt.textContent = admin ? 'Quest Inbox' : 'Quests';
   if(qh) qh.textContent = admin
     ? 'Accept, complete, or decline viewer missions. Completing quests levels up their cards.'
-    : 'Give Gray missions — places, food, comfort, Press pieces, meetups.';
+    : guest
+      ? 'Browse missions — log in with a Coders Card to send quests.'
+      : 'Give Gray missions — places, food, comfort, Press pieces, meetups.';
+  const barLabel = document.querySelector('.admin-bar-label');
+  if(barLabel) barLabel.textContent = 'Player mode';
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
@@ -34,26 +39,37 @@ function applyAdminUI(){
 
 function lockAdmin(){
   sessionStorage.removeItem('ga-admin');
+  if(typeof clearGuestMode === 'function') clearGuestMode();
+  try{ sessionStorage.removeItem('ga-coder-card-id'); }catch(e){}
   applyAdminUI();
   renderAll();
+  if(typeof showEntryGate === 'function') showEntryGate();
+  navigateToView('instructions');
   const toast = document.getElementById('editToast');
   if(toast){
-    toast.textContent = 'Viewing.';
+    toast.textContent = 'Signed out.';
     toast.classList.remove('hidden');
-    setTimeout(() => { toast.classList.add('hidden'); toast.textContent = 'Editing.'; }, 2200);
+    setTimeout(() => { toast.classList.add('hidden'); toast.textContent = 'Player mode.'; }, 2200);
   }
 }
 
 checkAdminFromUrl();
 
 function unlockAdmin(opts = {}){
+  if(typeof clearGuestMode === 'function') clearGuestMode();
+  try{ sessionStorage.removeItem('ga-coder-card-id'); }catch(e){}
   sessionStorage.setItem('ga-admin', '1');
+  if(typeof hideEntryGate === 'function') hideEntryGate();
   applyAdminUI();
   renderAll();
-  if(opts.toast !== false){
+  if(opts.welcome !== false && typeof showWelcomePlayer === 'function') showWelcomePlayer();
+  else if(opts.toast !== false){
     const toast = document.getElementById('editToast');
-    toast?.classList.remove('hidden');
-    setTimeout(() => toast?.classList.add('hidden'), 2200);
+    if(toast){
+      toast.textContent = 'Player mode.';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast?.classList.add('hidden'), 2200);
+    }
   }
   if(opts.view){
     const btn = document.querySelector(`.node-btn[data-view="${opts.view}"]`);
@@ -100,6 +116,7 @@ function defaultState(){
     viewerCharacters: [],
     quests: [],
     videoDiary: [],
+    liveTodos: [],
   };
 }
 
@@ -134,6 +151,7 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.viewerCharacters)) state.viewerCharacters = s.viewerCharacters;
   if(Array.isArray(s.quests)) state.quests = s.quests;
   if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
+  if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -908,6 +926,7 @@ const STREAM_NODE_META = {
   hobby: { label: 'Hobby', neon: '#e879f9', icon: '✦' },
   nap: { label: 'Rest', neon: '#64748b', icon: '⋯' },
   event: { label: 'Event', neon: '#f97316', icon: '◈' },
+  todo: { label: 'To-do done', neon: '#e8c547', icon: '✓' },
   call: { label: 'Call', neon: '#34d399', icon: '☎' },
   message: { label: 'Message', neon: '#7dd3fc', icon: '✉' },
   news: { label: 'News', neon: '#fca5a5', icon: '▤' },
@@ -1553,7 +1572,7 @@ function navigateToView(view){
   document.querySelectorAll(`.node-btn[data-view="${view}"]`).forEach(b => b.classList.add('active'));
   document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view)?.classList.add('active');
-  if(view === 'viewer-card' || view === 'quests' || view === 'vlog'){
+  if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions'){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   }
 }
@@ -1577,6 +1596,13 @@ function bootApp(){
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
+  if(typeof isSiteUnlocked === 'function' && isSiteUnlocked()){
+    if(isAdmin()) navigateToView('profile');
+    else navigateToView('instructions');
+  } else {
+    if(typeof showEntryGate === 'function') showEntryGate();
+    navigateToView('instructions');
+  }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
@@ -1863,7 +1889,7 @@ function bindCommunityConsole(){
       return;
     }
     if(v === ':)'){
-      unlockAdmin({ toast: true, view: 'profile' });
+      unlockAdmin({ toast: false, view: 'profile' });
       resetConsoleInput(input);
       return;
     }
@@ -1881,9 +1907,14 @@ function bindCommunityConsole(){
         }
       }
       resetConsoleInput(input);
-    } else {
-      resetConsoleInput(input);
+      return;
     }
+    if(typeof tryCoderLoginFromConsole === 'function' && tryCoderLoginFromConsole(v)){
+      navigateToView('instructions');
+      resetConsoleInput(input);
+      return;
+    }
+    resetConsoleInput(input);
   });
 }
 
@@ -2327,6 +2358,167 @@ const HomeCheckIn = {
     if(stream.startedAt) return `Day active · wake ${fmtNodeTime(stream.startedAt)}`;
     return 'Day not started';
   },
+
+  renderLiveTodos(admin){
+    const todos = state.liveTodos || [];
+    if(!todos.length && !admin){
+      return `<section class="live-todo-board viewer-todo-board">
+        <h3 class="live-todo-title">Gray's to-do list</h3>
+        <p class="live-todo-hint">Nothing queued yet — check back for live missions.</p>
+      </section>`;
+    }
+    const rows = todos.map(t => {
+      const subs = (t.subtasks || []).map(s => `
+        <li class="live-todo-sub ${s.done ? 'is-done' : ''}">
+          ${admin ? `<input type="checkbox" data-live-sub="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" ${s.done ? 'checked' : ''}>` : `<span class="live-todo-check ${s.done ? 'done' : ''}">${s.done ? '✓' : '○'}</span>`}
+          ${admin ? `<input type="text" class="live-todo-sub-input" data-live-sub-text="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" value="${esc(s.text)}">` : `<span>${esc(s.text)}</span>`}
+          ${admin ? `<button type="button" class="live-todo-del" data-live-sub-del="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" title="Remove">×</button>` : ''}
+        </li>`).join('');
+      return `<li class="live-todo-item ${t.done ? 'is-done' : ''}">
+        <div class="live-todo-row">
+          ${admin ? `<input type="checkbox" data-live-todo="${esc(t.id)}" ${t.done ? 'checked' : ''}>` : `<span class="live-todo-check ${t.done ? 'done' : ''}">${t.done ? '✓' : '○'}</span>`}
+          ${admin ? `<input type="text" class="live-todo-input" data-live-todo-text="${esc(t.id)}" value="${esc(t.text)}">` : `<strong class="live-todo-label">${esc(t.text)}</strong>`}
+          ${admin ? `<button type="button" class="live-todo-del" data-live-todo-del="${esc(t.id)}" title="Remove">×</button>` : ''}
+        </div>
+        ${subs ? `<ul class="live-todo-subs">${subs}</ul>` : ''}
+        ${admin ? `<button type="button" class="btn live-todo-add-sub" data-live-add-sub="${esc(t.id)}">+ sub-task</button>` : ''}
+      </li>`;
+    }).join('');
+    return `<section class="live-todo-board ${admin ? 'admin-todo-board' : 'viewer-todo-board'}">
+      <div class="live-todo-head">
+        <h3 class="live-todo-title">Gray's to-do list</h3>
+        <p class="live-todo-hint">${admin ? 'Tick items to broadcast on the neon timeline. Viewers see this list read-only.' : 'What Gray is working through today — completed items light up on the transmission log.'}</p>
+      </div>
+      <ul class="live-todo-list">${rows || `<li class="empty-hint">No items yet.</li>`}</ul>
+      ${admin ? `<div class="live-todo-compose">
+        <input type="text" id="liveTodoNew" placeholder="Add a to-do…">
+        <button type="button" class="btn primary" id="liveTodoAdd">Add</button>
+      </div>` : ''}
+    </section>`;
+  },
+
+  bindLiveTodos(spread){
+    spread.querySelector('#liveTodoAdd')?.addEventListener('click', () => this.addLiveTodo());
+    spread.querySelector('#liveTodoNew')?.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); this.addLiveTodo(); }
+    });
+    spread.querySelectorAll('[data-live-todo]').forEach(cb => {
+      cb.addEventListener('change', () => this.toggleLiveTodo(cb.dataset.liveTodo, cb.checked));
+    });
+    spread.querySelectorAll('[data-live-sub]').forEach(cb => {
+      cb.addEventListener('change', () => this.toggleLiveSubtask(cb.dataset.liveSub, cb.dataset.liveSubId, cb.checked));
+    });
+    spread.querySelectorAll('[data-live-todo-text]').forEach(inp => {
+      inp.addEventListener('change', () => this.updateLiveTodoText(inp.dataset.liveTodoText, inp.value));
+    });
+    spread.querySelectorAll('[data-live-sub-text]').forEach(inp => {
+      inp.addEventListener('change', () => this.updateLiveSubtaskText(inp.dataset.liveSubText, inp.dataset.liveSubId, inp.value));
+    });
+    spread.querySelectorAll('[data-live-todo-del]').forEach(btn => {
+      btn.addEventListener('click', () => this.deleteLiveTodo(btn.dataset.liveTodoDel));
+    });
+    spread.querySelectorAll('[data-live-sub-del]').forEach(btn => {
+      btn.addEventListener('click', () => this.deleteLiveSubtask(btn.dataset.liveSubDel, btn.dataset.liveSubId));
+    });
+    spread.querySelectorAll('[data-live-add-sub]').forEach(btn => {
+      btn.addEventListener('click', () => this.addLiveSubtask(btn.dataset.liveAddSub));
+    });
+  },
+
+  addLiveTodo(){
+    if(!isAdmin()) return;
+    const inp = document.getElementById('liveTodoNew');
+    const text = inp?.value?.trim();
+    if(!text) return;
+    if(!state.liveTodos) state.liveTodos = [];
+    state.liveTodos.push({ id: uid('todo'), text, done: false, subtasks: [] });
+    saveState();
+    inp.value = '';
+    renderHomeCheckIn();
+  },
+
+  addLiveSubtask(todoId){
+    if(!isAdmin()) return;
+    const text = prompt('Sub-task:')?.trim();
+    if(!text) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    if(!t) return;
+    if(!t.subtasks) t.subtasks = [];
+    t.subtasks.push({ id: uid('sub'), text, done: false });
+    saveState();
+    renderHomeCheckIn();
+  },
+
+  updateLiveTodoText(todoId, text){
+    if(!isAdmin()) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    if(!t) return;
+    t.text = text.trim() || t.text;
+    saveState();
+  },
+
+  updateLiveSubtaskText(todoId, subId, text){
+    if(!isAdmin()) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const s = t?.subtasks?.find(x => x.id === subId);
+    if(!s) return;
+    s.text = text.trim() || s.text;
+    saveState();
+  },
+
+  deleteLiveTodo(todoId){
+    if(!isAdmin()) return;
+    state.liveTodos = (state.liveTodos || []).filter(x => x.id !== todoId);
+    saveState();
+    renderHomeCheckIn();
+  },
+
+  deleteLiveSubtask(todoId, subId){
+    if(!isAdmin()) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    if(!t?.subtasks) return;
+    t.subtasks = t.subtasks.filter(s => s.id !== subId);
+    saveState();
+    renderHomeCheckIn();
+  },
+
+  pushTodoTimelineNode(label, parent){
+    const key = todayKey();
+    const stream = getDayStream(key);
+    const now = new Date().toISOString();
+    stream.nodes.push({
+      id: 'n-todo-' + Date.now(),
+      at: now,
+      type: 'todo',
+      text: label,
+      body: parent ? `Part of: ${parent}` : '',
+    });
+    if(!state.entries[key]) state.entries[key] = {};
+    state.entries[key].stream = stream;
+  },
+
+  toggleLiveTodo(todoId, done){
+    if(!isAdmin()) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    if(!t || t.done === done) return;
+    t.done = done;
+    t.doneAt = done ? new Date().toISOString() : null;
+    if(done) this.pushTodoTimelineNode(t.text);
+    saveState();
+    renderHomeCheckIn();
+  },
+
+  toggleLiveSubtask(todoId, subId, done){
+    if(!isAdmin()) return;
+    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const s = t?.subtasks?.find(x => x.id === subId);
+    if(!s || s.done === done) return;
+    s.done = done;
+    s.doneAt = done ? new Date().toISOString() : null;
+    if(done) this.pushTodoTimelineNode(s.text, t?.text);
+    saveState();
+    renderHomeCheckIn();
+  },
 };
 
 function renderHomeCheckIn(){
@@ -2374,6 +2566,8 @@ function renderHomeCheckIn(){
         ${stream.endedAt ? `<span>Sleep ${fmtNodeStamp(stream.endedAt, key)}</span>` : ''}
       </div>
 
+      ${HomeCheckIn.renderLiveTodos(admin)}
+
       ${admin ? `<div class="live-controls admin-only">
         <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
         <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
@@ -2397,6 +2591,7 @@ function renderHomeCheckIn(){
     </main>`;
 
   HomeCheckIn.bindSpread(spread);
+  HomeCheckIn.bindLiveTodos(spread);
   queueMicrotask(() => HomeCheckIn.scrollRailToBottom());
 }
 
