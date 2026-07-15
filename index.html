@@ -268,7 +268,7 @@
 
     <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
       <h2 class="view-title sketch-title">Coder Cards</h2>
-      <p class="gallery-hint">Click to flip.</p>
+      <p class="gallery-hint">Ranked by XP — #1, #2, #3 glow on the deck. Higher XP = higher rank. Click to flip.</p>
       <div class="card-deck" id="charDeck"></div>
       <button class="btn admin-only hidden" id="addCharBtn" style="margin-top:14px">+ Add player</button>
     </section>
@@ -363,6 +363,40 @@
 
 <div class="coder-notify-backdrop hidden" id="coderNotifyBackdrop" aria-hidden="true"></div>
 <aside class="coder-notify-drawer hidden" id="coderNotifyRail" aria-label="Coder activity"></aside>
+
+<div class="corner-fab-stack" aria-label="Quick actions">
+  <button type="button" class="corner-fab rewards-fab admin-only hidden" id="grayRewardsFab" title="Rewards vault (Player Gray only)" aria-label="Rewards vault">
+    <span class="corner-fab-icon" aria-hidden="true">★</span>
+  </button>
+  <button type="button" class="corner-fab inbox-fab hidden" id="inboxFab" title="Private messages" aria-label="Private messages">
+    <span class="corner-fab-icon" aria-hidden="true">✉</span>
+    <span class="inbox-fab-badge inbox-badge hidden" id="inboxFabBadge">0</span>
+  </button>
+</div>
+
+<div class="inbox-drawer-backdrop hidden" id="inboxDrawerBackdrop" aria-hidden="true"></div>
+<aside class="inbox-drawer hidden" id="inboxDrawer" aria-label="Private messages">
+  <header class="inbox-drawer-head">
+    <div>
+      <h3 class="viewer-wizard-title">Private messages</h3>
+      <span class="inbox-drawer-sub">Only you and Gray — coders can message each other too.</span>
+    </div>
+    <button type="button" class="inbox-drawer-close" id="closeInboxDrawer" aria-label="Close inbox">×</button>
+  </header>
+  <div class="inbox-drawer-scroll" id="inboxDrawerSpread"></div>
+</aside>
+
+<div class="inbox-drawer-backdrop hidden" id="grayRewardsBackdrop" aria-hidden="true"></div>
+<aside class="inbox-drawer rewards-drawer hidden" id="grayRewardsDrawer" aria-label="Rewards vault">
+  <header class="inbox-drawer-head rewards-drawer-head">
+    <div>
+      <h3 class="viewer-wizard-title">Rewards vault</h3>
+      <span class="inbox-drawer-sub">Player Gray only — XP rules, goals, treats.</span>
+    </div>
+    <button type="button" class="inbox-drawer-close" id="closeGrayRewardsDrawer" aria-label="Close rewards vault">×</button>
+  </header>
+  <div class="inbox-drawer-scroll" id="grayRewardsSpread"></div>
+</aside>
 
 <!-- Modals -->
 <div class="modal-back hidden" id="cardModalBack">

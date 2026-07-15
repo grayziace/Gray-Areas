@@ -44,7 +44,9 @@ function applyAdminUI(){
   if(admin && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
-  document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.toggle('hidden', !canInbox));
+  document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.add('hidden'));
+  document.getElementById('inboxFab')?.classList.toggle('hidden', !canInbox);
+  document.getElementById('grayRewardsFab')?.classList.toggle('hidden', !admin);
   if(typeof updateInboxBadge === 'function') updateInboxBadge();
   const pinForm = document.getElementById('pinForm');
   if(pinForm) pinForm.classList.toggle('hidden', !canPost);
@@ -156,6 +158,7 @@ function defaultState(){
     instructionsHtml: '',
     playerPoints: 0,
     playerXpHistory: [],
+    grayRewardsVault: null,
   };
 }
 
@@ -195,6 +198,7 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.coderActivity)) state.coderActivity = s.coderActivity;
   if(typeof s.playerPoints === 'number') state.playerPoints = s.playerPoints;
   if(Array.isArray(s.playerXpHistory)) state.playerXpHistory = s.playerXpHistory;
+  if(s.grayRewardsVault && typeof s.grayRewardsVault === 'object') state.grayRewardsVault = s.grayRewardsVault;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -355,8 +359,43 @@ function getCharacters(){
   return [...staticChars, ...coderChars];
 }
 
+const CODER_RANK_NEONS = ['#fcd34d', '#ff4fd8', '#3ad6e0'];
+
 function isCoderDeckCard(c){
-  return !!(c && (c.isCoderCard || (state.viewerCharacters || []).some(v => v.id === c.id)));
+  if(!c) return false;
+  const key = (c.name || '').trim().toLowerCase();
+  if(key === 'gray') return false;
+  return !!(c.isCoderCard || c.isGod || (state.viewerCharacters || []).some(v => v.id === c.id));
+}
+
+function getRankedCoderCards(){
+  const all = getCharacters().filter(c => isCoderDeckCard(c));
+  const gods = all.filter(c => typeof isNickOrGod === 'function' && isNickOrGod(c));
+  const rest = all.filter(c => !(typeof isNickOrGod === 'function' && isNickOrGod(c))).sort((a, b) => {
+    const xp = (b.points || 0) - (a.points || 0);
+    if(xp) return xp;
+    return (b.pokeCard?.level || 0) - (a.pokeCard?.level || 0);
+  });
+  return [...gods, ...rest];
+}
+
+function getCoderXpRankMap(){
+  const map = new Map();
+  getRankedCoderCards()
+    .filter(c => !(typeof isNickOrGod === 'function' && isNickOrGod(c)))
+    .forEach((c, i) => map.set(c.id, i + 1));
+  return map;
+}
+
+function getCoderXpRank(coderId){
+  if(!coderId) return null;
+  const rank = getCoderXpRankMap().get(coderId);
+  return rank || null;
+}
+
+function getCoderRankNeon(rank){
+  if(!rank || rank < 1) return null;
+  return CODER_RANK_NEONS[(rank - 1) % CODER_RANK_NEONS.length];
 }
 
 function getPlaces(){
@@ -480,6 +519,7 @@ function openContentEditor(type, id, isNew){
       + fieldHtml('Date', 'ce_date', item?.date)
       + fieldHtml('Layout', 'ce_layout', item?.layout, 'select', layoutOpts)
       + fieldHtml('Excerpt', 'ce_excerpt', item?.excerpt, 'textarea')
+      + fieldHtml('Tags (comma-separated)', 'ce_tags', Array.isArray(item?.tags) ? item.tags.join(', ') : (item?.tags || ''))
       + fieldHtml('Body', 'ce_body', item?.body, 'textarea')
       + ImageTools.blockHtml({
           prefix: 'ce_article',
@@ -595,9 +635,11 @@ function readContentForm(type){
     };
   }
   if(type === 'article'){
+    const tagsRaw = g('ce_tags');
+    const tags = tagsRaw ? tagsRaw.split(/[,;]+/).map(t => t.trim()).filter(Boolean) : [];
     return {
       title: g('ce_title'), section: g('ce_section'), date: g('ce_date'), layout: g('ce_layout') || 'note',
-      excerpt: g('ce_excerpt'), body: g('ce_body'),
+      excerpt: g('ce_excerpt'), body: g('ce_body'), tags,
       imagePrompt: document.getElementById('ce_article_desc')?.value?.trim() || '',
       image,
     };
@@ -1346,8 +1388,10 @@ function getGrayPoints(){
 
 function grayLevelFromPoints(points){
   const pts = points || 0;
-  const level = Math.max(1, 1 + Math.floor(pts / 100));
-  return { level, points: pts, progress: (pts % 100) / 100 };
+  const level = Math.floor(pts / 100);
+  const progress = (pts % 100) / 100;
+  const xpToNext = pts % 100 === 0 ? 100 : 100 - (pts % 100);
+  return { level, points: pts, progress, xpToNext };
 }
 
 function awardGrayPoints(amount, reason){
@@ -1372,15 +1416,457 @@ function awardGrayPoints(amount, reason){
 }
 
 function renderGrayXpGuide(){
-  const rows = Object.entries(GRAY_XP_AWARDS)
-    .filter(([k]) => k !== 'custom')
-    .map(([, v]) => `<li><strong>+${v.xp}</strong> ${esc(v.label)}</li>`).join('');
   return `<section class="gray-xp-guide sketch-card">
-    <h3 class="profile-feed-title">How Gray levels up</h3>
-    <p class="gallery-hint">Every 100 XP = +1 level. Coders earn XP from quests; you earn XP from living the board.</p>
-    <ul class="gray-xp-list">${rows}</ul>
-    <p class="gray-xp-formula">Level = 1 + floor(XP ÷ 100)</p>
+    <h3 class="profile-feed-title">Rewards vault</h3>
+    <p class="gallery-hint">Private XP rules, monthly goals, and unlock rewards — only Player Gray sees this.</p>
+    <button type="button" class="btn primary" id="openRewardsVaultBtn">Open Rewards Vault</button>
   </section>`;
+}
+
+const GRAY_VAULT_GOAL_TYPES = {
+  monthly_xp: { label: 'Monthly XP', hint: 'Total Gray XP earned this calendar month.' },
+  gray_level: { label: 'Gray level', hint: 'Reach a level (floor(XP ÷ 100)) — Lv 0 at 0 XP, Lv 1 at 100.' },
+  skill_level: { label: 'Skill tier', hint: 'Reach a tier on a chosen skill tower.' },
+  skill_hours: { label: 'Skill hours', hint: 'Log hours on a chosen skill.' },
+  custom: { label: 'Custom', hint: 'Mark done manually when you hit it.' },
+};
+
+const GRAY_REWARD_UNLOCK_TYPES = {
+  xp_total: { label: 'Total Gray XP' },
+  gray_level: { label: 'Gray level' },
+  skill_level: { label: 'Skill tier' },
+  skill_hours: { label: 'Skill hours' },
+  manual: { label: 'Manual unlock' },
+};
+
+function defaultGrayRewardsVault(){
+  const xpRules = Object.entries(GRAY_XP_AWARDS)
+    .filter(([k]) => k !== 'custom')
+    .map(([key, v]) => ({
+      id: key,
+      label: v.label,
+      xp: v.xp,
+      category: key === 'login' ? 'daily' : key.includes('quest') ? 'social' : 'live',
+      note: '',
+    }));
+  return {
+    stationNote: 'Your private reward station — edit XP rules, set monthly goals, and claim treats when you unlock them.',
+    xpRules,
+    goals: [
+      {
+        id: uid('ggoal'),
+        title: 'Monthly XP push',
+        type: 'monthly_xp',
+        targetValue: 150,
+        skillId: '',
+        rewardNote: 'Take yourself out — dinner, cinema, or something silly.',
+        done: false,
+      },
+      {
+        id: uid('ggoal'),
+        title: 'Level up one skill tier',
+        type: 'skill_level',
+        targetValue: 2,
+        skillId: '',
+        rewardNote: 'Small upgrade for that hobby.',
+        done: false,
+      },
+    ],
+    rewards: [
+      {
+        id: uid('grw'),
+        title: 'Victory pint',
+        description: 'Any pub, any day — you sealed the month.',
+        unlockType: 'xp_total',
+        unlockValue: 100,
+        skillId: '',
+        claimed: false,
+      },
+      {
+        id: uid('grw'),
+        title: 'Big treat',
+        description: 'Dinner or gadget — Gray picks when ready.',
+        unlockType: 'gray_level',
+        unlockValue: 5,
+        skillId: '',
+        claimed: false,
+      },
+    ],
+  };
+}
+
+function ensureGrayRewardsVault(){
+  if(state.grayRewardsVault?.xpRules?.length) return state.grayRewardsVault;
+  state.grayRewardsVault = defaultGrayRewardsVault();
+  saveState();
+  return state.grayRewardsVault;
+}
+
+function getGrayVaultXpRules(){
+  const vault = ensureGrayRewardsVault();
+  return vault.xpRules || [];
+}
+
+function getMonthlyGrayXp(ref = new Date()){
+  const y = ref.getFullYear();
+  const m = ref.getMonth();
+  return (state.playerXpHistory || []).reduce((sum, entry) => {
+    if(!entry?.at || !entry.amount) return sum;
+    const d = new Date(entry.at);
+    if(d.getFullYear() === y && d.getMonth() === m) return sum + entry.amount;
+    return sum;
+  }, 0);
+}
+
+function getGrayGoalProgress(goal){
+  if(!goal) return { current: 0, target: 0, pct: 0, met: false };
+  const target = Number(goal.targetValue) || 0;
+  let current = 0;
+  if(goal.type === 'monthly_xp') current = getMonthlyGrayXp();
+  else if(goal.type === 'gray_level') current = grayLevelFromPoints(getGrayPoints()).level;
+  else if(goal.type === 'skill_level') current = getSkillTier(getTotalSkillHours(goal.skillId)).level;
+  else if(goal.type === 'skill_hours') current = getTotalSkillHours(goal.skillId);
+  else if(goal.type === 'custom') current = goal.done ? 1 : 0;
+  const met = goal.done || (goal.type === 'custom' ? !!goal.done : target > 0 && current >= target);
+  const pct = target > 0 ? Math.min(1, current / target) : (met ? 1 : 0);
+  return { current, target, pct, met };
+}
+
+function isGrayRewardUnlocked(reward){
+  if(!reward) return false;
+  if(reward.unlockType === 'manual') return true;
+  const val = Number(reward.unlockValue) || 0;
+  if(reward.unlockType === 'xp_total') return getGrayPoints() >= val;
+  if(reward.unlockType === 'gray_level') return grayLevelFromPoints(getGrayPoints()).level >= val;
+  if(reward.unlockType === 'skill_level') return getSkillTier(getTotalSkillHours(reward.skillId)).level >= val;
+  if(reward.unlockType === 'skill_hours') return getTotalSkillHours(reward.skillId) >= val;
+  return false;
+}
+
+function grayVaultSkillOptions(selected){
+  return getSkills().map(s =>
+    `<option value="${esc(s.id)}"${selected === s.id ? ' selected' : ''}>${esc(s.name)}</option>`,
+  ).join('');
+}
+
+function renderGrayRewardsVault(){
+  const host = document.getElementById('grayRewardsSpread');
+  if(!host || !isAdmin()) return;
+  const vault = ensureGrayRewardsVault();
+  const lvl = grayLevelFromPoints(getGrayPoints());
+  const monthXp = getMonthlyGrayXp();
+  const monthName = new Date().toLocaleString(undefined, { month: 'long', year: 'numeric' });
+
+  const rulesHtml = getGrayVaultXpRules().map(rule => `
+    <div class="vault-rule-row" data-rule-id="${esc(rule.id)}">
+      <div class="vault-rule-main">
+        <strong>+${rule.xp || 0}</strong>
+        <span>${esc(rule.label)}</span>
+        ${rule.category ? `<em class="vault-tag">${esc(rule.category)}</em>` : ''}
+        ${rule.note ? `<p class="vault-note">${esc(rule.note)}</p>` : ''}
+      </div>
+      <div class="vault-row-actions">
+        <button type="button" class="btn vault-edit-rule" data-rule-id="${esc(rule.id)}">Edit</button>
+        <button type="button" class="btn admin-delete vault-del-rule" data-rule-id="${esc(rule.id)}">×</button>
+      </div>
+    </div>`).join('') || '<p class="empty-hint">No XP rules yet.</p>';
+
+  const goalsHtml = (vault.goals || []).map(goal => {
+    const prog = getGrayGoalProgress(goal);
+    const typeMeta = GRAY_VAULT_GOAL_TYPES[goal.type] || GRAY_VAULT_GOAL_TYPES.custom;
+    const skill = goal.skillId ? getSkills().find(s => s.id === goal.skillId) : null;
+    return `<div class="vault-goal-row${goal.done ? ' is-done' : ''}" data-goal-id="${esc(goal.id)}">
+      <div class="vault-goal-head">
+        <strong>${esc(goal.title)}</strong>
+        <span class="vault-tag">${esc(typeMeta.label)}</span>
+      </div>
+      <p class="vault-note">${esc(goal.rewardNote || '')}</p>
+      ${skill ? `<p class="field-hint">Skill: ${esc(skill.name)}</p>` : ''}
+      <div class="gray-xp-bar vault-progress"><span style="width:${Math.round(prog.pct * 100)}%"></span></div>
+      <p class="gray-xp-meta">${Math.round(prog.current * 10) / 10} / ${prog.target || '—'} ${goal.done ? '· done' : ''}</p>
+      <div class="vault-row-actions">
+        <button type="button" class="btn vault-toggle-goal" data-goal-id="${esc(goal.id)}">${goal.done ? 'Reopen' : 'Mark done'}</button>
+        <button type="button" class="btn vault-edit-goal" data-goal-id="${esc(goal.id)}">Edit</button>
+        <button type="button" class="btn admin-delete vault-del-goal" data-goal-id="${esc(goal.id)}">×</button>
+      </div>
+    </div>`;
+  }).join('') || '<p class="empty-hint">No goals yet — add a monthly target below.</p>';
+
+  const rewardsHtml = (vault.rewards || []).map(reward => {
+    const unlocked = isGrayRewardUnlocked(reward);
+    const unlockMeta = GRAY_REWARD_UNLOCK_TYPES[reward.unlockType] || { label: reward.unlockType };
+    const skill = reward.skillId ? getSkills().find(s => s.id === reward.skillId) : null;
+    return `<div class="vault-reward-row${unlocked ? ' is-unlocked' : ''}${reward.claimed ? ' is-claimed' : ''}" data-reward-id="${esc(reward.id)}">
+      <div class="vault-reward-head">
+        <strong>${esc(reward.title)}</strong>
+        <span class="vault-tag">${esc(unlockMeta.label)} ≥ ${reward.unlockValue ?? '—'}${skill ? ` · ${esc(skill.name)}` : ''}</span>
+      </div>
+      <p class="vault-note">${esc(reward.description || '')}</p>
+      <div class="vault-row-actions">
+        ${unlocked && !reward.claimed ? `<button type="button" class="btn primary vault-claim-reward" data-reward-id="${esc(reward.id)}">Claim</button>` : ''}
+        ${reward.claimed ? `<span class="vault-claimed-tag">Claimed</span>` : ''}
+        <button type="button" class="btn vault-edit-reward" data-reward-id="${esc(reward.id)}">Edit</button>
+        <button type="button" class="btn admin-delete vault-del-reward" data-reward-id="${esc(reward.id)}">×</button>
+      </div>
+    </div>`;
+  }).join('') || '<p class="empty-hint">No rewards yet — add treats you want to earn.</p>';
+
+  host.innerHTML = `
+    <section class="vault-overview sketch-card">
+      <p class="vault-station-note">${esc(vault.stationNote || '')}</p>
+      <div class="vault-stat-row">
+        <span class="profile-id-chip" style="--pic-neon:#fcd34d">${getGrayPoints()} XP</span>
+        <span class="profile-id-chip" style="--pic-neon:#ff4fd8">Lv ${lvl.level}</span>
+        <span class="profile-id-chip" style="--pic-neon:#3ad6e0">${monthXp} XP · ${esc(monthName)}</span>
+      </div>
+      <div class="field"><label>Station note</label><textarea id="vaultStationNote" rows="2">${esc(vault.stationNote || '')}</textarea></div>
+      <button type="button" class="btn" id="saveVaultStationNote">Save note</button>
+    </section>
+
+    <section class="vault-section sketch-card">
+      <h3 class="viewer-wizard-title">How to earn XP</h3>
+      <p class="field-hint">Edit amounts and notes — this is your private rulebook.</p>
+      <div class="vault-rule-list">${rulesHtml}</div>
+      <form id="vaultAddRuleForm" class="vault-add-form">
+        <div class="field-row">
+          <div class="field"><label>Action</label><input type="text" id="vaultRuleLabel" required placeholder="Seal a day"></div>
+          <div class="field"><label>XP</label><input type="number" id="vaultRuleXp" min="0" value="5"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Category</label><input type="text" id="vaultRuleCategory" placeholder="daily, live, content…"></div>
+          <div class="field"><label>Note</label><input type="text" id="vaultRuleNote" placeholder="When / why you get this"></div>
+        </div>
+        <button type="submit" class="btn primary">Add XP rule</button>
+      </form>
+    </section>
+
+    <section class="vault-section sketch-card">
+      <h3 class="viewer-wizard-title">Goals · ${esc(monthName)}</h3>
+      <p class="field-hint">Monthly XP targets, skill tier pushes, or anything you want to hit once.</p>
+      <div class="vault-goal-list">${goalsHtml}</div>
+      <form id="vaultAddGoalForm" class="vault-add-form">
+        <div class="field"><label>Goal title</label><input type="text" id="vaultGoalTitle" required placeholder="Earn 200 XP this month"></div>
+        <div class="field-row">
+          <div class="field"><label>Type</label><select id="vaultGoalType">${Object.entries(GRAY_VAULT_GOAL_TYPES).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>Target</label><input type="number" id="vaultGoalTarget" min="1" value="100"></div>
+        </div>
+        <div class="field vault-skill-field"><label>Skill (for skill goals)</label><select id="vaultGoalSkill"><option value="">—</option>${grayVaultSkillOptions('')}</select></div>
+        <div class="field"><label>Reward when hit</label><input type="text" id="vaultGoalRewardNote" placeholder="What you get when you nail it"></div>
+        <button type="submit" class="btn primary">Add goal</button>
+      </form>
+    </section>
+
+    <section class="vault-section sketch-card">
+      <h3 class="viewer-wizard-title">Reward station</h3>
+      <p class="field-hint">Unlock treats by XP, level, or skill progress — claim when you earn them.</p>
+      <div class="vault-reward-list">${rewardsHtml}</div>
+      <form id="vaultAddRewardForm" class="vault-add-form">
+        <div class="field"><label>Reward</label><input type="text" id="vaultRewardTitle" required placeholder="Victory pint"></div>
+        <div class="field"><label>Description</label><input type="text" id="vaultRewardDesc" placeholder="What / where / vibe"></div>
+        <div class="field-row">
+          <div class="field"><label>Unlock by</label><select id="vaultRewardUnlockType">${Object.entries(GRAY_REWARD_UNLOCK_TYPES).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>Value</label><input type="number" id="vaultRewardUnlockValue" min="0" value="100"></div>
+        </div>
+        <div class="field vault-skill-field-reward"><label>Skill (if needed)</label><select id="vaultRewardSkill"><option value="">—</option>${grayVaultSkillOptions('')}</select></div>
+        <button type="submit" class="btn primary">Add reward</button>
+      </form>
+    </section>`;
+
+  wireGrayRewardsVault(host);
+}
+
+function wireGrayRewardsVault(host){
+  host.querySelector('#saveVaultStationNote')?.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    vault.stationNote = document.getElementById('vaultStationNote')?.value?.trim() || '';
+    saveState();
+    renderGrayRewardsVault();
+  });
+
+  host.querySelector('#vaultAddRuleForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const vault = ensureGrayRewardsVault();
+    vault.xpRules.push({
+      id: uid('gxpr'),
+      label: document.getElementById('vaultRuleLabel')?.value?.trim() || 'Custom',
+      xp: Number(document.getElementById('vaultRuleXp')?.value) || 0,
+      category: document.getElementById('vaultRuleCategory')?.value?.trim() || 'custom',
+      note: document.getElementById('vaultRuleNote')?.value?.trim() || '',
+    });
+    saveState();
+    renderGrayRewardsVault();
+  });
+
+  host.querySelector('#vaultAddGoalForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const vault = ensureGrayRewardsVault();
+    vault.goals.push({
+      id: uid('ggoal'),
+      title: document.getElementById('vaultGoalTitle')?.value?.trim() || 'New goal',
+      type: document.getElementById('vaultGoalType')?.value || 'custom',
+      targetValue: Number(document.getElementById('vaultGoalTarget')?.value) || 1,
+      skillId: document.getElementById('vaultGoalSkill')?.value || '',
+      rewardNote: document.getElementById('vaultGoalRewardNote')?.value?.trim() || '',
+      done: false,
+    });
+    saveState();
+    renderGrayRewardsVault();
+  });
+
+  host.querySelector('#vaultAddRewardForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const vault = ensureGrayRewardsVault();
+    vault.rewards.push({
+      id: uid('grw'),
+      title: document.getElementById('vaultRewardTitle')?.value?.trim() || 'Treat',
+      description: document.getElementById('vaultRewardDesc')?.value?.trim() || '',
+      unlockType: document.getElementById('vaultRewardUnlockType')?.value || 'manual',
+      unlockValue: Number(document.getElementById('vaultRewardUnlockValue')?.value) || 0,
+      skillId: document.getElementById('vaultRewardSkill')?.value || '',
+      claimed: false,
+    });
+    saveState();
+    renderGrayRewardsVault();
+  });
+
+  host.querySelectorAll('.vault-del-rule').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    vault.xpRules = vault.xpRules.filter(r => r.id !== btn.dataset.ruleId);
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-edit-rule').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    const rule = vault.xpRules.find(r => r.id === btn.dataset.ruleId);
+    if(!rule) return;
+    const label = prompt('Action label', rule.label);
+    if(label == null) return;
+    const xp = prompt('XP amount', String(rule.xp ?? 0));
+    if(xp == null) return;
+    const note = prompt('Note (optional)', rule.note || '');
+    rule.label = label.trim() || rule.label;
+    rule.xp = Number(xp) || 0;
+    if(note != null) rule.note = note.trim();
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-del-goal').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    vault.goals = vault.goals.filter(g => g.id !== btn.dataset.goalId);
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-toggle-goal').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    const goal = vault.goals.find(g => g.id === btn.dataset.goalId);
+    if(!goal) return;
+    goal.done = !goal.done;
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-edit-goal').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    const goal = vault.goals.find(g => g.id === btn.dataset.goalId);
+    if(!goal) return;
+    const title = prompt('Goal title', goal.title);
+    if(title == null) return;
+    const target = prompt('Target value', String(goal.targetValue ?? 1));
+    if(target == null) return;
+    const rewardNote = prompt('Reward when hit', goal.rewardNote || '');
+    goal.title = title.trim() || goal.title;
+    goal.targetValue = Number(target) || goal.targetValue;
+    if(rewardNote != null) goal.rewardNote = rewardNote.trim();
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-del-reward').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    vault.rewards = vault.rewards.filter(r => r.id !== btn.dataset.rewardId);
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-edit-reward').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    const reward = vault.rewards.find(r => r.id === btn.dataset.rewardId);
+    if(!reward) return;
+    const title = prompt('Reward title', reward.title);
+    if(title == null) return;
+    const desc = prompt('Description', reward.description || '');
+    if(desc == null) return;
+    const val = prompt('Unlock value', String(reward.unlockValue ?? 0));
+    reward.title = title.trim() || reward.title;
+    reward.description = desc.trim();
+    if(val != null) reward.unlockValue = Number(val) || 0;
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  host.querySelectorAll('.vault-claim-reward').forEach(btn => btn.addEventListener('click', () => {
+    const vault = ensureGrayRewardsVault();
+    const reward = vault.rewards.find(r => r.id === btn.dataset.rewardId);
+    if(!reward || !isGrayRewardUnlocked(reward)) return;
+    reward.claimed = true;
+    reward.claimedAt = new Date().toISOString();
+    saveState();
+    renderGrayRewardsVault();
+  }));
+
+  const syncSkillFields = () => {
+    const goalType = document.getElementById('vaultGoalType')?.value;
+    const rewardType = document.getElementById('vaultRewardUnlockType')?.value;
+    host.querySelector('.vault-skill-field')?.classList.toggle('hidden', !['skill_level', 'skill_hours'].includes(goalType));
+    host.querySelector('.vault-skill-field-reward')?.classList.toggle('hidden', !['skill_level', 'skill_hours'].includes(rewardType));
+  };
+  document.getElementById('vaultGoalType')?.addEventListener('change', syncSkillFields);
+  document.getElementById('vaultRewardUnlockType')?.addEventListener('change', syncSkillFields);
+  syncSkillFields();
+}
+
+function openGrayRewardsDrawer(){
+  if(!isAdmin()) return;
+  closeInboxDrawer();
+  renderGrayRewardsVault();
+  document.getElementById('grayRewardsBackdrop')?.classList.remove('hidden');
+  document.getElementById('grayRewardsDrawer')?.classList.remove('hidden');
+  document.body.classList.add('gray-rewards-open');
+}
+
+function closeGrayRewardsDrawer(){
+  document.getElementById('grayRewardsBackdrop')?.classList.add('hidden');
+  document.getElementById('grayRewardsDrawer')?.classList.add('hidden');
+  document.body.classList.remove('gray-rewards-open');
+}
+
+function toggleGrayRewardsDrawer(){
+  if(document.body.classList.contains('gray-rewards-open')) closeGrayRewardsDrawer();
+  else openGrayRewardsDrawer();
+}
+
+function openInboxDrawer(){
+  const canInbox = isAdmin() || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+  if(!canInbox) return;
+  closeGrayRewardsDrawer();
+  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderInbox?.();
+  document.getElementById('inboxDrawerBackdrop')?.classList.remove('hidden');
+  document.getElementById('inboxDrawer')?.classList.remove('hidden');
+  document.body.classList.add('inbox-drawer-open');
+}
+
+function closeInboxDrawer(){
+  document.getElementById('inboxDrawerBackdrop')?.classList.add('hidden');
+  document.getElementById('inboxDrawer')?.classList.add('hidden');
+  document.body.classList.remove('inbox-drawer-open');
+}
+
+function toggleInboxDrawer(){
+  if(document.body.classList.contains('inbox-drawer-open')) closeInboxDrawer();
+  else openInboxDrawer();
 }
 
 function renderGrayXpHistory(){
@@ -1795,6 +2281,10 @@ function wireNavigation(){
 
 function navigateToView(view){
   if(!view) return;
+  if(view === 'inbox'){
+    openInboxDrawer();
+    return;
+  }
   if(view === 'instructions' && typeof shouldShowInstructionsNav === 'function' && !shouldShowInstructionsNav()){
     view = typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync';
   }
@@ -1848,6 +2338,12 @@ function bootApp(){
   try{ initCommunityCommentModal(); }catch(err){ console.error('Community comment modal failed:', err); }
   document.getElementById('toggleCoderNotify')?.addEventListener('click', toggleCoderNotify);
   document.getElementById('coderNotifyBackdrop')?.addEventListener('click', closeCoderNotify);
+  document.getElementById('inboxFab')?.addEventListener('click', toggleInboxDrawer);
+  document.getElementById('inboxDrawerBackdrop')?.addEventListener('click', closeInboxDrawer);
+  document.getElementById('closeInboxDrawer')?.addEventListener('click', closeInboxDrawer);
+  document.getElementById('grayRewardsFab')?.addEventListener('click', toggleGrayRewardsDrawer);
+  document.getElementById('grayRewardsBackdrop')?.addEventListener('click', closeGrayRewardsDrawer);
+  document.getElementById('closeGrayRewardsDrawer')?.addEventListener('click', closeGrayRewardsDrawer);
   showLoginIfNeeded();
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
@@ -2073,7 +2569,7 @@ function renderAbout(){
         <h3 class="profile-stat-group-title">Gray XP · Lv ${grayLvl.level}</h3>
         <div class="gray-xp-progress">
           <div class="gray-xp-bar"><span style="width:${Math.round(grayLvl.progress * 100)}%"></span></div>
-          <p class="gray-xp-meta">${player.points || 0} XP · ${100 - Math.round(grayLvl.progress * 100)} to next level</p>
+          <p class="gray-xp-meta">${player.points || 0} XP · Lv ${grayLvl.level} · ${grayLvl.xpToNext ?? (100 - Math.round(grayLvl.progress * 100))} to next level</p>
         </div>
         ${renderGrayXpHistory()}
       </section>
@@ -2093,6 +2589,7 @@ function renderAbout(){
     </div>`;
 
   spread.querySelector('#editAboutBtn')?.addEventListener('click', () => openContentEditor('player', 'player', false));
+  spread.querySelector('#openRewardsVaultBtn')?.addEventListener('click', () => openGrayRewardsDrawer());
   spread.querySelector('#saveArrivalBtn')?.addEventListener('click', () => {
     const v = document.getElementById('arrivalDateInput')?.value;
     if(v){ state.arrivalDate = v; saveState(); renderAbout(); renderHomeCheckIn(); }
@@ -3273,16 +3770,12 @@ function renderPlaces(){
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
-  const chars = getCharacters()
-    .filter(c => isCoderDeckCard(c))
-    .sort((a, b) => {
-      if(a.isGod) return -1;
-      if(b.isGod) return 1;
-      const xp = (b.points || 0) - (a.points || 0);
-      if(xp) return xp;
-      return (b.pokeCard?.level || 0) - (a.pokeCard?.level || 0);
-    });
-  deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i)).join('');
+  const rankMap = getCoderXpRankMap();
+  const chars = getRankedCoderCards();
+  deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i, {
+    xpRank: rankMap.get(c.id),
+    rankNeon: getCoderRankNeon(rankMap.get(c.id)),
+  })).join('');
   bindFlipPlayerCards(deck);
 }
 
@@ -3970,25 +4463,55 @@ document.getElementById('saveDrama')?.addEventListener('click', () => {
 });
 
 /* ---------- Press & Gallery ---------- */
+let pressTagFilter = '';
+
+function parseArticleTags(article){
+  if(!article) return [];
+  if(Array.isArray(article.tags)) return article.tags.map(t => String(t).trim()).filter(Boolean);
+  return String(article.tags || '').split(/[,;]+/).map(t => t.trim()).filter(Boolean);
+}
+
 function renderPress(){
   const spread = document.getElementById('pressSpread');
   if(!spread) return;
   const articles = getArticles();
+  const allTags = [...new Set(articles.flatMap(parseArticleTags))].sort((a, b) => a.localeCompare(b));
+  const filtered = pressTagFilter
+    ? articles.filter(a => parseArticleTags(a).includes(pressTagFilter))
+    : articles;
+  const tagBar = allTags.length
+    ? `<div class="press-tag-bar">
+        <button type="button" class="press-tag-chip${!pressTagFilter ? ' is-active' : ''}" data-press-tag="">All</button>
+        ${allTags.map(tag => `<button type="button" class="press-tag-chip${pressTagFilter === tag ? ' is-active' : ''}" data-press-tag="${esc(tag)}">${esc(tag)}</button>`).join('')}
+      </div>`
+    : '';
   const recs = typeof renderCategoryRecommendationsHtml === 'function'
     ? renderCategoryRecommendationsHtml('press', 'The Press')
     : '';
-  spread.innerHTML = recs + articles.map((a, i) => {
+  spread.innerHTML = recs + tagBar + filtered.map((a, i) => {
     const neon = stableNeon(a.id, i);
+    const tags = parseArticleTags(a);
+    const tagHtml = tags.length
+      ? `<div class="press-tags">${tags.map(t => `<span class="press-tag">${esc(t)}</span>`).join('')}</div>`
+      : '';
     return `
     <article class="manga-panel ${a.layout||'note'}" style="--panel-neon:${neon}" data-article-id="${esc(a.id)}">
       <div class="manga-section">${esc(a.section)}</div>
       <h3 class="manga-headline">${esc(a.title)}</h3>
       <div class="manga-date">${esc(a.date)}</div>
+      ${tagHtml}
       ${a.image?`<div class="manga-panel-image"><img src="${esc(a.image)}" alt="" loading="lazy"></div>`:''}
       <p class="manga-excerpt">${esc(a.excerpt)}</p>
       ${isAdmin() ? '<span class="panel-edit-hint">click to edit</span>' : ''}
     </article>`;
   }).join('');
+
+  spread.querySelectorAll('.press-tag-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pressTagFilter = btn.dataset.pressTag || '';
+      renderPress();
+    });
+  });
 
   spread.querySelectorAll('.manga-panel').forEach(p => {
     p.addEventListener('click', () => {
@@ -3999,9 +4522,12 @@ function renderPress(){
         const commentBtn = canCommunityInteract()
           ? `<div class="article-comment-row"><button type="button" class="btn community-comment-btn" data-cc-type="press" data-cc-id="${esc(a.id)}" data-cc-label="${esc(a.title)}">↩ Comment on Community</button></div>`
           : '';
+        const tags = parseArticleTags(a);
+        const tagLine = tags.length ? `<div class="press-tags">${tags.map(t => `<span class="press-tag">${esc(t)}</span>`).join('')}</div>` : '';
         document.getElementById('articleModalContent').innerHTML = `
           <div class="manga-section">${esc(a.section)} · ${esc(a.date)}</div>
           <h2 class="article-full-headline">${esc(a.title)}</h2>
+          ${tagLine}
           ${a.image?`<div class="manga-panel-image"><img src="${esc(a.image)}" alt=""></div>`:''}
           <div class="article-full-body">${esc(a.body)}</div>
           ${commentBtn}`;

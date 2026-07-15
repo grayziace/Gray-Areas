@@ -322,8 +322,18 @@ function ageFromBirthday(bday){
   return age;
 }
 
+function isNickOrGod(item){
+  if(!item) return false;
+  return !!(item.isGod || (item.name || '').trim().toLowerCase() === 'nick');
+}
+
+function displayCoderXp(item){
+  if(isNickOrGod(item)) return '∞';
+  return String(item.points || 0);
+}
+
 function displayCardLevel(item, pc){
-  if(item.isGod) return '∞';
+  if(isNickOrGod(item)) return '∞';
   if(item.isCoderCard && typeof coderLevelFromPoints === 'function'){
     return String(coderLevelFromPoints(item.points || 0).level);
   }
@@ -331,11 +341,18 @@ function displayCardLevel(item, pc){
 }
 
 function displayCardAge(item, pc){
-  if(item.isGod) return 'Older than the transmission log';
+  if(isNickOrGod(item)) return 'OP';
   const fromBirthday = ageFromBirthday(pc?.birthday || item.birthday);
   if(fromBirthday != null) return `${fromBirthday}`;
   if(item.age) return String(item.age);
   return '';
+}
+
+function isCoderXpCard(item){
+  if(!item) return false;
+  const nameKey = (item.name || '').trim().toLowerCase();
+  if(nameKey === 'gray') return false;
+  return !!(item.isCoderCard || item.isGod || (typeof isCoderDeckCard === 'function' && isCoderDeckCard(item)));
 }
 
 function buildPlayerCardFront(item, unlocked, opts = {}){
@@ -348,19 +365,39 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   const focus = { x: item.imageFocusX, y: item.imageFocusY };
   const spirit = !hideSpirit && unlocked && pc.spiritAnimalImage
     ? `<div class="pc-spirit-sticker"><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : '';
-  const showXp = opts.cardType !== 'place' && (item.name || '').trim().toLowerCase() !== 'gray' && !item.isGod;
-  const xpBadge = showXp ? `<span class="pc-xp-badge">${item.points || 0} XP</span>` : '';
-  const ageLabel = unlocked && displayCardAge(item, pc) ? `<span class="pc-age">Age ${esc(displayCardAge(item, pc))}</span>` : '';
+  const showXp = opts.cardType !== 'place' && isCoderXpCard(item);
+  const xpVal = displayCoderXp(item);
+  const rank = isNickOrGod(item) ? null : opts.xpRank;
+  const rankNeon = opts.rankNeon || (rank && rank <= 3 ? ['#fcd34d', '#ff4fd8', '#3ad6e0'][rank - 1] : null);
+  const rankBadge = unlocked && rank && rank <= 3 && rankNeon
+    ? `<span class="pc-rank-badge" style="--rank-neon:${rankNeon}">#${rank}</span>`
+    : '';
+  const xpRankLabel = isNickOrGod(item)
+    ? `<span class="pc-xp-rank is-op">OP</span>`
+    : rank ? `<span class="pc-xp-rank">Rank #${rank}</span>` : '';
+  const xpStrip = showXp && unlocked
+    ? `<div class="pc-xp-strip" style="--pc-accent:${accent}">
+        <span class="pc-xp-val">${xpVal} XP</span>
+        ${xpRankLabel}
+      </div>`
+    : '';
+  const ageVal = unlocked ? displayCardAge(item, pc) : '';
+  const ageLabel = ageVal
+    ? (isNickOrGod(item)
+      ? `<span class="pc-age pc-op-tag">${esc(ageVal)}</span>`
+      : `<span class="pc-age">Age ${esc(ageVal)}</span>`)
+    : '';
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
     <div class="pc-frame-glow"></div>
+    ${rankBadge}
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
       <span class="pc-lv">Lv ${unlocked ? displayCardLevel(item, pc) : '??'}</span>
       ${ageLabel}
-      ${xpBadge}
     </div>
+    ${xpStrip}
     <div class="pc-art">${buildCardPhotoHtml(artSrc, unlocked, item.name, focus)}${spirit}</div>
     ${brief ? `<p class="pc-blurb">${esc(brief)}</p>` : ''}
     <span class="flip-hint-front">↻ details</span>
@@ -382,7 +419,9 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
   return `<div class="pc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>
     ${pc.subtitle || item.cardSubtitle ? `<div class="pc-row"><span>Title</span><span>${esc(pc.subtitle || item.cardSubtitle)}</span></div>` : ''}
-    ${row('Level', displayCardLevel(item, pc))}${row('Age', displayCardAge(item, pc))}${row('MBTI', pc.mbti)}${row('Favourite colour', pc.colorPalette)}
+    ${row('Level', displayCardLevel(item, pc))}
+    ${isCoderXpCard(item) ? row('XP', `${item.points || 0}${opts.xpRank ? ` · Rank #${opts.xpRank}` : ''}`) : ''}
+    ${row('Age', displayCardAge(item, pc))}${row('MBTI', pc.mbti)}${row('Favourite colour', pc.colorPalette)}
     ${row('Birthday', formatBirthdayDisplay(pc.birthday || item.birthday))}
     ${pc.vibe ? `<div class="pc-block"><div class="pc-block-title">Vibe</div><p>${esc(pc.vibe)}</p></div>` : ''}
     ${!hideSpirit ? (pc.spiritAnimalImage ? `<div class="pc-spirit-row"><span>Spirit</span><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : row('Spirit', pc.spiritPrompt)) : ''}
@@ -408,12 +447,12 @@ function buildFlipPlayerCard(item, cardType, index, opts = {}){
   const tilt = opts.hero ? 0 : ((index % 5) * 1.2 - 2.4).toFixed(1);
   const cls = ['poke-flip', opts.hero ? 'player-card-hero' : '', isPlace ? 'place-flip' : '', !unlocked ? 'locked' : ''].filter(Boolean).join(' ');
 
-  const faceOpts = { ...opts, hideSpirit: isPlace, accent, heroAccent: opts.heroAccent };
+  const faceOpts = { ...opts, cardType: isPlace ? 'place' : 'character', hideSpirit: isPlace, accent, heroAccent: opts.heroAccent };
 
   return `<figure class="${cls}" style="--pc-accent:${accent};--tilt:${tilt}deg" data-card-id="${esc(id)}" data-card-type="${cardType}">
     <div class="poke-flip-scene"><div class="poke-flip-inner">
       <div class="poke-flip-face poke-flip-front">${buildPlayerCardFront(item, unlocked, faceOpts)}</div>
-      <div class="poke-flip-face poke-flip-back">${buildPlayerCardBack(item, unlocked, { hideSpirit: isPlace, cardType, cardId: id, accent })}</div>
+      <div class="poke-flip-face poke-flip-back">${buildPlayerCardBack(item, unlocked, { hideSpirit: isPlace, cardType, cardId: id, accent, xpRank: opts.xpRank })}</div>
     </div></div>
   </figure>`;
 }

@@ -180,7 +180,15 @@ function renderCoderWelcomeBar(){
   if(isCoderLoggedIn()){
     const name = getLoggedInCoderDisplayName() || 'Coder';
     const neon = getCoderWelcomeAccent();
-    host.innerHTML = `<div class="coder-welcome-bar" style="--coder-neon:${esc(neon)}"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong></span></div>`;
+    const cardId = getCoderSessionId();
+    const rank = typeof getCoderXpRank === 'function' ? getCoderXpRank(cardId) : null;
+    const rankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rank) : null;
+    const rankHtml = rank && rank <= 3 && rankNeon
+      ? `<span class="coder-welcome-rank" style="--rank-neon:${esc(rankNeon)}">#${rank}</span>`
+      : rank
+        ? `<span class="coder-welcome-rank is-plain">Rank #${rank}</span>`
+        : '';
+    host.innerHTML = `<div class="coder-welcome-bar" style="--coder-neon:${esc(neon)}"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong>${rankHtml}</span></div>`;
     host.classList.remove('hidden');
     return;
   }
@@ -361,13 +369,15 @@ function getPendingXpRequests(){
 }
 
 function updateInboxBadge(){
-  const badge = document.getElementById('inboxBadge');
-  if(!badge) return;
   const userId = typeof getInboxUserId === 'function' ? getInboxUserId() : '';
   const n = userId && typeof getUnreadInboxForUser === 'function' ? getUnreadInboxForUser(userId).length : 0;
-  badge.textContent = n ? String(n) : '';
-  badge.classList.toggle('has-signals', n > 0);
-  badge.classList.toggle('hidden', !n);
+  ['inboxBadge', 'inboxFabBadge'].forEach(id => {
+    const badge = document.getElementById(id);
+    if(!badge) return;
+    badge.textContent = n ? String(n) : '';
+    badge.classList.toggle('has-signals', n > 0);
+    badge.classList.toggle('hidden', !n);
+  });
 }
 
 function normalizeCoderKey(key){
@@ -520,7 +530,7 @@ function showWelcomePlayer(){
 }
 
 function showWelcomeCoder(card){
-  const pts = card.points || 0;
+  const pts = typeof isNickOrGod === 'function' && isNickOrGod(card) ? '∞' : (card.points || 0);
   showWelcomeModal(
     `Welcome back, Coder: ${card.name}`,
     `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>You're in. Send quests, post on Community, edit My Card anytime.</p>`,
@@ -548,7 +558,7 @@ function showUnreadInboxPopup(userId){
     `${preview}${more}`,
     { onDismiss: () => {
       markInboxRead(userId, unread.map(m => m.id));
-      if(typeof navigateToView === 'function') navigateToView('inbox');
+      if(typeof openInboxDrawer === 'function') openInboxDrawer();
     }},
   );
 }
@@ -622,28 +632,92 @@ function tryCoderLoginFromConsole(input){
 
 function coderLevelFromPoints(points){
   const pts = points || 0;
-  const level = Math.max(1, 1 + Math.floor(pts / 100));
-  return { level, points: pts, progress: (pts % 100) / 100, xpToNext: 100 - (pts % 100) };
+  const level = Math.floor(pts / 100);
+  const progress = (pts % 100) / 100;
+  const xpToNext = pts % 100 === 0 ? 100 : 100 - (pts % 100);
+  return { level, points: pts, progress, xpToNext };
 }
 
-function renderCoderLevelGuide(){
-  const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(lv => {
-    const xp = (lv - 1) * 100;
-    const note = lv === 1
-      ? 'Your card enters the deck'
-      : lv === 2
-        ? 'Lv shows on your card — you rank higher in Coder Cards'
-        : lv >= 5
-          ? 'Elite coder energy — Gray notices'
-          : 'Stronger presence on the board';
-    return `<li><strong>Lv ${lv}</strong> at <strong>${xp} XP</strong> — ${note}</li>`;
-  }).join('');
+const CODER_SITE_INTERACTIONS = [
+  { label: 'Make / edit My Card', note: 'Summon your portrait, spirit, and card line.' },
+  { label: 'Send quests', note: 'Missions for Gray — places, food, chaos, comfort, Press, etc.' },
+  { label: 'Post on Community', note: 'Permanent notes with your card attached.' },
+  { label: 'Private inbox', note: 'Message Gray or other coders — bottom-right ✉ button.' },
+  { label: 'Comment from Press / Gallery / cards', note: 'Leaves a note on the Community board.' },
+  { label: 'Request XP', note: 'Below — pick a reason and make your case if you think you earned bonus points.' },
+];
+
+function renderCoderXpGuide(){
+  const autoRows = Object.entries(XP_AWARDS)
+    .filter(([, v]) => v.auto && v.xp)
+    .map(([, v]) => `<li><strong>+${v.xp} XP</strong> · ${esc(v.label)} <em class="xp-auto-tag">automatic</em></li>`)
+    .join('');
+  const requestRows = Object.entries(XP_AWARDS)
+    .filter(([k, v]) => !v.auto && k !== 'custom' && v.xp)
+    .sort((a, b) => (b[1].xp || 0) - (a[1].xp || 0))
+    .map(([, v]) => `<li><strong>+${v.xp} XP</strong> · ${esc(v.label)} <em class="xp-request-tag">Gray approves</em></li>`)
+    .join('');
+  const interactRows = CODER_SITE_INTERACTIONS
+    .map(a => `<li><strong>${esc(a.label)}</strong> — ${esc(a.note)}</li>`)
+    .join('');
   return `<section class="coder-level-guide sketch-card">
-    <h3 class="viewer-wizard-title">How levelling works</h3>
-    <p class="field-hint">Every <strong>100 XP = +1 level</strong> on your Coders Card. Level is cosmetic + status for now — rewards for top coders still TBD.</p>
-    <ul class="coder-level-list">${rows}</ul>
-    <p class="gray-xp-formula">Level = 1 + floor(XP ÷ 100) · next level in <span id="coderXpToNext">—</span> XP</p>
+    <h3 class="viewer-wizard-title">XP &amp; the deck</h3>
+    <p class="field-hint">This is a <strong>competition for fun</strong> — not a life score. Whoever ranks <strong>#1 on the Coder Cards deck</strong> gets a present from Gray eventually (TBD what). Levels are just flair: you start at <strong>Lv 0</strong>, then <strong>+1 level every 100 XP</strong>. #1, #2, #3 glow on the board.</p>
+    <p class="gray-xp-formula">Level = floor(XP ÷ 100) · Lv 0 at 0 XP · Lv 1 at 100 XP · next level in <span id="coderXpToNext">—</span> XP</p>
+
+    <h4 class="xp-guide-subhead">Automatic XP</h4>
+    <p class="field-hint">The site awards these without asking.</p>
+    <ul class="coder-level-list">${autoRows}</ul>
+
+    <h4 class="xp-guide-subhead">Request XP from Gray</h4>
+    <p class="field-hint">Did something off-site or extra? Use the form below — Gray reads every request.</p>
+    <ul class="coder-level-list coder-xp-full">${requestRows}</ul>
+
+    <h4 class="xp-guide-subhead">Ways to interact</h4>
+    <ul class="coder-level-list coder-interact-list">${interactRows}</ul>
   </section>`;
+}
+
+function renderGrayMyCardGuide(){
+  const grayRules = typeof getGrayVaultXpRules === 'function'
+    ? getGrayVaultXpRules()
+    : (typeof GRAY_XP_AWARDS !== 'undefined'
+      ? Object.entries(GRAY_XP_AWARDS).filter(([k]) => k !== 'custom').map(([key, v]) => ({ id: key, label: v.label, xp: v.xp, note: '' }))
+      : []);
+  const ruleRows = grayRules
+    .map(r => `<li><strong>+${r.xp || 0} XP</strong> · ${esc(r.label)}${r.note ? ` — <span class="field-hint">${esc(r.note)}</span>` : ''}</li>`)
+    .join('');
+  const grayActions = [
+    { label: 'Daily log & calendar', note: 'Seal days, mood, steps, diary, people, places.' },
+    { label: 'Coming To You Live', note: 'Pulses, live to-do, video diary notes.' },
+    { label: 'Quest inbox', note: 'Accept, complete, or decline coder missions.' },
+    { label: 'Award coder XP', note: 'Quest rail + admin panels — deck ranks update.' },
+    { label: 'Community board', note: 'Post as Player Gray — permanent pins.' },
+    { label: 'Private inbox', note: 'Reply to coders, handle XP requests — ✉ bottom-right.' },
+    { label: 'The Press', note: 'Write, tag, and publish pieces.' },
+    { label: 'Photo Wall & places', note: 'New cards, gallery stories, unlocked zones.' },
+    { label: 'Media deck', note: 'Rate units, write final reviews.' },
+    { label: 'Skill towers', note: 'Log hobby hours — ties into Rewards Vault goals.' },
+    { label: 'System Overload', note: 'Private vent/body logs — archive sessions.' },
+    { label: 'Coder signals rail', note: 'Watch quests, posts, logins, XP activity.' },
+    { label: 'Rewards Vault', note: '★ bottom-right — your private goals & treats.' },
+  ];
+  const actionRows = grayActions.map(a => `<li><strong>${esc(a.label)}</strong> — ${esc(a.note)}</li>`).join('');
+  const pts = typeof getGrayPoints === 'function' ? getGrayPoints() : 0;
+  const lvl = typeof grayLevelFromPoints === 'function' ? grayLevelFromPoints(pts) : { level: 0, xpToNext: 100 };
+  return `<div class="gray-mycard-guide">
+    <section class="coder-level-guide sketch-card">
+      <h3 class="viewer-wizard-title">Player Gray · your XP</h3>
+      <p class="field-hint">Separate from the coder competition — this tracks <strong>you</strong> running the board. <strong>Lv ${lvl.level}</strong> · <strong>${pts} XP</strong> · ${lvl.xpToNext} XP to next level. Full rulebook in <button type="button" class="btn inline-linkish" id="grayGuideOpenVault">Rewards Vault ★</button>.</p>
+      <p class="gray-xp-formula">Level = floor(XP ÷ 100) · Lv 0 at 0 XP · Lv 1 at 100 XP</p>
+
+      <h4 class="xp-guide-subhead">How you earn XP</h4>
+      <ul class="coder-level-list">${ruleRows}</ul>
+
+      <h4 class="xp-guide-subhead">Everything you can do on the site</h4>
+      <ul class="coder-level-list coder-interact-list">${actionRows}</ul>
+    </section>
+  </div>`;
 }
 
 function shouldShowInstructionsNav(){
@@ -1170,8 +1244,8 @@ function buildDefaultInstructionsHtml(){
       <p class="instructions-kicker">Hi!</p>
       <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
       <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
-      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
-      <p class="instructions-p"><strong>Levelling:</strong> every <strong>100 XP = +1 level</strong> on your Coders Card (Lv 1 at 0 XP, Lv 2 at 100, Lv 3 at 200…). Level shows on your card and sorts you in the deck — concrete rewards still TBD.</p>
+      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. Whoever ranks <strong>#1 on the deck</strong> gets a present — I don't know what yet.</p>
+      <p class="instructions-p"><strong>Levelling:</strong> you start at <strong>Lv 0</strong>. Every <strong>100 XP = +1 level</strong> (Lv 1 at 100 XP, Lv 2 at 200…). The deck sorts by XP — whoever's <strong>#1</strong> gets a present from Gray eventually. It's competition for fun, not a life score.</p>
       <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
       <h3 class="viewer-wizard-title">The sidebar</h3>
       <ul class="instructions-nav-list">
@@ -1437,7 +1511,10 @@ const ViewerWorld = {
     if(!host) return;
 
     if(isAdmin()){
-      host.innerHTML = `<p class="empty-hint">Player mode — Coders Cards are viewer-only. Manage incoming missions in <strong>Quest Inbox</strong>.</p>`;
+      host.innerHTML = renderGrayMyCardGuide();
+      host.querySelector('#grayGuideOpenVault')?.addEventListener('click', () => {
+        if(typeof openGrayRewardsDrawer === 'function') openGrayRewardsDrawer();
+      });
       return;
     }
 
@@ -1508,24 +1585,34 @@ const ViewerWorld = {
     }
 
     const lvl = coderLevelFromPoints(mine.points);
+    const myRank = typeof getCoderXpRank === 'function' ? getCoderXpRank(mine.id) : null;
+    const myRankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(myRank) : null;
+    const rankPill = myRank && myRank <= 3 && myRankNeon
+      ? `<div class="viewer-rank-pill" style="--rank-neon:${esc(myRankNeon)}">#${myRank}</div>`
+      : myRank
+        ? `<div class="viewer-rank-pill is-plain">Rank #${myRank}</div>`
+        : '';
+    const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(mine) : String(mine.points || 0);
     host.innerHTML = `
       <div class="viewer-card-hero">
-        <div class="viewer-fire-badge" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
+        <div class="viewer-fire-badge viewer-fire-badge--prominent" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
           <span class="viewer-fire-icon">◆</span>
-          <span class="viewer-fire-val">${mine.points || 0}</span>
+          <span class="viewer-fire-val">${xpDisplay}</span>
           <span class="viewer-fire-label">XP</span>
         </div>
+        ${rankPill}
         <div class="viewer-level-pill" title="${lvl.xpToNext} XP to next level">Lv ${lvl.level}</div>
         <button type="button" class="btn primary" id="editMyCardBtn">Edit My Card</button>
       </div>
-      <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor }) : ''}</div>
+      <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor, xpRank: myRank, rankNeon: myRankNeon }) : ''}</div>
       <div class="viewer-card-stats sketch-card">
+        ${myRank ? `<div class="vcs-row"><span>Deck rank</span><strong>#${myRank} by XP</strong></div>` : ''}
         <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
         <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
         ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
         <div class="vcs-row"><span>Next level</span><strong>${lvl.xpToNext} XP</strong></div>
       </div>
-      ${renderCoderLevelGuide()}
+      ${renderCoderXpGuide()}
       <section class="xp-request-board sketch-card">
         <h3 class="viewer-wizard-title">Request XP</h3>
         <p class="field-hint">Think you earned bonus XP? Tell Gray why — pick a reason and describe what happened.</p>
@@ -2090,7 +2177,7 @@ const ViewerWorld = {
   },
 
   renderInbox(){
-    const host = document.getElementById('inboxSpread');
+    const host = document.getElementById('inboxDrawerSpread') || document.getElementById('inboxSpread');
     if(!host) return;
     const userId = getInboxUserId();
     if(!userId){

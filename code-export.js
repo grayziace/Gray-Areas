@@ -167,6 +167,9 @@ function buildSiteStateSource(){
     liveTodos: state.liveTodos || [],
     instructionsHtml: state.instructionsHtml || '',
     coderActivity: state.coderActivity || [],
+    playerPoints: state.playerPoints || 0,
+    playerXpHistory: state.playerXpHistory || [],
+    grayRewardsVault: state.grayRewardsVault || null,
   };
   return `/* Exported from Gray Areas — commit this file and redeploy */\nconst SITE_STATE = ${jsLiteral(payload, 0)};\n`;
 }
