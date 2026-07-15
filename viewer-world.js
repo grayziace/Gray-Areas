@@ -575,14 +575,23 @@ function readCardFormFromDom(prefix, opts = {}){
   };
 }
 
+function clearAuthSession(){
+  try{
+    sessionStorage.removeItem('ga-admin');
+    sessionStorage.removeItem(CODERS_SESSION_KEY);
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+    sessionStorage.removeItem(CREATING_CARD_KEY);
+  }catch(e){}
+}
+
+function requireLoginScreen(){
+  clearAuthSession();
+  showEntryGate({ force: true });
+}
+
 function showEntryGate(opts = {}){
   if(!opts.force && isSiteUnlocked()) return;
-  if(opts.force){
-    clearGuestMode();
-    clearCardCreationMode();
-    try{ sessionStorage.removeItem(CODERS_SESSION_KEY); }catch(e){}
-    sessionStorage.removeItem('ga-admin');
-  }
+  if(opts.force) clearAuthSession();
   document.getElementById('loginPage')?.classList.remove('hidden');
   document.getElementById('app')?.classList.add('hidden');
   document.body.classList.add('login-screen-active');
@@ -645,8 +654,8 @@ const ViewerWorld = {
       this.pendingQuestClips = [...(e.target.files || [])];
     });
     fetchVisitorData().then(() => {
-      if(!isSiteUnlocked()) showEntryGate();
-      else enterMainSite();
+      if(!isSiteUnlocked()) showEntryGate({ force: true });
+      ViewerWorld.renderAll();
     });
   },
 

@@ -2428,11 +2428,11 @@ body.is-viewer #view-profile .view-title::after{
 .instructions-note{font-size:12px;color:var(--text-low);font-style:italic;margin:16px 0;}
 body.coder-gate-active #app{filter:blur(3px);pointer-events:none;}
 body.login-screen-active #app{display:none !important;}
-body.login-screen-active #loginPage{display:flex;}
+body.login-screen-active #loginPage{display:flex !important;}
 body.site-unlocked #loginPage{display:none !important;}
 
 .login-page{
-  display:none;
+  display:flex;
   position:fixed;inset:0;z-index:9000;
   align-items:center;justify-content:center;
   padding:24px 16px;

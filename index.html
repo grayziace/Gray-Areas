@@ -35,6 +35,12 @@
     finishBoot();
     hideBootError();
     try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
+    document.body.classList.add('login-screen-active');
+    document.body.classList.remove('site-unlocked');
+    var app = document.getElementById('app');
+    var login = document.getElementById('loginPage');
+    if(app) app.classList.add('hidden');
+    if(login) login.classList.remove('hidden');
   }
   window.__gaFinishBoot = finishBoot;
   window.__gaHideBootError = hideBootError;
@@ -64,7 +70,7 @@
 })();
 </script>
 </head>
-<body>
+<body class="login-screen-active">
 
 <div id="backdrop">
   <div class="glow a"></div>

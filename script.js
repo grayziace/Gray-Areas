@@ -1534,6 +1534,8 @@ function dismissLoading(){
     setTimeout(() => el.remove(), 700);
   }
   document.getElementById('bootError')?.classList.add('hidden');
+  if(typeof requireLoginScreen === 'function') requireLoginScreen();
+  else if(typeof showEntryGate === 'function') showEntryGate({ force: true });
 }
 
 function bindIntroSkip(){
@@ -1610,13 +1612,7 @@ function bootApp(){
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
-  if(typeof isSiteUnlocked === 'function' && isSiteUnlocked()){
-    if(typeof enterMainSite === 'function') enterMainSite();
-    if(isAdmin()) navigateToView('profile');
-    else navigateToView('instructions');
-  } else {
-    if(typeof showEntryGate === 'function') showEntryGate();
-  }
+  if(typeof requireLoginScreen === 'function') requireLoginScreen();
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
