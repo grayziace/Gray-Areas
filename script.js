@@ -1960,6 +1960,9 @@ function computeProfileStats(){
     week, month, allTime,
     people: people.size,
     places: places.size,
+    quests: (state.quests || []).length,
+    pressPosts: getArticles().length,
+    photosPosted: getGallery().length,
     unlocked: getUnlockedZones().length,
     pins: (state.pinboard || []).length,
     skills,
@@ -2043,36 +2046,16 @@ function renderAbout(){
     </div>
 
     <div class="profile-dashboard">
-      ${profileStatGroup('Operational', [
-        profileStatCell('Days in Shenzhen', stats.szDays, 'since ' + getArrivalDate(), '#ff4fd8'),
-        profileStatCell('Days logged', stats.loggedDays, stats.streak ? stats.streak + ' day streak' : 'start a streak', '#9b5cff'),
-        profileStatCell('Zones unlocked', stats.unlocked, stats.places + ' places tagged', '#4fa3ff'),
-        profileStatCell('Pinboard', stats.pins, 'community signals', '#38bdf8'),
-      ].join(''), '#ff4fd8')}
-
-      ${profileStatGroup('Vitals · 7 days', [
-        profileStatCell('Current mood', moodLabel(getCurrentMood()), moodIcon(getCurrentMood()) + ' live signal', moodNeon(getCurrentMood())),
-        profileStatCell('Steps', stats.week.steps.toLocaleString(), 'this week', '#3ad6e0'),
-        profileStatCell('Mandarin', stats.week.mandarin + 'h', 'study hours', '#7c4dff'),
-        profileStatCell('Work', stats.week.work + 'h', 'logged', '#e8a87c'),
-        profileStatCell('Hobby', stats.week.hobby + 'h', stats.week.people + ' people met', '#a78bfa'),
-      ].join(''), '#3ad6e0')}
-
-      ${profileStatGroup('Vitals · 30 days', [
-        profileStatCell('Current mood', moodLabel(getCurrentMood()), 'right now', moodNeon(getCurrentMood())),
-        profileStatCell('Steps', stats.month.steps.toLocaleString(), 'month total', '#3ad6e0'),
-        profileStatCell('Mandarin', stats.month.mandarin + 'h', 'study hours', '#7c4dff'),
-        profileStatCell('Work', stats.month.work + 'h', 'logged', '#e8a87c'),
-        profileStatCell('Places', stats.month.places, 'discovered this month', '#4fa3ff'),
+      ${profileStatGroup('Activity', [
+        profileStatCell('Days logged', stats.loggedDays, stats.streak ? stats.streak + ' day streak' : '', '#9b5cff'),
+        profileStatCell('Press posts', stats.pressPosts, 'The Press', '#f472b6'),
+        profileStatCell('Photos posted', stats.photosPosted, 'Photo Wall', '#a78bfa'),
       ].join(''), '#9b5cff')}
 
       ${profileStatGroup('All-time totals', [
-        profileStatCell('Steps', stats.allTime.steps.toLocaleString(), 'lifetime counter', '#3ad6e0'),
-        profileStatCell('Mandarin', getTotalSkillHours('mandarin') + 'h', 'skill matrix + hobby logs', '#7c4dff'),
-        profileStatCell('Work', stats.allTime.work + 'h', 'total logged', '#e8a87c'),
         profileStatCell('People', stats.people, 'unique names met', '#e94ff5'),
         profileStatCell('Places', stats.places, 'unique locations', '#4fa3ff'),
-        profileStatCell('Overload logs', stats.overloadCount, 'archived sessions', '#f43f8e'),
+        profileStatCell('Quests', stats.quests, 'missions on the board', '#4ade80'),
       ].join(''), '#4fa3ff')}
 
       <section class="profile-stat-group profile-skill-matrix" style="--psg-neon:#7c4dff">
@@ -3290,7 +3273,15 @@ function renderPlaces(){
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
-  const chars = getCharacters();
+  const chars = getCharacters()
+    .filter(c => isCoderDeckCard(c))
+    .sort((a, b) => {
+      if(a.isGod) return -1;
+      if(b.isGod) return 1;
+      const xp = (b.points || 0) - (a.points || 0);
+      if(xp) return xp;
+      return (b.pokeCard?.level || 0) - (a.pokeCard?.level || 0);
+    });
   deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i)).join('');
   bindFlipPlayerCards(deck);
 }

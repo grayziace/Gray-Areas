@@ -773,7 +773,7 @@ function buildCoderCardFromWizard(form, existing){
     image: base.image || '',
     avatar: base.avatar || '',
     lookPrompt: form.selfDescription?.trim() || base.lookPrompt || '',
-    cardDescription: form.selfDescription?.trim() || form.vibe?.trim() || base.cardDescription || '',
+    cardDescription: base.cardDescription || '',
     pokeCard: {
       ...(base.pokeCard || {}),
       level: base.pokeCard?.level || 1,
@@ -793,6 +793,61 @@ function buildCoderCardFromWizard(form, existing){
       spiritAnimalImage: base.pokeCard?.spiritAnimalImage || '',
     },
   };
+}
+
+function buildPersonalityPrompt(card){
+  const ability = card.pokeCard?.abilities?.[0];
+  const weakness = card.pokeCard?.weakness;
+  const resistance = card.pokeCard?.resistance;
+  const lines = [
+    `Name: ${card.name || 'Coder'}`,
+    card.vibe ? `Vibe: ${card.vibe}` : '',
+    card.mbti ? `MBTI: ${card.mbti}` : '',
+    ability?.name ? `Strength: ${ability.name}` : '',
+    weakness?.name ? `Weakness: ${weakness.name}` : '',
+    resistance?.name ? `Resistance: ${resistance.name}` : '',
+    card.quote ? `Quote: ${card.quote}` : '',
+    card.strengths ? `Strengths list: ${card.strengths}` : '',
+    card.weaknesses ? `Weaknesses list: ${card.weaknesses}` : '',
+    card.resistances ? `Resistances list: ${card.resistances}` : '',
+  ].filter(Boolean);
+  return `Write one very short personality tagline for a trading card front (max 12 words). How they come across — not what they look like.\n\n${lines.join('\n')}`;
+}
+
+function fallbackPersonalityBlurb(card){
+  const ability = card.pokeCard?.abilities?.[0]?.name;
+  const weakness = card.pokeCard?.weakness?.name;
+  const bits = [card.vibe, ability && `known for ${ability}`, weakness && `weak to ${weakness}`].filter(Boolean);
+  if(card.quote?.trim()) return card.quote.trim().slice(0, 72);
+  if(bits.length) return `${card.name} — ${bits.slice(0, 2).join(', ')}.`.slice(0, 80);
+  return `${card.name || 'Coder'} — still finding their legend.`;
+}
+
+function cleanPersonalityBlurb(text){
+  let t = (text || '').trim().replace(/^["'`]+|["'`]+$/g, '').replace(/\s+/g, ' ');
+  t = t.replace(/^(here('|')?s|sure|okay)[^:]*:\s*/i, '');
+  if(t.length > 90) t = t.slice(0, 87).trim() + '…';
+  return t;
+}
+
+async function generateCoderCardDescription(card){
+  const prompt = buildPersonalityPrompt(card);
+  const system = 'You write ultra-short trading-card taglines. Return only one sentence, max 12 words. Personality and energy only — never hair, eyes, skin, body, clothes, or physical looks.';
+  try{
+    const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?system=${encodeURIComponent(system)}&model=openai-fast`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if(!res.ok) throw new Error('Text gen failed');
+    const text = cleanPersonalityBlurb(await res.text());
+    if(text) card.cardDescription = text;
+    else card.cardDescription = fallbackPersonalityBlurb(card);
+  }catch(e){
+    console.warn('Card description gen:', e);
+    card.cardDescription = fallbackPersonalityBlurb(card);
+  }
+  return card;
 }
 
 async function generateCoderCardImages(card, opts = {}){
@@ -836,6 +891,7 @@ function cardGenProgressHtml(){
     <ol class="card-gen-steps">
       <li class="card-gen-step" data-step="portrait"><span class="card-gen-icon">◎</span><span class="card-gen-label">Portrait</span><span class="card-gen-status">waiting…</span></li>
       <li class="card-gen-step" data-step="spirit"><span class="card-gen-icon">◈</span><span class="card-gen-label">Spirit animal</span><span class="card-gen-status">waiting…</span></li>
+      <li class="card-gen-step" data-step="desc"><span class="card-gen-icon">✎</span><span class="card-gen-label">Card line</span><span class="card-gen-status">waiting…</span></li>
       <li class="card-gen-step" data-step="seal"><span class="card-gen-icon">★</span><span class="card-gen-label">Seal card</span><span class="card-gen-status">waiting…</span></li>
     </ol>
     <div class="card-gen-pulse" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -960,8 +1016,8 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
         </div>
         <div class="field"><label>Eye colour</label><input type="text" id="${id('Eyes')}" value="${esc(c.eyeColor || '')}" placeholder="glows neon on your portrait"></div>
         <div class="field card-gen-field">
-          <label>Self description</label>
-          <textarea id="${id('SelfDesc')}" rows="4" placeholder="Describe your look — hair, vibe, outfit, energy…">${esc(c.selfDescription || '')}</textarea>
+          <label>Self description (for portrait only)</label>
+          <textarea id="${id('SelfDesc')}" rows="4" placeholder="Hair, outfit, vibe — used to draw your portrait, not your card text">${esc(c.selfDescription || '')}</textarea>
           <button type="button" class="btn primary" id="${id('GenPortraitBtn')}">Generate my character</button>
           <p class="field-hint" id="${id('PortraitStatus')}">Describe yourself, then generate your portrait before summoning.</p>
         </div>
@@ -1022,7 +1078,7 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
     <div class="field"><label>Weaknesses (optional)</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="comma or line separated">${esc(c.weaknesses || '')}</textarea></div>
     <div class="field"><label>Resistances (optional)</label><textarea id="${id('Resistances')}" rows="2" placeholder="what you're immune to">${esc(c.resistances || '')}</textarea></div>
     <div class="field"><label>Quote (optional)</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
-    <div class="field"><label>Self description (optional)</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="helps generate your look">${esc(c.selfDescription || '')}</textarea></div>`;
+    <div class="field"><label>Self description (for portrait only)</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="used to draw your portrait — not card text">${esc(c.selfDescription || '')}</textarea></div>`;
 }
 
 function readCardFormFromDom(prefix, opts = {}){
@@ -1405,7 +1461,7 @@ const ViewerWorld = {
         <div class="viewer-wizard sketch-card card-create-intro">
           <p class="instructions-kicker">You're joining the deck</p>
           <h3 class="viewer-wizard-title">Make My Card</h3>
-          <p class="field-hint">Generate your <strong>character</strong> and <strong>spirit animal</strong> first — then summon your card into the deck.</p>
+          <p class="field-hint">Generate your <strong>character</strong> and <strong>spirit animal</strong> first — your card line is written from your personality stats when you summon.</p>
           <form id="viewerCardForm" class="viewer-wizard-form">
             ${cardWizardFieldsHtml('vw', null, { createLayout: true })}
             <div class="field-row card-wizard-keys">
@@ -1611,12 +1667,16 @@ const ViewerWorld = {
     updateCardGenProgress('portrait', 'done', 'Portrait ready.');
     if(this.wizardDraft.spirit) updateCardGenProgress('spirit', 'done', 'Spirit ready.');
     else updateCardGenProgress('spirit', 'skip', 'No spirit animal.');
-    updateCardGenProgress('seal', 'active', 'Sealing your card into the deck…');
 
     let card = buildCoderCardFromWizard(form);
     card.image = this.wizardDraft.portrait;
     card.avatar = this.wizardDraft.portrait;
     if(this.wizardDraft.spirit) card.pokeCard.spiritAnimalImage = this.wizardDraft.spirit;
+
+    updateCardGenProgress('desc', 'active', 'Writing your card line…');
+    card = await generateCoderCardDescription(card);
+    updateCardGenProgress('desc', 'done', 'Card line ready.');
+    updateCardGenProgress('seal', 'active', 'Sealing your card into the deck…');
 
     state.viewerCharacters.push(card);
     saveState();
