@@ -2434,6 +2434,21 @@ body.coder-gate-active #birthdayBack{pointer-events:auto;filter:none;}
 .coder-key-gate{max-width:460px;}
 .coder-gate-actions{flex-wrap:wrap;justify-content:flex-end;}
 .welcome-modal,.birthday-modal{max-width:420px;text-align:center;}
+.welcome-modal--player .modal{max-width:520px;padding:32px 28px;}
+.welcome-modal--player #welcomeTitle{font-size:28px;color:#ff4fd8;}
+.welcome-player-tag{font-size:15px;color:#3ad6e0;margin:0 0 12px;}
+.instructions-gray-voice .instructions-p{font-size:15px;}
+.instructions-nav-list{margin:0 0 18px;padding-left:1.1rem;font-size:13px;color:var(--text-mid);}
+.instructions-nav-list li{margin-bottom:8px;}
+.pin-author-preview{margin-bottom:12px;}
+.pin-coder-thumb{display:flex;align-items:center;gap:10px;}
+.pin-coder-frame{width:42px;height:42px;border:2px solid var(--pct-neon,#38bdf8);border-radius:4px;overflow:hidden;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;}
+.pin-coder-frame img{width:100%;height:100%;object-fit:cover;}
+.pin-coder-name{font-family:var(--font-voice);font-size:14px;}
+.coder-admin-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.coder-award-row{align-items:center;}
+.coder-award-select{flex:1;min-width:180px;background:rgba(0,0,0,0.35);border:1px solid var(--border-glass);color:var(--text-hi);padding:6px 8px;font-size:12px;}
+.coder-edit-modal{max-width:560px;max-height:90vh;overflow:auto;}
 .welcome-xp{font-size:20px;color:#fcd34d;margin:12px 0;}
 .birthday-modal{--sec-neon:#fcd34d;border-color:color-mix(in srgb,#fcd34d 45%,var(--border-glass));}
 .birthday-kicker{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#fcd34d;margin:0 0 8px;}

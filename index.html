@@ -112,13 +112,13 @@
       <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Coming To You Live</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
-      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Player Cards</span></button>
+      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Coder Cards</span></button>
       <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>Skill Cards</span></button>
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span>Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
       <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
-      <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>Coders Card</span></button>
+      <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
       <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
       <div class="sidebar-console-wrap">
@@ -232,7 +232,7 @@
     </section>
 
     <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
-      <h2 class="view-title sketch-title">Player Cards</h2>
+      <h2 class="view-title sketch-title">Coder Cards</h2>
       <p class="gallery-hint">Click to flip.</p>
       <div class="card-deck" id="charDeck"></div>
       <button class="btn admin-only hidden" id="addCharBtn" style="margin-top:14px">+ Add player</button>
@@ -278,11 +278,12 @@
 
     <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
       <h2 class="view-title sketch-title">Community Board</h2>
-      <p class="gallery-hint">Posts stay permanently. Reply to others. Date, time, and location only — no mood tracking here.</p>
+      <p class="gallery-hint">Posts stay permanently. Log in with My Card to post — your card shows on your note.</p>
+      <p class="gallery-hint hidden" id="pinGuestHint">Guest watch-only — log in to post or reply.</p>
       <div class="pinboard-layout">
         <form class="pin-form sketch-card" id="pinForm">
+          <div id="pinAuthorPreview" class="pin-author-preview"></div>
           <div class="field-row">
-            <div class="field"><label>Name</label><input type="text" id="pinName" required placeholder="who are you"></div>
             <div class="field"><label>Posting from</label><input type="text" id="pinLocation" required placeholder="Shenzhen, UK, café, flat…"></div>
           </div>
           <div class="field"><label>Message</label><textarea id="pinText" required placeholder="leave a note on the board…" rows="4"></textarea></div>
@@ -294,8 +295,8 @@
     </section>
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
-      <h2 class="view-title sketch-title">Coders Card</h2>
-      <p class="gallery-hint viewer-hint">Your viewer character — quest Gray, earn points, level up. One card per console key.</p>
+      <h2 class="view-title sketch-title">My Card</h2>
+      <p class="gallery-hint viewer-hint">Your Coders Card — quest Gray, earn XP, edit your look anytime.</p>
       <div id="viewerCardSpread"></div>
     </section>
 
@@ -536,7 +537,7 @@
 <div class="modal-back hidden" id="coderKeyGate">
   <div class="modal sketch-card coder-key-gate">
     <h3>Log in to Gray Areas</h3>
-    <p class="field-hint">Enter the <strong>name</strong> and <strong>console key</strong> from your Coders Card — or continue as a guest, or create a new card. Player uses the sidebar console.</p>
+    <p class="field-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests watch only. Player: name <strong>Gray</strong>, key <strong>:)</strong> — or use the sidebar console.</p>
     <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
     <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
     <div class="modal-actions coder-gate-actions">
@@ -544,6 +545,13 @@
       <button type="button" class="btn" id="coderGateCreate">Create a Coders Card</button>
       <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="coderEditBack">
+  <div class="modal sketch-card coder-edit-modal">
+    <h3 id="coderEditTitle">Edit card</h3>
+    <div id="coderEditForm"></div>
   </div>
 </div>
 

@@ -8,13 +8,46 @@ const VISITOR_WRITE_KEY = 'gray-areas-visitor';
 
 const POINTS = {
   quest_submit: 5,
-  quest_complete: 40,
-  login: 3,
-  meet_in_person: 100,
-  video_call: 50,
-  phone_call: 10,
-  vote: 1,
+  quest_complete: 50,
 };
+
+const XP_AWARDS = {
+  quest_submit: { label: 'Quest sent', xp: 5, auto: true },
+  quest_complete: { label: 'Quest completed', xp: 50, auto: true },
+  meet_in_person: { label: 'Met in person', xp: 100 },
+  video_call: { label: 'Video call', xp: 50 },
+  phone_call: { label: 'Phone call', xp: 10 },
+  voice_note: { label: 'Voice note / voice message', xp: 8 },
+  letter_postcard: { label: 'Letter or postcard', xp: 25 },
+  care_package: { label: 'Care package sent', xp: 40 },
+  surprise_gift: { label: 'Surprise gift', xp: 30 },
+  inside_joke: { label: 'Made Gray laugh', xp: 15 },
+  emotional_support: { label: 'Emotional support', xp: 35 },
+  good_advice: { label: 'Genuinely good advice', xp: 20 },
+  media_rec: { label: 'Book/film rec Gray consumed', xp: 18 },
+  community_gem: { label: 'Great community post', xp: 5 },
+  milestone: { label: 'Shared a milestone', xp: 15 },
+  practical_help: { label: 'Helped Gray practically', xp: 45 },
+  chaos_quest: { label: 'Chaos gremlin quest (worked)', xp: 10 },
+  patience: { label: 'Patience during overload', xp: 25 },
+  mandarin_cheer: { label: 'Mandarin encouragement', xp: 12 },
+  photo_shoutout: { label: 'Photo shoutout', xp: 8 },
+  press_collab: { label: 'Press collab', xp: 30 },
+  login_streak_7: { label: '7-day login streak', xp: 20 },
+  first_quest: { label: 'First quest ever', xp: 10 },
+  legendary: { label: 'Legendary moment', xp: 75 },
+  birthday: { label: 'Birthday', xp: 50 },
+  random_kindness: { label: 'Random kindness', xp: 20 },
+  showed_up: { label: 'Showed up when it mattered', xp: 60 },
+  taught_something: { label: 'Taught Gray something new', xp: 22 },
+  sent_photos: { label: 'Sent photos / memories', xp: 12 },
+  game_night: { label: 'Online hangout / game night', xp: 28 },
+  recipe_share: { label: 'Recipe or food tip', xp: 8 },
+  custom: { label: 'Custom award', xp: 0 },
+};
+
+const PLAYER_LOGIN_NAME = 'gray';
+const PLAYER_LOGIN_KEY = ':)';
 
 const QUEST_TYPES = [
   { id: 'visit', label: 'Visit a place', icon: '📍', neon: '#4ade80' },
@@ -22,7 +55,22 @@ const QUEST_TYPES = [
   { id: 'comfort', label: 'Comfort / cool me', icon: '♥', neon: '#f9a8d4' },
   { id: 'press', label: 'Write in The Press', icon: '▤', neon: '#f472b6' },
   { id: 'meetup', label: 'Meet up', icon: '👤', neon: '#a78bfa' },
-  { id: 'other', label: 'Other quest', icon: '✦', neon: '#3ad6e0' },
+  { id: 'hobby', label: 'Develop a hobby', icon: '✦', neon: '#e879f9' },
+  { id: 'photos', label: 'Take photos of…', icon: '📷', neon: '#38bdf8' },
+  { id: 'video', label: 'Make a video of…', icon: '🎬', neon: '#f97316' },
+  { id: 'friend', label: 'Make a new friend', icon: '🤝', neon: '#34d399' },
+  { id: 'book', label: 'Read a book', icon: '▣', neon: '#a78bfa' },
+  { id: 'film', label: 'Watch a film', icon: '▶', neon: '#f43f8e' },
+  { id: 'mandarin', label: 'Mandarin challenge', icon: '文', neon: '#dc2626' },
+  { id: 'fitness', label: 'Workout / steps', icon: '⚡', neon: '#ef4444' },
+  { id: 'explore', label: 'Explore somewhere new', icon: '🗺', neon: '#2dd4bf' },
+  { id: 'cook', label: 'Cook something', icon: '🍳', neon: '#fbbf24' },
+  { id: 'music', label: 'Song / playlist quest', icon: '♫', neon: '#f472b6' },
+  { id: 'style', label: 'Outfit / style challenge', icon: '◇', neon: '#fcd34d' },
+  { id: 'kindness', label: 'Random kindness', icon: '★', neon: '#f9a8d4' },
+  { id: 'chaos', label: 'Chaos / piss Gray off', icon: '☠', neon: '#f87171' },
+  { id: 'rec', label: 'Book/film recommendation', icon: '📚', neon: '#c084fc' },
+  { id: 'other', label: 'Anything goes', icon: '✧', neon: '#3ad6e0' },
 ];
 
 const QUEST_STATUS = {
@@ -32,6 +80,78 @@ const QUEST_STATUS = {
   completed: { label: 'Completed', neon: '#4ade80' },
   declined: { label: 'Declined', neon: '#f87171' },
 };
+
+function isCoderLoggedIn(){
+  return !!getCoderSessionId() && !isGuest();
+}
+
+function canInteract(){
+  return isAdmin() || isCoderLoggedIn();
+}
+
+function splitListInput(text){
+  return (text || '').split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function pickMostUnique(items){
+  if(!items.length) return '';
+  const scored = items.map((item, i) => ({
+    item,
+    score: item.split(/\s+/).length * 2 + Math.min(item.length, 40) * 0.1 + i * 0.05,
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].item;
+}
+
+function titleFromPhrase(phrase, fallback){
+  if(!phrase) return fallback;
+  const words = phrase.split(/\s+/).filter(Boolean).slice(0, 4);
+  const name = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return name.length > 32 ? name.slice(0, 32) : name || fallback;
+}
+
+function deriveCardStats(form){
+  const strengths = splitListInput(form.strengths);
+  const weaknesses = splitListInput(form.weaknesses);
+  const resistances = splitListInput(form.resistances);
+  const s = pickMostUnique(strengths) || form.strengths?.trim() || '';
+  const w = pickMostUnique(weaknesses) || form.weaknesses?.trim() || '';
+  const r = pickMostUnique(resistances) || form.resistances?.trim() || '';
+  return {
+    ability: {
+      name: titleFromPhrase(s, 'Quiet Strength'),
+      effect: s
+        ? `Your ${s.toLowerCase()} is your edge — when the board gets heavy, you steady the room.`
+        : 'Gray will fill this in when they spot the blank.',
+    },
+    weakness: {
+      name: titleFromPhrase(w, 'Soft Spot'),
+      effect: w
+        ? `Double impact from ${w.toLowerCase()} — high-pressure days hit harder.`
+        : 'Gray will fill this in when they spot the blank.',
+    },
+    resistance: {
+      name: titleFromPhrase(r, 'Natural Shield'),
+      effect: r
+        ? `Immune to ${r.toLowerCase()} — you shrug off what would bend others.`
+        : 'Gray will fill this in when they spot the blank.',
+    },
+  };
+}
+
+function getCoderById(id){
+  return (state.viewerCharacters || []).find(c => c.id === id) || null;
+}
+
+function tryPlayerLogin(name, key){
+  if(normalizeCoderName(name) !== PLAYER_LOGIN_NAME) return false;
+  if((key || '').trim() !== PLAYER_LOGIN_KEY) return false;
+  if(typeof unlockAdmin === 'function'){
+    unlockAdmin({ toast: false, view: 'profile', welcome: true });
+  }
+  hideEntryGate();
+  return true;
+}
 
 function ensureViewerState(){
   if(!state.viewerCharacters) state.viewerCharacters = [];
@@ -151,26 +271,28 @@ function showBirthdayCelebration(card){
   const body = document.getElementById('birthdayBody');
   if(!back || !title || !body) return;
   title.textContent = `Happy Birthday, ${card.name}!`;
-  body.innerHTML = `<p>Your Coders Card is celebrating today. Thanks for being part of Gray Areas — here's to another lap around the sun.</p>
-    <p class="birthday-xp">+${POINTS.login * 2} birthday XP logged on login.</p>`;
+  body.innerHTML = `<p>It's your birthday. Gray owes you cake eventually.</p>
+    <p class="birthday-xp">Gray awards birthday XP manually — enjoy the fanfare.</p>`;
   back.classList.remove('hidden');
-  awardCoderPoints(card.id, POINTS.login * 2, 'birthday');
+}
+
+function showWelcomePlayer(){
+  const name = typeof getPlayer === 'function' ? (getPlayer().name || 'Gray') : 'Gray';
+  const back = document.getElementById('welcomeBack');
+  back?.classList.add('welcome-modal--player');
+  showWelcomeModal(
+    `Welcome, Player: ${name}`,
+    '<p class="welcome-player-tag">Full board control unlocked.</p><p>Quest inbox, daily log, live to-do, coder XP — all yours. Go play.</p>',
+    { onDismiss: () => back?.classList.remove('welcome-modal--player') },
+  );
 }
 
 function showWelcomeCoder(card){
   const pts = card.points || 0;
   showWelcomeModal(
     `Welcome Coder: ${card.name}`,
-    `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>Your card is loaded. Send quests, vote on missions, and track your points.</p>`,
+    `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>You're in. Send quests, post on Community, edit My Card anytime.</p>`,
     { onDismiss: () => showBirthdayCelebration(card) },
-  );
-}
-
-function showWelcomePlayer(){
-  const name = typeof getPlayer === 'function' ? (getPlayer().name || 'Gray') : 'Gray';
-  showWelcomeModal(
-    `Welcome Player: ${name}`,
-    '<p>Full game mode unlocked. Manage quests, log your day, and run the board.</p>',
   );
 }
 
@@ -178,7 +300,6 @@ function unlockCoderSession(cardId, opts = {}){
   clearGuestMode();
   try{ sessionStorage.setItem(CODERS_SESSION_KEY, cardId); }catch(e){}
   hideEntryGate();
-  awardLoginPoints(cardId);
   const card = (state.viewerCharacters || []).find(c => c.id === cardId);
   if(opts.welcome !== false && card) showWelcomeCoder(card);
   else if(card) showBirthdayCelebration(card);
@@ -199,6 +320,7 @@ function getMyCoderCard(){
 }
 
 function tryCoderLogin(name, key){
+  if(tryPlayerLogin(name, key)) return true;
   const card = findCoderByNameAndKey(name, key);
   if(!card) return false;
   unlockCoderSession(card.id);
@@ -208,6 +330,9 @@ function tryCoderLogin(name, key){
 function tryCoderLoginFromConsole(input){
   const raw = (input || '').trim();
   if(!raw) return false;
+  if(raw === ':)'){
+    return tryPlayerLogin('Gray', ':)');
+  }
   const sep = raw.indexOf('::');
   if(sep < 0) return false;
   const name = raw.slice(0, sep).trim();
@@ -235,14 +360,93 @@ function awardCoderPoints(characterId, amount, reason){
   postVisitorData('updateCharacter', c);
 }
 
-function awardLoginPoints(cardId){
-  const today = todayKey();
+function awardLoginPoints(){
+  /* Gray awards login XP manually via player mode */
+}
+
+function buildCoderCardFromWizard(form, existing){
+  const stats = deriveCardStats(form);
+  const paletteName = form.paletteName?.trim() || '';
+  const picked = form.cardColor || '#4ade80';
+  const neonBorder = typeof toNeonAccent === 'function' ? (toNeonAccent(picked) || picked) : picked;
+  const base = existing || {};
+
+  return {
+    ...base,
+    id: base.id || uid('coder'),
+    isCoderCard: true,
+    createdAt: base.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    locked: true,
+    consoleKey: normalizeCoderKey(form.consoleKey || base.consoleKey),
+    name: (form.name || '').trim() || base.name || 'Coder',
+    birthday: form.birthday?.trim() || base.birthday || '',
+    cardSubtitle: form.title?.trim() || base.cardSubtitle || '',
+    age: form.age?.trim() || base.age || '',
+    mbti: form.mbti?.trim() || base.mbti || '',
+    hairColor: form.hairColor?.trim() || base.hairColor || '',
+    skinColor: form.skinColor?.trim() || base.skinColor || '',
+    eyeColor: form.eyeColor?.trim() || base.eyeColor || '',
+    spiritAnimal: form.spiritAnimal?.trim() || base.spiritAnimal || '',
+    selfDescription: form.selfDescription?.trim() || base.selfDescription || '',
+    strengths: form.strengths?.trim() || base.strengths || '',
+    weaknesses: form.weaknesses?.trim() || base.weaknesses || '',
+    resistances: form.resistances?.trim() || base.resistances || '',
+    vibe: form.vibe?.trim() || base.vibe || '',
+    quote: form.quote?.trim() || base.quote || '',
+    points: base.points || 0,
+    questsSent: base.questsSent || 0,
+    questsCompleted: base.questsCompleted || 0,
+    cardColor: neonBorder,
+    image: base.image || '',
+    avatar: base.avatar || '',
+    lookPrompt: form.selfDescription?.trim() || base.lookPrompt || '',
+    cardDescription: form.selfDescription?.trim() || form.vibe?.trim() || base.cardDescription || '',
+    pokeCard: {
+      ...(base.pokeCard || {}),
+      level: base.pokeCard?.level || 1,
+      mbti: form.mbti?.trim() || base.pokeCard?.mbti || '',
+      spiritPrompt: form.spiritAnimal?.trim() || base.pokeCard?.spiritPrompt || '',
+      colorPalette: paletteName || base.pokeCard?.colorPalette || '',
+      cardColor: neonBorder,
+      vibe: form.vibe?.trim() || base.pokeCard?.vibe || '',
+      subtitle: form.title?.trim() || base.pokeCard?.subtitle || '',
+      abilities: [{ name: stats.ability.name, effect: stats.ability.effect }],
+      moves: [],
+      weakness: stats.weakness,
+      resistance: stats.resistance,
+      retreatCost: base.pokeCard?.retreatCost || '1',
+      quote: form.quote?.trim() || base.pokeCard?.quote || '',
+      birthday: form.birthday?.trim() || base.pokeCard?.birthday || '',
+      spiritAnimalImage: base.pokeCard?.spiritAnimalImage || '',
+    },
+  };
+}
+
+async function generateCoderCardImages(card, opts = {}){
+  if(typeof CharGen === 'undefined') return card;
+  const neonEye = card.eyeColor?.trim()
+    ? `neon glowing ${card.eyeColor} eyes, luminous anime eyes`
+    : 'neon glowing cyan eyes, luminous anime eyes';
+  const portraitDesc = [
+    card.selfDescription,
+    card.hairColor && `hair: ${card.hairColor}`,
+    card.skinColor && `skin: ${card.skinColor}`,
+    neonEye,
+    card.name,
+  ].filter(Boolean).join(', ');
   try{
-    const last = localStorage.getItem(CODERS_LOGIN_DAY_KEY + ':' + cardId);
-    if(last === today) return;
-    localStorage.setItem(CODERS_LOGIN_DAY_KEY + ':' + cardId, today);
-  }catch(e){}
-  awardCoderPoints(cardId, POINTS.login, 'login');
+    if(opts.portrait !== false){
+      card.image = await CharGen.generatePortrait(portraitDesc || card.name || 'coder');
+      card.avatar = card.image;
+    }
+    if(opts.spirit !== false && card.spiritAnimal){
+      card.pokeCard.spiritAnimalImage = await CharGen.generateSpirit(card.spiritAnimal);
+    }
+  }catch(e){
+    console.warn('Coder card image gen:', e);
+  }
+  return card;
 }
 
 function mergeVisitorDataFile(remote){
@@ -283,81 +487,72 @@ async function postVisitorData(action, data){
   }catch(e){ return false; }
 }
 
-function buildCoderCardFromWizard(form){
-  const abilityName = form.abilityName?.trim() || 'Unexpected Resilience';
-  const abilityEffect = form.abilityEffect?.trim() || 'Your kindness is your strength.';
-  const weakName = form.weaknessName?.trim() || 'Self-Doubt';
-  const weakEffect = form.weaknessEffect?.trim() || 'Takes extra damage from high-pressure situations.';
-  const resistName = form.resistanceName?.trim() || 'Peer Pressure';
-  const resistEffect = form.resistanceEffect?.trim() || 'Immune to effects that force personality changes.';
-  const paletteName = form.paletteName?.trim() || 'Custom palette';
-  const cardColor = form.cardColor || '#38bdf8';
-  const accent = toNeonAccent(cardColor) || paletteToAccent(cardColor);
-
-  return {
-    id: uid('coder'),
-    isCoderCard: true,
-    createdAt: new Date().toISOString(),
-    locked: true,
-    consoleKey: normalizeCoderKey(form.consoleKey),
-    name: form.name.trim(),
-    birthday: form.birthday?.trim() || '',
-    cardSubtitle: form.title?.trim() || 'Coders operative',
-    age: form.age?.trim() || '',
-    mbti: form.mbti?.trim() || '',
-    skinColor: form.skinColor?.trim() || '',
-    eyeColor: form.eyeColor?.trim() || '',
-    spiritAnimal: form.spiritAnimal?.trim() || '',
-    selfDescription: form.selfDescription?.trim() || '',
-    vibe: form.vibe?.trim() || '',
-    quote: form.quote?.trim() || '',
-    points: 0,
-    questsSent: 0,
-    questsCompleted: 0,
-    loginCount: 0,
-    cardColor: accent,
-    image: '',
-    avatar: '',
-    lookPrompt: form.selfDescription?.trim() || '',
-    cardDescription: form.selfDescription?.trim() || form.vibe?.trim() || '',
-    pokeCard: {
-      level: 1,
-      mbti: form.mbti?.trim() || '',
-      spiritPrompt: form.spiritAnimal?.trim() || '',
-      colorPalette: paletteName,
-      cardColor,
-      vibe: form.vibe?.trim() || '',
-      subtitle: form.title?.trim() || 'Coders operative',
-      abilities: [{ name: abilityName, effect: abilityEffect }],
-      moves: [],
-      weakness: { name: weakName, effect: weakEffect },
-      resistance: { name: resistName, effect: resistEffect },
-      retreatCost: '1',
-      quote: form.quote?.trim() || '',
-      birthday: form.birthday?.trim() || '',
-      spiritAnimalImage: '',
-    },
-  };
+function pinCoderThumb(coderId){
+  const c = getCoderById(coderId);
+  if(!c) return '';
+  const img = c.avatar || c.image;
+  const accent = c.cardColor || '#38bdf8';
+  return `<div class="pin-coder-thumb" style="--pct-neon:${accent}">
+    <div class="pin-coder-frame">${img ? `<img src="${esc(img)}" alt="">` : `<span>${esc((c.name || '?').charAt(0))}</span>`}</div>
+    <span class="pin-coder-name">${esc(c.name)}</span>
+  </div>`;
 }
 
-async function generateCoderCardImages(card){
-  if(typeof CharGen === 'undefined') return card;
-  const portraitDesc = [
-    card.selfDescription,
-    card.skinColor && `skin: ${card.skinColor}`,
-    card.eyeColor && `eyes: ${card.eyeColor}`,
-    card.name,
-  ].filter(Boolean).join(', ');
-  try{
-    card.image = await CharGen.generatePortrait(portraitDesc || card.name);
-    card.avatar = card.image;
-    if(card.spiritAnimal){
-      card.pokeCard.spiritAnimalImage = await CharGen.generateSpirit(card.spiritAnimal);
-    }
-  }catch(e){
-    console.warn('Coder card image gen:', e);
-  }
-  return card;
+function cardWizardFieldsHtml(prefix, card){
+  const c = card || {};
+  const p = prefix ? `${prefix}_` : 'vw_';
+  const id = k => p + k;
+  return `
+    <div class="field-row">
+      <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name"></div>
+      <div class="field"><label>Title</label><input type="text" id="${id('Title')}" value="${esc(c.cardSubtitle || c.pokeCard?.subtitle || '')}" placeholder="optional"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Birthday</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
+      <div class="field"><label>MBTI</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Border colour</label><input type="color" id="${id('CardColor')}" value="${esc(c.pokeCard?.cardColor || '#4ade80')}"><span class="field-hint">Neon border glow only</span></div>
+      <div class="field"><label>Palette name</label><input type="text" id="${id('Palette')}" value="${esc(c.pokeCard?.colorPalette || '')}" placeholder="optional"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Hair colour</label><input type="text" id="${id('Hair')}" value="${esc(c.hairColor || '')}" placeholder="optional"></div>
+      <div class="field"><label>Skin colour</label><input type="text" id="${id('Skin')}" value="${esc(c.skinColor || '')}" placeholder="optional"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Eye colour</label><input type="text" id="${id('Eyes')}" value="${esc(c.eyeColor || '')}" placeholder="always rendered neon"><span class="field-hint">Eyes glow neon on your portrait</span></div>
+      <div class="field"><label>Spirit animal</label><input type="text" id="${id('Spirit')}" value="${esc(c.spiritAnimal || c.pokeCard?.spiritPrompt || '')}" placeholder="optional"></div>
+    </div>
+    <div class="field"><label>Vibe</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
+    <div class="field"><label>Strengths</label><textarea id="${id('Strengths')}" rows="2" placeholder="comma or line separated — I'll turn the best one into your ability">${esc(c.strengths || '')}</textarea></div>
+    <div class="field"><label>Weaknesses</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="comma or line separated">${esc(c.weaknesses || '')}</textarea></div>
+    <div class="field"><label>Resistances</label><textarea id="${id('Resistances')}" rows="2" placeholder="what you're immune to">${esc(c.resistances || '')}</textarea></div>
+    <div class="field"><label>Quote</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
+    <div class="field"><label>Self description</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="optional — helps generate your look">${esc(c.selfDescription || '')}</textarea></div>`;
+}
+
+function readCardFormFromDom(prefix, opts = {}){
+  const p = prefix ? `${prefix}_` : 'vw_';
+  const g = k => document.getElementById(p + k)?.value;
+  return {
+    name: g('Name'),
+    title: g('Title'),
+    birthday: g('Birthday'),
+    mbti: g('Mbti'),
+    cardColor: g('CardColor'),
+    paletteName: g('Palette'),
+    hairColor: g('Hair'),
+    skinColor: g('Skin'),
+    eyeColor: g('Eyes'),
+    spiritAnimal: g('Spirit'),
+    vibe: g('Vibe'),
+    strengths: g('Strengths'),
+    weaknesses: g('Weaknesses'),
+    resistances: g('Resistances'),
+    quote: g('Quote'),
+    selfDescription: g('SelfDesc'),
+    consoleKey: opts.consoleKey || g('ConsoleKey'),
+  };
 }
 
 function showEntryGate(){
@@ -386,6 +581,8 @@ const ViewerWorld = {
   inited: false,
   pendingVlogFile: null,
   pendingQuestClips: [],
+  editingCardId: null,
+  playerEditingCoderId: null,
 
   init(){
     if(this.inited) return;
@@ -412,7 +609,6 @@ const ViewerWorld = {
     });
     fetchVisitorData().then(() => {
       if(!isSiteUnlocked()) showEntryGate();
-      else if(getCoderSessionId()) awardLoginPoints(getCoderSessionId());
     });
   },
 
@@ -423,13 +619,13 @@ const ViewerWorld = {
       alert('Enter both your card name and console key.');
       return;
     }
-    if(tryCoderLogin(name, key)){
+    if(tryPlayerLogin(name, key) || tryCoderLogin(name, key)){
       document.getElementById('coderGateName').value = '';
       document.getElementById('coderGateKey').value = '';
-      navigateToView('instructions');
+      if(!isAdmin()) navigateToView('instructions');
       return;
     }
-    alert('No Coders Card found for that name and key. Check spelling, continue as guest, or create a new card.');
+    alert('No match for that name and key. Continue as guest, create a card, or try Gray if you are the player.');
   },
 
   renderAll(){
@@ -443,27 +639,36 @@ const ViewerWorld = {
     const host = document.getElementById('instructionsSpread');
     if(!host) return;
     host.innerHTML = `
-      <div class="instructions-panel sketch-card">
-        <p class="instructions-kicker">Welcome to Gray Areas</p>
-        <h3 class="viewer-wizard-title">What this is</h3>
-        <p class="instructions-p">Gray Areas is a live game about one player — Gray — building a life in Shenzhen while the rest of the world watches, sends missions, and grows their own <strong>Coders Card</strong>.</p>
-        <p class="instructions-p">Gray logs days, places, moods, skills, and vlogs. You decide what happens next by sending <strong>quests</strong>: visit a café, try a dish, write about you in The Press, meet up, or simply help cool things down.</p>
-        <h3 class="viewer-wizard-title">How to play as a viewer</h3>
-        <ol class="instructions-steps">
-          <li><strong>Create your Coders Card</strong> — one-time setup with colours, birthday, strengths, and vibe. Pick a unique <strong>console key</strong> (each card needs its own).</li>
-          <li><strong>Log in</strong> with your <strong>name + console key</strong> each visit — or use the sidebar console as <code>Name::key</code>. Your card saves on the board.</li>
-          <li><strong>Guest view</strong> — browse the site without a card. Guests cannot send quests.</li>
-          <li><strong>Send quests</strong> once logged in. Vote on open missions. Comment when Gray completes them.</li>
-          <li><strong>Earn XP</strong> when Gray completes your quests, when you log in, and when you meet (in person, video, or phone — Gray awards those).</li>
-          <li><strong>Watch Coming To You Live</strong> — Gray's to-do list and neon timeline show what's happening in real time.</li>
-        </ol>
-        <h3 class="viewer-wizard-title">Why it exists</h3>
-        <p class="instructions-p">Gray built this to track life abroad honestly — steps, Mandarin, overload days, people met — while keeping friends and family inside the story instead of outside it. It's part diary, part RPG, part broadcast. Your quests make it collaborative.</p>
-        <p class="instructions-note">No hidden commands here — just explore, make your card, and transmit missions.</p>
-        ${isGuest() ? `<p class="instructions-note">Browsing as <strong>guest</strong> — log in or create a card to send quests.</p>` : ''}
-        ${!getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Create your Coders Card →</button>` : ''}
+      <div class="instructions-panel sketch-card instructions-gray-voice">
+        <p class="instructions-kicker">Hi!</p>
+        <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
+        <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
+        <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours. I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
+        <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
+        <h3 class="viewer-wizard-title">The sidebar</h3>
+        <ul class="instructions-nav-list">
+          <li><strong>Instructions</strong> — you're here. hello.</li>
+          <li><strong>Player Profile</strong> — me. my stats, mood, hero card.</li>
+          <li><strong>Coming To You Live</strong> — what I'm doing right now. to-do list + neon timeline.</li>
+          <li><strong>Daily Log</strong> — my days, steps, diary, reflections.</li>
+          <li><strong>Place Cards</strong> — places I visit in Shenzhen.</li>
+          <li><strong>Coder Cards</strong> — people in my orbit (the deck).</li>
+          <li><strong>Skill Cards</strong> — hobbies and skills I'm levelling.</li>
+          <li><strong>Media Log</strong> — films, shows, books.</li>
+          <li><strong>The Press</strong> — articles and writing.</li>
+          <li><strong>Photo Wall</strong> — photos with flip notes.</li>
+          <li><strong>Community</strong> — pinboard. log in to post; your card shows on your note.</li>
+          <li><strong>My Card</strong> — your Coders Card. make it, edit it, regenerate your look.</li>
+          <li><strong>Quests</strong> — send missions. guests can only watch.</li>
+          <li><strong>Video Log</strong> — my video notes.</li>
+        </ul>
+        <h3 class="viewer-wizard-title">Logging in</h3>
+        <p class="instructions-p">You don't <em>have</em> to log in — but if you don't, you can only see what I'm doing. No quests, no community posts, no voting. Watch-only.</p>
+        <p class="instructions-p">To interact: create <strong>My Card</strong> once (leave blanks if you want — I'll fill gaps when I spot them), pick a unique console key, then log in each visit with <strong>name + key</strong> or the console as <code>Name::key</code>.</p>
+        ${isGuest() ? `<p class="instructions-note">You're browsing as a <strong>guest</strong> — watch mode only.</p>` : ''}
+        ${!getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make My Card →</button>` : ''}
         ${getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : ''}
-        ${isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in to your card →</button>` : ''}
+        ${isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : ''}
       </div>`;
     host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
     host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToView('quests'));
@@ -482,10 +687,10 @@ const ViewerWorld = {
     if(isGuest()){
       host.innerHTML = `<div class="viewer-wizard sketch-card">
         <h3 class="viewer-wizard-title">Guest view</h3>
-        <p class="field-hint">You're browsing without a card. You can explore the site but cannot send quests.</p>
+        <p class="field-hint">Watch-only. You can see what Gray is doing but cannot post, quest, or vote. Log in or make My Card to interact.</p>
         <div class="modal-actions">
-          <button type="button" class="btn primary" id="guestGoCreate">Create a Coders Card</button>
-          <button type="button" class="btn" id="guestGoLogin">Log in to your card</button>
+          <button type="button" class="btn primary" id="guestGoCreate">Make My Card</button>
+          <button type="button" class="btn" id="guestGoLogin">Log in</button>
         </div>
       </div>`;
       host.querySelector('#guestGoCreate')?.addEventListener('click', () => navigateToView('viewer-card'));
@@ -496,48 +701,15 @@ const ViewerWorld = {
     if(!getMyCoderCard()){
       host.innerHTML = `
         <div class="viewer-wizard sketch-card">
-          <h3 class="viewer-wizard-title">Create your Coders Card</h3>
-          <p class="field-hint">One-time setup. Your name + console key log you in each visit. Each key must be unique.</p>
+          <h3 class="viewer-wizard-title">Make My Card</h3>
+          <p class="field-hint">Leave anything blank — Gray can fill gaps later. Only your name and console key are needed to log in.</p>
           <form id="viewerCardForm" class="viewer-wizard-form">
+            ${cardWizardFieldsHtml('vw', null)}
             <div class="field-row">
-              <div class="field"><label>Name</label><input type="text" id="vwName" required></div>
-              <div class="field"><label>Title</label><input type="text" id="vwTitle" placeholder="e.g. The Forest Sprite"></div>
+              <div class="field"><label>Console key</label><input type="password" id="vw_ConsoleKey" required placeholder="unique — each card needs its own"></div>
+              <div class="field"><label>Confirm key</label><input type="password" id="vw_ConsoleKey2" required></div>
             </div>
-            <div class="field-row">
-              <div class="field"><label>Birthday</label><input type="date" id="vwBirthday"></div>
-              <div class="field"><label>MBTI</label><input type="text" id="vwMbti" placeholder="INFP"></div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Age</label><input type="text" id="vwAge"></div>
-              <div class="field"><label>Palette name</label><input type="text" id="vwPalette" placeholder="Earth tones"></div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Card colour</label><input type="color" id="vwCardColor" value="#4ade80"></div>
-              <div class="field"><label>Skin colour</label><input type="text" id="vwSkin" placeholder="for portrait"></div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Eye colour</label><input type="text" id="vwEyes"></div>
-              <div class="field"><label>Spirit animal</label><input type="text" id="vwSpirit" placeholder="appears on card front"></div>
-            </div>
-            <div class="field"><label>Vibe</label><textarea id="vwVibe" rows="2" placeholder="your character energy"></textarea></div>
-            <div class="field"><label>Ability name</label><input type="text" id="vwAbilityName" placeholder="Unexpected Resilience"></div>
-            <div class="field"><label>Ability effect</label><textarea id="vwAbilityEffect" rows="2"></textarea></div>
-            <div class="field-row">
-              <div class="field"><label>Weakness</label><input type="text" id="vwWeakName"></div>
-              <div class="field"><label>Weakness effect</label><textarea id="vwWeakEffect" rows="2"></textarea></div>
-            </div>
-            <div class="field-row">
-              <div class="field"><label>Resistance</label><input type="text" id="vwResistName"></div>
-              <div class="field"><label>Resistance effect</label><textarea id="vwResistEffect" rows="2"></textarea></div>
-            </div>
-            <div class="field"><label>Quote</label><input type="text" id="vwQuote" placeholder="Wassup slags."></div>
-            <div class="field"><label>Self description <span class="field-hint">for generated portrait</span></label><textarea id="vwSelfDesc" rows="3" placeholder="Hair, style, mood, what you look like…"></textarea></div>
-            <div class="field-row">
-              <div class="field"><label>Console key</label><input type="password" id="vwConsoleKey" required placeholder="your private unlock code"></div>
-              <div class="field"><label>Confirm key</label><input type="password" id="vwConsoleKey2" required></div>
-            </div>
-            <p class="field-hint">Remember your name and key — you'll need both to log in every visit.</p>
-            <button type="submit" class="btn primary" id="vwSubmitBtn">Generate Coders Card</button>
+            <button type="submit" class="btn primary" id="vwSubmitBtn">Generate My Card</button>
           </form>
         </div>`;
       document.getElementById('viewerCardForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitCharacterWizard(); });
@@ -548,80 +720,174 @@ const ViewerWorld = {
     if(!mine) return;
 
     const lvl = coderLevelFromPoints(mine.points);
+    const editing = this.editingCardId === mine.id;
     host.innerHTML = `
       <div class="viewer-card-hero">
         <div class="viewer-fire-badge" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
           <span class="viewer-fire-icon">◆</span>
           <span class="viewer-fire-val">${mine.points || 0}</span>
-          <span class="viewer-fire-label">points</span>
+          <span class="viewer-fire-label">XP</span>
         </div>
         <div class="viewer-level-pill">Lv ${lvl.level}</div>
+        <button type="button" class="btn" id="editMyCardBtn">${editing ? 'Cancel edit' : 'Edit card'}</button>
       </div>
-      <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor }) : ''}</div>
+      ${editing ? `<div class="viewer-wizard sketch-card" id="myCardEditPanel">
+        <h3 class="viewer-wizard-title">Edit My Card</h3>
+        <form id="myCardEditForm">${cardWizardFieldsHtml('edit', mine)}
+          <div class="modal-actions">
+            <button type="button" class="btn" id="regenPortraitBtn">Regenerate portrait</button>
+            <button type="button" class="btn" id="regenSpiritBtn">Regenerate spirit</button>
+            <button type="submit" class="btn primary">Save card</button>
+          </div>
+        </form>
+      </div>` : ''}
+      <div class="viewer-card-deck" ${editing ? 'style="opacity:0.55"' : ''}>${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor }) : ''}</div>
       <div class="viewer-card-stats sketch-card">
         <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
         <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
         ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
-        <p class="field-hint">Card sealed · +100 meet · +50 video call · +10 phone call (awarded by Gray)</p>
+        <p class="field-hint">Edit and regenerate your look anytime. Gray awards bonus XP by hand.</p>
       </div>`;
     bindFlipPlayerCards(host);
+    host.querySelector('#editMyCardBtn')?.addEventListener('click', () => {
+      this.editingCardId = this.editingCardId === mine.id ? null : mine.id;
+      this.renderViewerCard();
+    });
+    host.querySelector('#myCardEditForm')?.addEventListener('submit', e => { e.preventDefault(); this.saveCardEdit(mine.id, 'edit'); });
+    host.querySelector('#regenPortraitBtn')?.addEventListener('click', () => this.regenerateCardLook(mine.id, 'portrait'));
+    host.querySelector('#regenSpiritBtn')?.addEventListener('click', () => this.regenSpiritBtn(mine.id));
+  },
+
+  async regenSpiritBtn(cardId){
+    await this.regenerateCardLook(cardId, 'spirit');
+  },
+
+  async saveCardEdit(cardId, prefix){
+    const existing = getCoderById(cardId);
+    if(!existing) return;
+    const form = readCardFormFromDom(prefix, { consoleKey: existing.consoleKey });
+    const idx = state.viewerCharacters.findIndex(c => c.id === cardId);
+    if(idx < 0) return;
+    state.viewerCharacters[idx] = buildCoderCardFromWizard(form, existing);
+    saveState();
+    await postVisitorData('updateCharacter', state.viewerCharacters[idx]);
+    this.editingCardId = null;
+    this.renderViewerCard();
+  },
+
+  async regenerateCardLook(cardId, mode){
+    const c = getCoderById(cardId);
+    if(!c) return;
+    const form = readCardFormFromDom(this.editingCardId === cardId ? 'edit' : 'vw', { consoleKey: c.consoleKey });
+    Object.assign(c, buildCoderCardFromWizard(form, c));
+    if(this.editingCardId === cardId){
+      const panel = document.getElementById('myCardEditForm');
+      if(panel) Object.assign(c, buildCoderCardFromWizard(readCardFormFromDom('edit', { consoleKey: c.consoleKey }), c));
+    }
+    const btn = document.getElementById('regenPortraitBtn') || document.getElementById('regenSpiritBtn');
+    if(btn) btn.disabled = true;
+    await generateCoderCardImages(c, { portrait: mode === 'portrait', spirit: mode === 'spirit' });
+    saveState();
+    await postVisitorData('updateCharacter', c);
+    if(btn) btn.disabled = false;
+    this.renderViewerCard();
   },
 
   coderAdminRow(c){
+    const opts = Object.entries(XP_AWARDS)
+      .filter(([k, v]) => k !== 'custom' && !v.auto)
+      .map(([k, v]) => `<option value="${k}">${v.label} (+${v.xp})</option>`)
+      .join('');
     return `<div class="coder-admin-row sketch-card">
-      <strong>${esc(c.name)}</strong> · ${c.points || 0} pts
-      <div class="quest-actions">
-        <button type="button" class="btn" data-coder-id="${esc(c.id)}" data-award="meet_in_person">+100 meet</button>
-        <button type="button" class="btn" data-coder-id="${esc(c.id)}" data-award="video_call">+50 video</button>
-        <button type="button" class="btn" data-coder-id="${esc(c.id)}" data-award="phone_call">+10 phone</button>
+      <div class="coder-admin-head">
+        ${pinCoderThumb(c.id)}
+        <div><strong>${esc(c.name)}</strong> · <span class="coder-admin-xp">${c.points || 0} XP</span></div>
+      </div>
+      <div class="quest-actions coder-award-row">
+        <select class="coder-award-select" data-coder-id="${esc(c.id)}">${opts}<option value="custom">Custom amount…</option></select>
+        <button type="button" class="btn primary" data-award-go="${esc(c.id)}">Award XP</button>
+        <button type="button" class="btn" data-coder-edit="${esc(c.id)}">Edit card</button>
       </div>
     </div>`;
   },
 
-  adminAwardPoints(coderId, type){
+  adminAwardPoints(coderId, awardKey){
     if(!isAdmin()) return;
-    const pts = POINTS[type];
+    let pts = XP_AWARDS[awardKey]?.xp;
+    if(awardKey === 'custom' || pts == null){
+      const raw = prompt('Custom XP amount:');
+      pts = parseInt(raw, 10);
+      if(!pts || pts < 1) return;
+      awardKey = 'custom';
+    }
     if(!pts) return;
-    awardCoderPoints(coderId, pts, type);
+    awardCoderPoints(coderId, pts, awardKey);
     this.renderQuests();
   },
 
+  openPlayerCoderEdit(coderId){
+    const c = getCoderById(coderId);
+    if(!c || !isAdmin()) return;
+    this.playerEditingCoderId = coderId;
+    const back = document.getElementById('coderEditBack');
+    const formHost = document.getElementById('coderEditForm');
+    if(!back || !formHost) return;
+    document.getElementById('coderEditTitle').textContent = `Edit card — ${c.name}`;
+    formHost.innerHTML = `<form id="playerCoderEditForm">${cardWizardFieldsHtml('pedit', c)}
+      <div class="modal-actions">
+        <button type="button" class="btn" id="peditRegenPortrait">Regenerate portrait</button>
+        <button type="button" class="btn" id="peditRegenSpirit">Regenerate spirit</button>
+        <button type="button" class="btn" onclick="document.getElementById('coderEditBack').classList.add('hidden')">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div></form>`;
+    back.classList.remove('hidden');
+    formHost.querySelector('#playerCoderEditForm')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
+      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
+      state.viewerCharacters[idx] = buildCoderCardFromWizard(form, c);
+      saveState();
+      await postVisitorData('updateCharacter', state.viewerCharacters[idx]);
+      back.classList.add('hidden');
+      this.renderQuests();
+    });
+    formHost.querySelector('#peditRegenPortrait')?.addEventListener('click', async () => {
+      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
+      const card = buildCoderCardFromWizard(form, c);
+      await generateCoderCardImages(card, { portrait: true, spirit: false });
+      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
+      state.viewerCharacters[idx] = card;
+      saveState();
+      await postVisitorData('updateCharacter', card);
+      this.openPlayerCoderEdit(coderId);
+    });
+    formHost.querySelector('#peditRegenSpirit')?.addEventListener('click', async () => {
+      const form = readCardFormFromDom('pedit', { consoleKey: c.consoleKey });
+      const card = buildCoderCardFromWizard(form, c);
+      await generateCoderCardImages(card, { portrait: false, spirit: true });
+      const idx = state.viewerCharacters.findIndex(x => x.id === coderId);
+      state.viewerCharacters[idx] = card;
+      saveState();
+      await postVisitorData('updateCharacter', card);
+      this.openPlayerCoderEdit(coderId);
+    });
+  },
+
   async submitCharacterWizard(){
-    const k1 = document.getElementById('vwConsoleKey')?.value;
-    const k2 = document.getElementById('vwConsoleKey2')?.value;
+    const k1 = document.getElementById('vw_ConsoleKey')?.value;
+    const k2 = document.getElementById('vw_ConsoleKey2')?.value;
     if(!k1 || k1 !== k2){ alert('Console keys must match.'); return; }
-    if(k1.length < 3){ alert('Pick a longer console key.'); return; }
+    if(k1.length < 2){ alert('Pick a console key.'); return; }
     if(isConsoleKeyTaken(k1)){
-      alert('That console key is already taken — each Coders Card needs its own unique key. Please choose another.');
+      alert('That console key is already taken — each card needs its own unique key. Please choose another.');
       return;
     }
 
     const btn = document.getElementById('vwSubmitBtn');
     if(btn) btn.disabled = true;
 
-    const form = {
-      name: document.getElementById('vwName')?.value,
-      birthday: document.getElementById('vwBirthday')?.value,
-      title: document.getElementById('vwTitle')?.value,
-      age: document.getElementById('vwAge')?.value,
-      mbti: document.getElementById('vwMbti')?.value,
-      cardColor: document.getElementById('vwCardColor')?.value,
-      paletteName: document.getElementById('vwPalette')?.value,
-      skinColor: document.getElementById('vwSkin')?.value,
-      eyeColor: document.getElementById('vwEyes')?.value,
-      spiritAnimal: document.getElementById('vwSpirit')?.value,
-      vibe: document.getElementById('vwVibe')?.value,
-      abilityName: document.getElementById('vwAbilityName')?.value,
-      abilityEffect: document.getElementById('vwAbilityEffect')?.value,
-      weaknessName: document.getElementById('vwWeakName')?.value,
-      weaknessEffect: document.getElementById('vwWeakEffect')?.value,
-      resistanceName: document.getElementById('vwResistName')?.value,
-      resistanceEffect: document.getElementById('vwResistEffect')?.value,
-      quote: document.getElementById('vwQuote')?.value,
-      selfDescription: document.getElementById('vwSelfDesc')?.value,
-      consoleKey: k1,
-    };
-    if(!form.name?.trim()){ alert('Name required.'); if(btn) btn.disabled = false; return; }
+    const form = readCardFormFromDom('vw', { consoleKey: k1 });
+    if(!form.name?.trim()) form.name = 'Coder';
 
     let card = buildCoderCardFromWizard(form);
     card = await generateCoderCardImages(card);
@@ -631,7 +897,7 @@ const ViewerWorld = {
     unlockCoderSession(card.id);
     if(btn) btn.disabled = false;
     this.renderViewerCard();
-    alert('Coders Card created! Your portrait is generating. Remember your name and console key.');
+    alert('My Card created! Regenerate your look anytime. Remember your name and console key.');
   },
 
   renderQuests(){
@@ -663,7 +929,11 @@ const ViewerWorld = {
       }
       host.innerHTML = html;
       host.querySelectorAll('[data-quest-action]').forEach(btn => btn.addEventListener('click', () => this.handleQuestAction(btn.dataset.questId, btn.dataset.questAction)));
-      host.querySelectorAll('[data-award]').forEach(btn => btn.addEventListener('click', () => this.adminAwardPoints(btn.dataset.coderId, btn.dataset.award)));
+      host.querySelectorAll('[data-award-go]').forEach(btn => btn.addEventListener('click', () => {
+        const sel = btn.closest('.coder-admin-row')?.querySelector('.coder-award-select');
+        this.adminAwardPoints(btn.dataset.awardGo, sel?.value);
+      }));
+      host.querySelectorAll('[data-coder-edit]').forEach(btn => btn.addEventListener('click', () => this.openPlayerCoderEdit(btn.dataset.coderEdit)));
       return;
     }
 
@@ -671,7 +941,7 @@ const ViewerWorld = {
       html += `<section class="quest-completed-section"><h3 class="viewer-wizard-title">Completed quests</h3><div class="quest-list">${completed.map(q => this.questRowHtml(q, true)).join('')}</div></section>`;
     }
 
-    if(mine){
+    if(isCoderLoggedIn()){
       html += `<div class="quest-compose sketch-card">
         <h3 class="viewer-wizard-title">Transmit a quest</h3>
         <p class="field-hint">From <strong>${esc(mine.name)}</strong> — you decide what Gray does.</p>
@@ -689,7 +959,7 @@ const ViewerWorld = {
         </form>
       </div>`;
     } else if(isGuest()){
-      html += `<p class="empty-hint">Guests can browse quests but cannot send them. Log in or create a Coders Card.</p>`;
+      html += `<p class="empty-hint">Guest watch-only — log in to send quests.</p>`;
     } else {
       html += `<p class="empty-hint">Log in with your name and console key to send quests.</p>`;
     }
@@ -720,10 +990,10 @@ const ViewerWorld = {
       <p class="quest-body">${esc(q.body)}</p>
       ${q.playerNote ? `<p class="quest-note">Gray: ${esc(q.playerNote)}</p>` : ''}
       ${clips.length ? `<div class="quest-response-reel">${clips.map((c, i) => `<video controls playsinline src="${esc(c)}" class="quest-clip"></video>`).join('')}</div>` : ''}
-      ${q.status !== 'completed' && mine ? `<button type="button" class="btn" data-quest-vote="${esc(q.id)}">▲ support (${votes})</button>` : ''}
+      ${q.status !== 'completed' && isCoderLoggedIn() ? `<button type="button" class="btn" data-quest-vote="${esc(q.id)}">▲ support (${votes})</button>` : ''}
       ${showComments ? `
         <div class="quest-comments">${(q.comments || []).map(c => `<p class="quest-comment"><strong>${esc(c.fromName)}</strong>: ${esc(c.text)}</p>`).join('')}</div>
-        ${mine ? `<button type="button" class="btn" data-quest-comment="${esc(q.id)}">Comment</button>` : ''}` : ''}
+        ${isCoderLoggedIn() ? `<button type="button" class="btn" data-quest-comment="${esc(q.id)}">Comment</button>` : ''}` : ''}
       ${isAdmin() && q.status !== 'completed' && q.status !== 'declined' ? `
         <div class="quest-actions">
           ${q.status === 'submitted' ? `<button type="button" class="btn" data-quest-id="${esc(q.id)}" data-quest-action="accept">Accept</button>` : ''}
@@ -735,7 +1005,7 @@ const ViewerWorld = {
 
   async submitQuest(){
     const mine = getMyCoderCard();
-    if(!mine){ alert('Unlock your Coders Card first.'); return; }
+    if(!isCoderLoggedIn() || !mine){ alert('Log in to your card to send quests.'); return; }
     const quest = {
       id: uid('quest'),
       createdAt: new Date().toISOString(),
@@ -763,11 +1033,10 @@ const ViewerWorld = {
   voteQuest(questId){
     const mine = getMyCoderCard();
     const q = state.quests.find(x => x.id === questId);
-    if(!mine || !q || q.status === 'completed') return;
+    if(!isCoderLoggedIn() || !mine || !q || q.status === 'completed') return;
     if(!q.votes) q.votes = {};
     if(q.votes[mine.id]) return;
     q.votes[mine.id] = true;
-    awardCoderPoints(mine.id, POINTS.vote, 'vote');
     saveState();
     postVisitorData('updateQuest', q);
     this.renderQuests();
@@ -776,7 +1045,7 @@ const ViewerWorld = {
   commentQuest(questId){
     const mine = getMyCoderCard();
     const q = state.quests.find(x => x.id === questId);
-    if(!mine || !q || q.status !== 'completed') return;
+    if(!isCoderLoggedIn() || !mine || !q || q.status !== 'completed') return;
     const text = prompt('Your comment:')?.trim();
     if(!text) return;
     if(!q.comments) q.comments = [];

@@ -35,6 +35,21 @@ function applyAdminUI(){
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
+  const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+  document.getElementById('pinForm')?.classList.toggle('hidden', !canPost);
+  const pinGuestHint = document.getElementById('pinGuestHint');
+  if(pinGuestHint) pinGuestHint.classList.toggle('hidden', canPost);
+  const pinPreview = document.getElementById('pinAuthorPreview');
+  if(pinPreview){
+    const author = typeof pinSessionAuthor === 'function' ? pinSessionAuthor() : null;
+    if(author?.characterId && typeof pinCoderThumb === 'function'){
+      pinPreview.innerHTML = pinCoderThumb(author.characterId);
+    } else if(author){
+      pinPreview.innerHTML = `<span class="pin-name">${esc(author.name)}</span>`;
+    } else {
+      pinPreview.innerHTML = '';
+    }
+  }
 }
 
 function lockAdmin(){
@@ -1889,7 +1904,11 @@ function bindCommunityConsole(){
       return;
     }
     if(v === ':)'){
-      unlockAdmin({ toast: false, view: 'profile' });
+      if(typeof tryPlayerLogin === 'function'){
+        tryPlayerLogin('Gray', ':)');
+      } else {
+        unlockAdmin({ toast: false, view: 'profile', welcome: true });
+      }
       resetConsoleInput(input);
       return;
     }
@@ -1910,7 +1929,7 @@ function bindCommunityConsole(){
       return;
     }
     if(typeof tryCoderLoginFromConsole === 'function' && tryCoderLoginFromConsole(v)){
-      navigateToView('instructions');
+      if(!isAdmin()) navigateToView('instructions');
       resetConsoleInput(input);
       return;
     }
@@ -3672,6 +3691,7 @@ function normalizePinPost(p){
   return {
     id: p.id,
     name: p.name || 'Anonymous',
+    characterId: p.characterId || '',
     location: p.location || p.from || 'Unknown',
     text: p.text || '',
     photo: p.photo || '',
@@ -3679,6 +3699,7 @@ function normalizePinPost(p){
     replies: Array.isArray(p.replies) ? p.replies.map(r => ({
       id: r.id,
       name: r.name || 'Anonymous',
+      characterId: r.characterId || '',
       location: r.location || r.from || 'Unknown',
       text: r.text || '',
       photo: r.photo || '',
@@ -3686,6 +3707,20 @@ function normalizePinPost(p){
       parentId: r.parentId || p.id,
     })) : [],
   };
+}
+
+function pinAuthorBlock(p){
+  if(p.characterId && typeof pinCoderThumb === 'function') return pinCoderThumb(p.characterId);
+  return `<span class="pin-name">${esc(p.name)}</span>`;
+}
+
+function pinSessionAuthor(){
+  if(isAdmin()) return { name: getPlayer().name || 'Gray', characterId: '' };
+  if(typeof getMyCoderCard === 'function'){
+    const c = getMyCoderCard();
+    if(c) return { name: c.name, characterId: c.id };
+  }
+  return null;
 }
 
 function fmtPinDateTime(iso){
@@ -3698,7 +3733,12 @@ function renderPinboard(){
   const wall = document.getElementById('pinWall');
   if(!wall) return;
   const posts = (state.pinboard || []).map(normalizePinPost);
-  if(!posts.length){ wall.innerHTML = '<p class="empty-hint pin-empty">Be the first to leave a note on the board.</p>'; return; }
+  if(!posts.length){
+    wall.innerHTML = `<p class="empty-hint pin-empty">${(typeof isCoderLoggedIn === 'function' && isCoderLoggedIn()) || isAdmin() ? 'Be the first to leave a note on the board.' : 'Log in to post on the board.'}</p>`;
+    return;
+  }
+
+  const canReply = isAdmin() || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
 
   wall.innerHTML = posts.slice().reverse().map((p, i) => {
     const rot = [-1.5, 1.2, -0.8, 1.8, -1][i % 5];
@@ -3706,7 +3746,7 @@ function renderPinboard(){
     return `<article class="pin-post community-pin" style="--prot:${rot}deg" data-pin-id="${esc(p.id)}">
       <header class="pin-post-head">
         <div class="pin-meta-block">
-          <span class="pin-name">${esc(p.name)}</span>
+          ${pinAuthorBlock(p)}
           <span class="pin-location">📍 ${esc(p.location)}</span>
           <time class="pin-time">${esc(fmtPinDateTime(p.time))}</time>
         </div>
@@ -3717,26 +3757,23 @@ function renderPinboard(){
       <div class="pin-replies">${replies.map(r => `
         <div class="pin-reply" data-reply-id="${esc(r.id)}">
           <header class="pin-reply-head">
-            <span class="pin-name">${esc(r.name)}</span>
+            ${r.characterId && typeof pinCoderThumb === 'function' ? pinCoderThumb(r.characterId) : `<span class="pin-name">${esc(r.name)}</span>`}
             <span class="pin-location">📍 ${esc(r.location)}</span>
             <time class="pin-time">${esc(fmtPinDateTime(r.time))}</time>
           </header>
           ${r.photo ? `<div class="pin-photo pin-photo-sm"><img src="${esc(r.photo)}" alt="" loading="lazy"></div>` : ''}
           <p class="pin-text">${esc(r.text)}</p>
         </div>`).join('')}</div>
-      <button type="button" class="btn pin-reply-btn" data-reply-to="${esc(p.id)}">↩ Reply</button>
+      ${canReply ? `<button type="button" class="btn pin-reply-btn" data-reply-to="${esc(p.id)}">↩ Reply</button>
       <form class="pin-reply-form hidden" data-reply-form="${esc(p.id)}">
-        <div class="field-row">
-          <div class="field"><label>Name</label><input type="text" class="pin-reply-name" required></div>
-          <div class="field"><label>Posting from</label><input type="text" class="pin-reply-location" required placeholder="where are you"></div>
-        </div>
+        <div class="field"><label>Posting from</label><input type="text" class="pin-reply-location" required placeholder="where are you"></div>
         <div class="field"><label>Reply</label><textarea class="pin-reply-text" required rows="2"></textarea></div>
         <div class="field"><label>Photo (optional)</label><input type="file" class="pin-reply-photo" accept="image/*"></div>
         <div class="pin-reply-actions">
           <button type="button" class="btn pin-reply-cancel">Cancel</button>
           <button type="submit" class="btn primary">Post reply</button>
         </div>
-      </form>
+      </form>` : ''}
     </article>`;
   }).join('');
 
@@ -3767,17 +3804,20 @@ function renderPinboard(){
       const parentId = form.dataset.replyForm;
       const post = state.pinboard.find(p => p.id === parentId);
       if(!post) return;
-      const name = form.querySelector('.pin-reply-name')?.value?.trim();
+      const author = pinSessionAuthor();
+      if(!author){ alert('Log in to your card to reply.'); return; }
       const location = form.querySelector('.pin-reply-location')?.value?.trim();
       const text = form.querySelector('.pin-reply-text')?.value?.trim();
       const file = form.querySelector('.pin-reply-photo')?.files?.[0];
-      if(!name || !location || !text) return;
+      if(!location || !text) return;
       const addReply = (photo) => {
         if(!Array.isArray(post.replies)) post.replies = [];
         post.replies.push({
           id: 'reply-' + Date.now(),
           parentId,
-          name, location, text,
+          name: author.name,
+          characterId: author.characterId,
+          location, text,
           photo: photo || '',
           time: new Date().toISOString(),
         });
@@ -3796,16 +3836,19 @@ function renderPinboard(){
 
 document.getElementById('pinForm')?.addEventListener('submit', e => {
   e.preventDefault();
-  const name = document.getElementById('pinName').value.trim();
+  const author = pinSessionAuthor();
+  if(!author){ alert('Log in to your card to post.'); return; }
   const location = document.getElementById('pinLocation').value.trim();
   const text = document.getElementById('pinText').value.trim();
   const file = document.getElementById('pinPhoto').files[0];
-  if(!name || !location || !text) return;
+  if(!location || !text) return;
 
   const addPost = (photo) => {
     state.pinboard.push({
       id: 'pin-' + Date.now(),
-      name, location, text,
+      name: author.name,
+      characterId: author.characterId,
+      location, text,
       photo: photo || '',
       time: new Date().toISOString(),
       replies: [],
