@@ -140,8 +140,12 @@
     </section>
 
     <section class="view neon-section mind-view" id="view-mind" style="--sec-neon:#f43f8e">
+      <div class="mind-glitch-bg" aria-hidden="true">
+        <div class="mind-glitch-scan"></div>
+        <div class="mind-glitch-bars" id="mindGlitchBars"></div>
+      </div>
       <div class="mind-channel-header sys-broken">
-        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">[ ESC ] disconnect</button>
+        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">[ GLITCH FIXED ] return</button>
         <div class="mind-channel-title">
           <span class="mind-channel-kicker sys-flicker">// CHANNEL_0x7F · OFFLOAD_PROTOCOL</span>
           <h2 class="view-title sketch-title mind-glitch-title">SYSTEM FAILURE</h2>
@@ -175,8 +179,15 @@
         <input type="hidden" id="logDateKey" value="">
         <h3 class="log-editor-title" id="logEditorTitle">Daily log</h3>
         <div class="day-form-grid">
-          <div class="field"><label>Mood (1–10)</label><input type="range" id="logMood" min="1" max="10" value="7"><span class="range-val" id="logMoodVal">7</span></div>
-          <div class="field"><label>Steps</label><input type="number" id="logSteps" value="0"></div>
+          <div class="field field-mood"><label>Current mood</label><div id="logMoodPicker"></div></div>
+          <div class="field field-steps">
+            <label>Steps</label>
+            <div class="steps-sync-row">
+              <input type="number" id="logSteps" value="0">
+              <button type="button" class="btn" id="syncGoogleSteps">Sync Google Health</button>
+            </div>
+            <p class="field-hint" id="stepsSyncStatus"></p>
+          </div>
           <div class="field"><label>Work hours</label><input type="number" id="logWork" min="0" step="0.5" value="0"></div>
           <div class="field"><label>Mandarin (hrs)</label><input type="number" id="logMandarin" min="0" step="0.5" value="0"></div>
           <div class="field"><label>Hobby</label><select id="logHobbySelect"><option value="">—</option></select></div>
@@ -253,7 +264,7 @@
         <form class="pin-form sketch-card" id="pinForm">
           <div class="field-row">
             <div class="field"><label>Name</label><input type="text" id="pinName" required placeholder="who are you"></div>
-            <div class="field"><label>Mood today (1–10)</label><input type="number" id="pinMood" min="1" max="10" value="7"></div>
+            <div class="field field-mood"><label>Current mood</label><div id="pinMoodPicker"></div></div>
           </div>
           <div class="field"><label>Say something</label><textarea id="pinText" required placeholder="whatever's on your mind"></textarea></div>
           <div class="field"><label>Neon colour</label><input type="color" id="pinColor" value="#3ad6e0"></div>
@@ -412,7 +423,7 @@
     <h3>End day — complete daily log</h3>
     <p class="field-hint">Your timeline is saved. Fill in anything missing for the calendar.</p>
     <div class="day-form-grid">
-      <div class="field"><label>Mood (1–10)</label><input type="range" id="endMood" min="1" max="10" value="7"><span class="range-val" id="endMoodVal">7</span></div>
+      <div class="field field-mood"><label>Current mood</label><div id="endMoodPicker"></div></div>
       <div class="field"><label>Steps</label><input type="number" id="endSteps" value="0"></div>
       <div class="field"><label>Work hours</label><input type="number" id="endWork" min="0" step="0.5" value="0"></div>
       <div class="field"><label>Mandarin (hrs)</label><input type="number" id="endMandarin" min="0" step="0.5" value="0"></div>
@@ -431,10 +442,21 @@
 
 <div id="editToast" class="edit-toast hidden" aria-live="polite">Editing.</div>
 
+<div id="pageCrackOverlay" class="page-crack-overlay hidden" aria-hidden="true">
+  <div class="crack-flash"></div>
+  <svg class="crack-svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+    <path class="crack-path crack-a" d="M120,0 L280,420 L180,1000"></path>
+    <path class="crack-path crack-b" d="M520,0 L420,360 L640,1000"></path>
+    <path class="crack-path crack-c" d="M860,0 L700,520 L920,1000"></path>
+  </svg>
+  <div class="crack-label sys-flicker">SURFACE BREACH</div>
+</div>
+
 <div id="overloadGlitchScreen" class="overload-glitch-screen hidden" aria-hidden="true">
   <div class="ogl-scanlines" aria-hidden="true"></div>
   <div class="ogl-noise" aria-hidden="true"></div>
   <div class="ogl-vignette" aria-hidden="true"></div>
+  <div class="ogl-glitch-bars" id="oglGlitchBars" aria-hidden="true"></div>
   <div class="ogl-content">
     <p class="ogl-kicker sys-flicker">// KERNEL_PANIC · 0xDEAD</p>
     <h1 class="ogl-title" aria-label="System Overload">
@@ -461,7 +483,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
