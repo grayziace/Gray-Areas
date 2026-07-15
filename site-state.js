@@ -5,7 +5,12 @@ const SITE_STATE = {
   "pinboard": [],
   "arrivalDate": "2026-08-21",
   "unlockedZones": [],
-  "dramaState": {},
+  "dramaState": {
+    "media-1784113987712": {
+      "episodes": {},
+      "finalReview": ""
+    }
+  },
   "hiddenDramas": [
     "example-drama"
   ]
