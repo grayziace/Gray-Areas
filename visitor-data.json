@@ -17,7 +17,7 @@
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 3,
+      "points": 6,
       "questsSent": 0,
       "questsCompleted": 0,
       "loginCount": 0,
@@ -62,7 +62,16 @@
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person",
-      "isGod": true
+      "isGod": true,
+      "xpHistory": [
+        {
+          "id": "xp-1784136599406-b9ty",
+          "at": "2026-07-15T17:29:59.406Z",
+          "amount": 3,
+          "reason": "login",
+          "label": "Daily login"
+        }
+      ]
     },
     {
       "id": "coder-1784136277276-1f50",
@@ -105,17 +114,17 @@
         "abilities": [
           {
             "name": "Big D*ck",
-            "effect": "Big d*ck is your edge â when the board gets heavy, you steady the room."
+            "effect": "Big d*ck is your edge Ã¢ÂÂ when the board gets heavy, you steady the room."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Too Cool",
-          "effect": "Too Cool â double damage from too cool; high-pressure days hit harder."
+          "effect": "Too Cool Ã¢ÂÂ double damage from too cool; high-pressure days hit harder."
         },
         "resistance": {
           "name": "Anesthetic",
-          "effect": "Immune to anesthetic â you shrug off what would bend others."
+          "effect": "Immune to anesthetic Ã¢ÂÂ you shrug off what would bend others."
         },
         "retreatCost": "1",
         "quote": "Sup Slags",
