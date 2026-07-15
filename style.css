@@ -62,3 +62,30 @@ body::before {
     background: var(--neon-magenta);
     box-shadow: 0 0 25px var(--neon-magenta);
 }
+/* ADD THIS TO YOUR STYLE.CSS TO FIX THE ATMOSPHERE */
+body {
+    /* 1. USE THE BACKGROUND AS A CINEMATIC BASE */
+    background: url('Rebecca.jpeg') no-repeat center center fixed;
+    background-size: cover;
+    /* 2. THE "HAZE" - A dark overlay to soften the city details */
+    background-blend-mode: multiply;
+    background-color: rgba(5, 2, 9, 0.7);
+}
+
+.app-container {
+    /* 3. LAYERED DEPTH */
+    display: flex;
+    align-items: center;
+    gap: 50px;
+    padding: 0 100px;
+}
+
+/* THE "SOPHISTICATION" LAYER */
+.ui-frame {
+    /* Glassmorphism that pulls the "haze" from the city */
+    background: rgba(10, 5, 15, 0.4);
+    backdrop-filter: blur(15px);
+    border-left: 1px solid rgba(191, 0, 255, 0.3);
+    padding: 60px;
+    height: 100vh;
+}
