@@ -489,8 +489,49 @@ const OverloadLog = {
   parseTypingTimer: null,
   parseCurrentLineEl: null,
   _parseBoot: false,
+  embedded: false,
 
-  emptyDraft(){
+  getRenderRoot(){
+    if(this.embedded){
+      const host = document.getElementById('vlogOverloadHost');
+      if(!host) return null;
+      if(!host.querySelector('#vlogOverloadContent')){
+        host.innerHTML = `
+          <section class="vlog-overload-wrap sketch-card">
+            <header class="vlog-overload-head">
+              <span class="vlog-overload-dot" aria-hidden="true"></span>
+              <div>
+                <p class="vlog-overload-kicker">Player Gray only · safe offload zone</p>
+                <h3 class="vlog-overload-title">System Overload</h3>
+                <p class="vlog-overload-sub">When you're not feeling well — dump the buffer here. No performance required. One thread at a time.</p>
+              </div>
+            </header>
+            <div id="vlogOverloadContent" class="vlog-overload-content mind-channel-body sys-broken"></div>
+          </section>`;
+      }
+      host.classList.remove('hidden');
+      return host.querySelector('#vlogOverloadContent');
+    }
+    return document.getElementById('mindContent');
+  },
+
+  mountInVlog(){
+    if(!isAdmin()) return;
+    this.embedded = true;
+    this.getRenderRoot();
+    this.render();
+  },
+
+  openEmbedded(){
+    if(!isAdmin()) return;
+    this.embedded = true;
+    if(typeof navigateToView === 'function') navigateToView('vlog');
+    else if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
+    else this.mountInVlog();
+    queueMicrotask(() => {
+      document.getElementById('vlogOverloadHost')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  },
     return {
       date: typeof todayKey === 'function' ? todayKey() : '',
       title: '',
@@ -619,6 +660,10 @@ const OverloadLog = {
   },
 
   enterChannel(){
+    if(isAdmin()){
+      this.openEmbedded();
+      return;
+    }
     const active = document.querySelector('section.view.active');
     if(active && active.id !== 'view-mind') this.returnView = active.id.replace('view-', '') || 'profile';
     document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
@@ -633,6 +678,15 @@ const OverloadLog = {
 
   exitChannel(){
     this.stopParseTypewriter();
+    if(this.embedded){
+      document.body.classList.remove('mind-channel-open', 'mind-repair-active');
+      this.view = 'hub';
+      this.editingId = null;
+      this.sessionDraft = null;
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     document.body.classList.remove('mind-channel-open', 'mind-repair-active');
     const view = this.returnView || 'profile';
     if(typeof navigateToView === 'function') navigateToView(view);
@@ -1020,10 +1074,12 @@ const OverloadLog = {
     };
 
     const idx = state.overloadLogs.findIndex(l => l.id === payload.id);
+    const isNew = idx < 0;
     if(idx >= 0) state.overloadLogs[idx] = payload;
     else state.overloadLogs.push(payload);
 
     saveState();
+    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(12, 'overload_session');
     if(typeof LiveSync !== 'undefined') LiveSync.overloadArchived(payload.title, payload.emotions);
     this.view = 'hub';
     this.editingId = null;
@@ -1226,7 +1282,7 @@ const OverloadLog = {
   },
 
   render(){
-    const root = document.getElementById('mindContent');
+    const root = this.getRenderRoot();
     if(!root) return;
     if(this.view === 'session' && this.sessionPhase === 'parse') this.stopParseTypewriter();
     if(this.view === 'session') root.innerHTML = this.renderSession();

@@ -155,7 +155,6 @@
       <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
       <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
-      <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span>System Overload</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
         <div class="sidebar-console-row">
@@ -277,7 +276,10 @@
 
     <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
       <h2 class="view-title sketch-title">Skill Cards</h2>
-      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Towers below are the skyline view.</p>
+      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
+      <div class="skill-deck-actions edit-when-editing">
+        <button class="btn primary" id="addSkillCardBtn" type="button">+ Add skill card</button>
+      </div>
       <div class="card-deck skill-card-deck" id="skillDeck"></div>
       <div class="tier-legend" id="tierLegend"></div>
       <div class="skill-skyline-wrap">
@@ -295,7 +297,8 @@
 
     <section class="view neon-section" id="view-drama" style="--sec-neon:#f43f8e">
       <h2 class="view-title sketch-title">Media Log</h2>
-      <p class="gallery-hint">TV, film, books, albums, songs — rated with neon dots.</p>
+      <p class="gallery-hint">TV, film, books, albums, songs — sectioned shelves, final reviews, and live rankings.</p>
+      <div id="mediaRankings"></div>
       <div class="drama-deck" id="dramaDeck"></div>
       <button class="btn admin-only hidden" id="addDramaBtn" style="margin-top:16px;">+ Add media</button>
     </section>
@@ -345,8 +348,9 @@
 
     <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">
       <h2 class="view-title sketch-title">Video Log</h2>
-      <p class="gallery-hint">Vlog notes and short clips with English subtitles.</p>
+      <p class="gallery-hint">Vlog notes, short clips — and for Player Gray only, System Overload when you need to offload.</p>
       <div id="vlogSpread"></div>
+      <div id="vlogOverloadHost" class="vlog-overload-host admin-only hidden"></div>
     </section>
 
   </div>
@@ -426,6 +430,7 @@
       <div class="field"><label>Genre / style</label><input type="text" id="dramaGenre"></div>
       <div class="field"><label id="dramaTotalLabel">Total episodes</label><input type="number" id="dramaTotal" min="1" value="24"></div>
     </div>
+    <div class="field" id="dramaCountryField"><label>Country (TV)</label><input type="text" id="dramaCountry" placeholder="South Korea, UK, Japan…"></div>
     <div class="field"><label>Status</label>
       <select id="dramaStatus">
         <option value="watching">Watching</option>

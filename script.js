@@ -138,7 +138,8 @@ function defaultState(){
     videoDiary: [],
     liveTodos: [],
     instructionsHtml: '',
-    coderActivity: [],
+    playerPoints: 0,
+    playerXpHistory: [],
   };
 }
 
@@ -176,6 +177,8 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
   if(typeof s.instructionsHtml === 'string') state.instructionsHtml = s.instructionsHtml;
   if(Array.isArray(s.coderActivity)) state.coderActivity = s.coderActivity;
+  if(typeof s.playerPoints === 'number') state.playerPoints = s.playerPoints;
+  if(Array.isArray(s.playerXpHistory)) state.playerXpHistory = s.playerXpHistory;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -264,16 +267,23 @@ repairContentState();
 
 function getPlayer(){
   const base = { ...CONTENT.player, bio: state.bio || CONTENT.player.bio };
+  const pts = state.playerPoints || 0;
+  const lvl = grayLevelFromPoints(pts);
+  let player = base;
   if(state.content?.player && typeof state.content.player === 'object'){
     const p = state.content.player;
-    return {
+    player = {
       ...base,
       ...p,
       bio: p.bio ?? state.bio ?? CONTENT.player.bio,
       pokeCard: { ...(CONTENT.player.pokeCard || {}), ...(p.pokeCard || {}) },
     };
   }
-  return base;
+  return {
+    ...player,
+    points: pts,
+    pokeCard: { ...player.pokeCard, level: lvl.level },
+  };
 }
 
 function getContentList(key, fallback){
@@ -292,9 +302,29 @@ function getCharacters(){
     merged.push({ ...c, isCoderCard: c.isCoderCard !== false });
     seen.add(c.id);
   });
+  const godNames = new Set((state.viewerCharacters || []).filter(c => c.isGod).map(c => (c.name || '').trim().toLowerCase()));
   const isCoder = c => c?.isCoderCard || (state.viewerCharacters || []).some(v => v.id === c.id);
-  const staticChars = merged.filter(c => !isCoder(c));
-  const coderChars = merged.filter(c => isCoder(c)).sort((a, b) => (b.points || 0) - (a.points || 0));
+  const namePick = new Map();
+  merged.forEach(c => {
+    if(!isCoder(c)) return;
+    const key = (c.name || '').trim().toLowerCase();
+    if(!key) return;
+    const prev = namePick.get(key);
+    if(!prev || c.isGod) namePick.set(key, c);
+  });
+  const filtered = merged.filter(c => {
+    const key = (c.name || '').trim().toLowerCase();
+    if(godNames.has(key) && !c.isGod) return false;
+    if(!isCoder(c)) return true;
+    const pick = namePick.get(key);
+    return !pick || pick.id === c.id;
+  });
+  const staticChars = filtered.filter(c => !isCoder(c));
+  const coderChars = filtered.filter(c => isCoder(c)).sort((a, b) => {
+    if(a.isGod) return -1;
+    if(b.isGod) return 1;
+    return (b.points || 0) - (a.points || 0);
+  });
   return [...staticChars, ...coderChars];
 }
 
@@ -1247,6 +1277,100 @@ function fmtClockTime(tz){
   });
 }
 
+function fmtClockDate(tz){
+  return new Date().toLocaleDateString('en-GB', {
+    timeZone: tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function clockOffsetLabel(tz, refTz = 'Europe/London'){
+  const now = Date.now();
+  const fmt = t => {
+    const s = new Date(now).toLocaleString('en-GB', { timeZone: t, hour: '2-digit', minute: '2-digit', hour12: false });
+    const [h, m] = s.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const diffMin = fmt(tz) - fmt(refTz);
+  let diffH = Math.round(diffMin / 60);
+  if(diffH > 12) diffH -= 24;
+  if(diffH < -12) diffH += 24;
+  if(diffH === 0) return 'same time as UK';
+  return diffH > 0 ? `${diffH}h ahead of UK` : `${Math.abs(diffH)}h behind UK`;
+}
+
+const GRAY_XP_AWARDS = {
+  day_sealed: { label: 'Day sealed in log', xp: 25 },
+  pulse: { label: 'Pulse dropped live', xp: 5 },
+  quest_complete: { label: 'Quest completed for a coder', xp: 20 },
+  todo_done: { label: 'Live to-do ticked off', xp: 3 },
+  media_review: { label: 'Media unit rated', xp: 4 },
+  final_review: { label: 'Final media review written', xp: 15 },
+  new_card: { label: 'New player/place card', xp: 10 },
+  overload_session: { label: 'Overload session archived', xp: 12 },
+  custom: { label: 'Custom award', xp: 0 },
+};
+
+function getGrayPoints(){
+  return state.playerPoints || 0;
+}
+
+function grayLevelFromPoints(points){
+  const pts = points || 0;
+  const level = Math.max(1, 1 + Math.floor(pts / 100));
+  return { level, points: pts, progress: (pts % 100) / 100 };
+}
+
+function awardGrayPoints(amount, reason){
+  if(!amount || !isAdmin()) return;
+  state.playerPoints = (state.playerPoints || 0) + amount;
+  const lvl = grayLevelFromPoints(state.playerPoints);
+  if(!state.content) state.content = {};
+  if(!state.content.player) state.content.player = {};
+  state.content.player.points = state.playerPoints;
+  if(state.content.player.pokeCard) state.content.player.pokeCard.level = lvl.level;
+  const label = GRAY_XP_AWARDS[reason]?.label || String(reason || 'XP');
+  if(!state.playerXpHistory) state.playerXpHistory = [];
+  state.playerXpHistory.unshift({
+    id: uid('gxp'),
+    at: new Date().toISOString(),
+    amount,
+    reason: reason || 'custom',
+    label,
+  });
+  state.playerXpHistory = state.playerXpHistory.slice(0, 120);
+  saveState();
+}
+
+function renderGrayXpGuide(){
+  const rows = Object.entries(GRAY_XP_AWARDS)
+    .filter(([k]) => k !== 'custom')
+    .map(([, v]) => `<li><strong>+${v.xp}</strong> ${esc(v.label)}</li>`).join('');
+  return `<section class="gray-xp-guide sketch-card">
+    <h3 class="profile-feed-title">How Gray levels up</h3>
+    <p class="gallery-hint">Every 100 XP = +1 level. Coders earn XP from quests; you earn XP from living the board.</p>
+    <ul class="gray-xp-list">${rows}</ul>
+    <p class="gray-xp-formula">Level = 1 + floor(XP ÷ 100)</p>
+  </section>`;
+}
+
+function renderGrayXpHistory(){
+  const items = (state.playerXpHistory || []).slice(0, 40);
+  if(!items.length) return `<p class="profile-empty">No XP logged yet — seal a day, drop a pulse, or finish a quest.</p>`;
+  return `<div class="live-rail-track xp-history-rail">
+    <div class="live-rail-spine" aria-hidden="true"></div>
+    <div class="live-rail-nodes">${items.map(entry => {
+      const when = entry.at ? new Date(entry.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      return `<article class="live-node" style="--ln-neon:#fcd34d">
+        <div class="live-node-marker"><span class="live-node-core"></span></div>
+        <div class="live-node-card">
+          <div class="live-node-top"><time class="live-node-time">${esc(when)}</time><span class="live-node-type">+${entry.amount} XP</span></div>
+          <p class="live-node-text">${esc(entry.label || entry.reason)}</p>
+        </div>
+      </article>`;
+    }).join('')}</div>
+  </div>`;
+}
+
 function fmtNodeTime(iso){
   if(!iso) return '—';
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -1472,6 +1596,7 @@ function getDrama(id){
   return {
     ...base,
     mediaType: base.mediaType || st.mediaType || 'tv',
+    country: st.country ?? base.country ?? '',
     image: st.image ?? base.image ?? '',
     currentEpisode: st.currentEpisode ?? base.currentEpisode ?? 0,
     status: st.status ?? base.status ?? 'watching',
@@ -1651,6 +1776,7 @@ function navigateToView(view){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   }
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
+  if(view === 'vlog' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
 }
 
 function bootApp(){
@@ -1819,6 +1945,7 @@ function renderAbout(){
 
   const player = getPlayer();
   const pc = normalizePokeCard(player);
+  const grayLvl = grayLevelFromPoints(player.points || 0);
   const portrait = player.avatar;
   const cardItem = { ...player, image: portrait, avatar: portrait, cardSubtitle: pc.subtitle };
   const stats = computeProfileStats();
@@ -1852,7 +1979,8 @@ function renderAbout(){
       <div class="about-stage profile-stage">
         ${buildFlipPlayerCard(cardItem, 'player', 0, { hero: true, heroAccent: getPlayerAccent(cardItem) })}
         <div class="profile-id-strip">
-          <span class="profile-id-chip" style="--pic-neon:#ff4fd8">LV ${pc.level || 1}</span>
+          <span class="profile-id-chip" style="--pic-neon:#fcd34d">${player.points || 0} XP</span>
+          <span class="profile-id-chip" style="--pic-neon:#ff4fd8">LV ${grayLvl.level}</span>
           ${pc.mbti ? `<span class="profile-id-chip" style="--pic-neon:#3ad6e0">${esc(pc.mbti)}</span>` : ''}
           ${pc.vibe ? `<span class="profile-id-chip profile-id-wide" style="--pic-neon:#9b5cff">${esc(pc.vibe)}</span>` : ''}
           <span class="profile-id-chip" style="--pic-neon:#4fa3ff">${esc(player.from)} → Shenzhen</span>
@@ -1912,6 +2040,16 @@ function renderAbout(){
         profileStatCell('Completed', stats.completed, 'finished', '#a78bfa'),
         profileStatCell('Avg rating', stats.avgMedia, 'neon dot average', '#f472b6'),
       ].join(''), '#f43f8e')}
+
+      <section class="profile-stat-group gray-xp-board" style="--psg-neon:#fcd34d">
+        <h3 class="profile-stat-group-title">Gray XP · Lv ${grayLvl.level}</h3>
+        <div class="gray-xp-progress">
+          <div class="gray-xp-bar"><span style="width:${Math.round(grayLvl.progress * 100)}%"></span></div>
+          <p class="gray-xp-meta">${player.points || 0} XP · ${100 - Math.round(grayLvl.progress * 100)} to next level</p>
+        </div>
+        ${renderGrayXpHistory()}
+      </section>
+      ${isAdmin() ? renderGrayXpGuide() : ''}
     </div>
 
     <div class="about-pin-wall profile-feed">
@@ -1979,7 +2117,9 @@ function bindCommunityConsole(){
     }
     if(v === ':('){
       if(typeof OverloadLog !== 'undefined'){
-        if(typeof OverloadLog.triggerPageCrack === 'function'){
+        if(typeof OverloadLog.openEmbedded === 'function'){
+          OverloadLog.openEmbedded();
+        } else if(typeof OverloadLog.triggerPageCrack === 'function'){
           OverloadLog.triggerPageCrack(() => OverloadLog.showGlitchIntro());
         } else {
           OverloadLog.enterChannel();
@@ -2249,6 +2389,7 @@ const HomeCheckIn = {
 
     saveState();
     this.closePulseComposer();
+    awardGrayPoints(GRAY_XP_AWARDS.pulse.xp, 'pulse');
     renderHomeCheckIn();
     renderLogCalendar();
     safeRender(renderAbout);
@@ -2261,8 +2402,16 @@ const HomeCheckIn = {
     const tick = () => {
       const sz = document.getElementById('clockShenzhen');
       const uk = document.getElementById('clockUk');
+      const szDate = document.getElementById('clockShenzhenDate');
+      const ukDate = document.getElementById('clockUkDate');
+      const szOff = document.getElementById('clockShenzhenOffset');
+      const ukOff = document.getElementById('clockUkOffset');
       if(sz) sz.textContent = fmtClockTime('Asia/Shanghai');
       if(uk) uk.textContent = fmtClockTime('Europe/London');
+      if(szDate) szDate.textContent = fmtClockDate('Asia/Shanghai');
+      if(ukDate) ukDate.textContent = fmtClockDate('Europe/London');
+      if(szOff) szOff.textContent = clockOffsetLabel('Asia/Shanghai');
+      if(ukOff) ukOff.textContent = 'UK local';
     };
     tick();
     this.clockTimer = setInterval(tick, 1000);
@@ -2389,6 +2538,7 @@ const HomeCheckIn = {
     places.forEach(z => { if(z && !state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
     saveState();
     this.closeEndDay();
+    awardGrayPoints(GRAY_XP_AWARDS.day_sealed.xp, 'day_sealed');
     renderHomeCheckIn();
     renderLogCalendar();
     safeRender(renderAbout);
@@ -2603,6 +2753,7 @@ const HomeCheckIn = {
     t.done = done;
     t.doneAt = done ? new Date().toISOString() : null;
     if(done) this.pushTodoTimelineNode(t.text);
+    if(done) awardGrayPoints(GRAY_XP_AWARDS.todo_done.xp, 'todo_done');
     saveState();
     renderHomeCheckIn();
   },
@@ -2658,6 +2809,17 @@ function updateCoderSignalBadge(){
   badge.classList.toggle('has-signals', n > 0);
 }
 
+function relativeSignalTime(iso){
+  if(!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(ms / 60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if(hrs < 48) return `${hrs}h ago`;
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function renderCoderNotifyRail(){
   updateCoderSignalBadge();
   const rail = document.getElementById('coderNotifyRail');
@@ -2673,19 +2835,22 @@ function renderCoderNotifyRail(){
   const acts = (state.coderActivity || []).slice(0, 80);
   const nodes = acts.length ? acts.map(act => {
     const meta = CODER_ACTIVITY_META[act.type] || { label: act.type, icon: '·', neon: '#94a3b8' };
-    const when = act.at ? new Date(act.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const when = relativeSignalTime(act.at);
     const detail = act.detail || act.name || '';
     return `<article class="live-node coder-act-node" style="--ln-neon:${meta.neon}">
-      <div class="live-node-marker"><span class="live-node-glow"></span><span class="live-node-core"></span></div>
+      <div class="live-node-marker"><span class="live-node-glow"></span><span class="live-node-core">${meta.icon}</span></div>
       <div class="live-node-card">
         <div class="live-node-top">
           <time class="live-node-time">${esc(when)}</time>
-          <span class="live-node-type">${meta.icon} ${meta.label}</span>
+          <span class="live-node-type">${meta.label}</span>
         </div>
         <p class="live-node-text">${esc(detail)}</p>
       </div>
     </article>`;
-  }).join('') : `<p class="live-rail-empty">Coder activity will show here — quests, posts, XP, new cards.</p>`;
+  }).join('') : `<div class="coder-signal-empty">
+    <p class="coder-signal-empty-title">Quiet on the wire</p>
+    <p>Coder quests, posts, XP awards, and new cards will pulse here.</p>
+  </div>`;
   rail.innerHTML = `
     <div class="coder-notify-head">
       <div>
@@ -2747,12 +2912,16 @@ function renderHomeCheckIn(){
       <div class="live-clocks-row">
         <div class="live-clock-card">
           <span class="live-clock-city">Shenzhen</span>
+          <span class="live-clock-date" id="clockShenzhenDate">—</span>
           <span class="live-clock-val" id="clockShenzhen">--:--:--</span>
+          <span class="live-clock-offset" id="clockShenzhenOffset"></span>
           <span class="live-clock-tz">Asia/Shanghai</span>
         </div>
         <div class="live-clock-card">
           <span class="live-clock-city">United Kingdom</span>
+          <span class="live-clock-date" id="clockUkDate">—</span>
           <span class="live-clock-val" id="clockUk">--:--:--</span>
+          <span class="live-clock-offset" id="clockUkOffset"></span>
           <span class="live-clock-tz">Europe/London</span>
         </div>
       </div>
@@ -3396,6 +3565,7 @@ document.getElementById('closeSkillJourney')?.addEventListener('click', () => do
 document.getElementById('skillJourneyBack')?.addEventListener('click', e => { if(e.target.id==='skillJourneyBack') document.getElementById('skillJourneyBack').classList.add('hidden'); });
 
 document.getElementById('addSkillBtn')?.addEventListener('click', () => openSkillEditor(null));
+document.getElementById('addSkillCardBtn')?.addEventListener('click', () => openSkillEditor(null));
 document.getElementById('closeSkillEdit')?.addEventListener('click', closeSkillEditor);
 document.getElementById('cancelSkillEdit')?.addEventListener('click', closeSkillEditor);
 document.getElementById('saveSkillEdit')?.addEventListener('click', saveSkillEditor);
@@ -3403,27 +3573,80 @@ document.getElementById('deleteSkillBtn')?.addEventListener('click', deleteSkill
 document.getElementById('skillEditBack')?.addEventListener('click', e => { if(e.target.id === 'skillEditBack') closeSkillEditor(); });
 
 /* ---------- Media log (TV, film, books, albums, songs) ---------- */
+const MEDIA_SECTION_ORDER = ['tv', 'film', 'book', 'album', 'song'];
+
+function renderMediaRankings(){
+  const host = document.getElementById('mediaRankings');
+  if(!host) return;
+  const ranked = allDramas()
+    .map(d => ({ d, avg: Number(computeShowRating(d)), hasReview: !!d.finalReview?.trim() }))
+    .filter(x => x.avg || x.hasReview)
+    .sort((a, b) => (b.avg || 0) - (a.avg || 0));
+  if(!ranked.length){
+    host.innerHTML = '<p class="empty-hint">Final reviews and ratings will rank here as you log media.</p>';
+    return;
+  }
+  host.innerHTML = `<section class="media-rankings-board sketch-card">
+    <h3 class="media-rankings-title">All-time rankings</h3>
+    <p class="gallery-hint">Sorted by neon-dot average · tap a row to open</p>
+    <ol class="media-rankings-list">${ranked.map((row, i) => {
+      const mt = getMediaType(row.d.mediaType);
+      const dots = row.avg ? neonDots(row.avg, 5, stableNeon(row.d.id, 1)) : '';
+      const country = row.d.mediaType === 'tv' && row.d.country ? ` · ${esc(row.d.country)}` : '';
+      return `<li class="media-rank-row" data-drama-id="${esc(row.d.id)}">
+        <span class="media-rank-num">#${i + 1}</span>
+        <div class="media-rank-body">
+          <strong>${esc(row.d.title)}</strong>
+          <span class="media-rank-meta">${esc(mt.label)}${country}${row.avg ? ` · ${row.avg}/5` : ''} ${dots}</span>
+          ${row.d.finalReview ? `<p class="media-rank-review">${esc(row.d.finalReview.slice(0, 140))}${row.d.finalReview.length > 140 ? '…' : ''}</p>` : ''}
+        </div>
+      </li>`;
+    }).join('')}</ol>
+  </section>`;
+  host.querySelectorAll('[data-drama-id]').forEach(row => {
+    row.addEventListener('click', () => openDramaDetail(row.dataset.dramaId));
+  });
+}
+
 function renderDramaDeck(){
   const deck = document.getElementById('dramaDeck');
   if(!deck) return;
   const dramas = allDramas();
+  renderMediaRankings();
   if(!dramas.length){ deck.innerHTML = '<p class="empty-hint">Empty shelf.</p>'; return; }
 
-  deck.innerHTML = dramas.map((d, i) => {
-    const pct = d.totalEpisodes ? Math.round((d.currentEpisode/d.totalEpisodes)*100) : 0;
-    const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
-    const reviewed = Object.keys(d.episodes||{}).length;
-    const mt = getMediaType(d.mediaType);
-    const neon = stableNeon(d.id, i);
-    return `<article class="drama-card media-card status-${d.status}" style="--drot:${((i % 5) * 0.6 - 1.2).toFixed(1)}deg;--media-neon:${neon}" data-drama-id="${esc(d.id)}">
-      <div class="drama-card-art">${d.image?`<img src="${esc(d.image)}" alt="">`:`<span class="drama-art-ph">${esc(d.title.charAt(0))}</span>`}</div>
-      <div class="drama-card-body">
-        <div class="drama-card-top"><span class="drama-status">${esc(mt.label)} · ${d.status}</span>${ratingDots || ''}</div>
-        <h3 class="drama-card-title">${esc(d.title)}</h3>
-        <div class="drama-card-genre">${esc(d.genre||'')}</div>
-        <div class="drama-ep-track"><span class="drama-ep-label">${mt.unit} ${d.currentEpisode}/${d.totalEpisodes} · ${reviewed} rated</span>
-          <div class="drama-ep-bar"><div style="width:${pct}%"></div></div></div>
-      </div></article>`;
+  const byType = {};
+  dramas.forEach(d => {
+    const t = d.mediaType || 'tv';
+    if(!byType[t]) byType[t] = [];
+    byType[t].push(d);
+  });
+
+  deck.innerHTML = MEDIA_SECTION_ORDER.map((type, si) => {
+    const items = byType[type];
+    if(!items?.length) return '';
+    const mt = getMediaType(type);
+    const cards = items.map((d, i) => {
+      const pct = d.totalEpisodes ? Math.round((d.currentEpisode/d.totalEpisodes)*100) : 0;
+      const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
+      const reviewed = Object.keys(d.episodes||{}).length;
+      const neon = stableNeon(d.id, i + si);
+      const country = type === 'tv' && d.country ? `<span class="drama-country">${esc(d.country)}</span>` : '';
+      return `<article class="drama-card media-card status-${d.status}" style="--drot:${((i % 5) * 0.6 - 1.2).toFixed(1)}deg;--media-neon:${neon}" data-drama-id="${esc(d.id)}">
+        <div class="drama-card-art">${d.image?`<img src="${esc(d.image)}" alt="">`:`<span class="drama-art-ph">${esc(d.title.charAt(0))}</span>`}</div>
+        <div class="drama-card-body">
+          <div class="drama-card-top"><span class="drama-status">${esc(mt.label)} · ${d.status}</span>${country}${ratingDots || ''}</div>
+          <h3 class="drama-card-title">${esc(d.title)}</h3>
+          <div class="drama-card-genre">${esc(d.genre||'')}</div>
+          <div class="drama-ep-track"><span class="drama-ep-label">${mt.unit} ${d.currentEpisode}/${d.totalEpisodes} · ${reviewed} rated</span>
+            <div class="drama-ep-bar"><div style="width:${pct}%"></div></div></div>
+          ${d.finalReview ? `<p class="drama-card-review">${esc(d.finalReview.slice(0, 90))}${d.finalReview.length > 90 ? '…' : ''}</p>` : ''}
+        </div></article>`;
+    }).join('');
+    return `<section class="media-type-section" style="--mts-neon:${stableNeon(type, 2)}">
+      <h3 class="media-type-title">${mt.label}</h3>
+      <div class="drama-deck media-type-deck">${cards}</div>
+    </section>`;
   }).join('');
 
   deck.querySelectorAll('.drama-card').forEach(card => {
@@ -3458,7 +3681,7 @@ function openDramaDetail(id){
 
   document.getElementById('dramaDetailContent').innerHTML = `
     <h2 class="drama-detail-title">${esc(d.title)}</h2>
-    <div class="drama-detail-meta">${esc(mt.label)} · ${esc(d.genre||'')} · ${d.status} · ${unitLabel} ${d.currentEpisode}/${d.totalEpisodes}
+    <div class="drama-detail-meta">${esc(mt.label)} · ${esc(d.genre||'')}${d.mediaType === 'tv' && d.country ? ` · ${esc(d.country)}` : ''} · ${d.status} · ${unitLabel} ${d.currentEpisode}/${d.totalEpisodes}
       ${ratingDots ? ` · ${ratingDots} (${reviewedCount} rated)` : ''}</div>
     ${isAdmin()?`<div class="drama-admin-row">
       <button class="btn" id="dramaEpDown">− progress</button>
@@ -3503,7 +3726,10 @@ function openDramaDetail(id){
   document.getElementById('saveFinalReview')?.addEventListener('click', () => {
     ensureDramaState(id);
     state.dramaState[id].finalReview = document.getElementById('dramaFinalReview').value;
-    saveState(); openDramaDetail(id);
+    saveState();
+    awardGrayPoints(GRAY_XP_AWARDS.final_review.xp, 'final_review');
+    openDramaDetail(id);
+    renderDramaDeck();
   });
 }
 
@@ -3608,6 +3834,7 @@ document.getElementById('saveEpisode')?.addEventListener('click', () => {
   if(Number(epNum) > cur) state.dramaState[dramaId].currentEpisode = Number(epNum);
 
   saveState();
+  awardGrayPoints(GRAY_XP_AWARDS.media_review.xp, 'media_review');
   closeEpisodeModal();
   if(!document.getElementById('dramaDetailBack').classList.contains('hidden')){
     openDramaDetail(dramaId);
@@ -3624,6 +3851,8 @@ function openDramaModal(id){
   document.getElementById('dramaTitle').value = d?.title || '';
   document.getElementById('dramaMediaType').value = d?.mediaType || 'tv';
   document.getElementById('dramaGenre').value = d?.genre || '';
+  document.getElementById('dramaCountry').value = d?.country || '';
+  document.getElementById('dramaCountryField')?.classList.toggle('hidden', (d?.mediaType || 'tv') !== 'tv');
   document.getElementById('dramaTotal').value = d?.totalEpisodes || getMediaType(d?.mediaType || 'tv').defaultUnits;
   document.getElementById('dramaStatus').value = d?.status || 'watching';
   const posterHost = document.getElementById('dramaImageBlock');
@@ -3646,6 +3875,7 @@ function openDramaModal(id){
     document.getElementById('dramaImage').value = d?.image || '';
   }
   updateMediaUnitsLabel();
+  document.getElementById('dramaCountryField')?.classList.toggle('hidden', (document.getElementById('dramaMediaType')?.value || 'tv') !== 'tv');
   document.getElementById('dramaModalBack').classList.remove('hidden');
 }
 
@@ -3661,6 +3891,7 @@ document.getElementById('dramaMediaType')?.addEventListener('change', () => {
   const mt = getMediaType(type);
   const total = document.getElementById('dramaTotal');
   if(total && !document.getElementById('dramaEditId').value) total.value = mt.defaultUnits;
+  document.getElementById('dramaCountryField')?.classList.toggle('hidden', type !== 'tv');
   updateMediaUnitsLabel();
 });
 
@@ -3674,6 +3905,7 @@ document.getElementById('saveDrama')?.addEventListener('click', () => {
     title,
     mediaType: document.getElementById('dramaMediaType').value || 'tv',
     genre: document.getElementById('dramaGenre').value.trim(),
+    country: document.getElementById('dramaCountry')?.value?.trim() || '',
     totalEpisodes: Number(document.getElementById('dramaTotal').value) || getMediaType(document.getElementById('dramaMediaType').value).defaultUnits,
     status: document.getElementById('dramaStatus').value,
     imagePrompt: document.getElementById('ce_drama_desc')?.value?.trim() || '',

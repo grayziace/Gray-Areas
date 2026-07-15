@@ -311,6 +311,33 @@ function buildCardPhotoHtml(src, unlocked, name, focus){
   return `<div class="card-photo-frame"><span class="pc-art-ph">${ch}</span></div>`;
 }
 
+function ageFromBirthday(bday){
+  if(!bday) return null;
+  const b = new Date(bday + 'T00:00:00');
+  if(Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if(m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
+function displayCardLevel(item, pc){
+  if(item.isGod) return '∞';
+  if(item.isCoderCard && typeof coderLevelFromPoints === 'function'){
+    return String(coderLevelFromPoints(item.points || 0).level);
+  }
+  return String(pc?.level ?? '??');
+}
+
+function displayCardAge(item, pc){
+  if(item.isGod) return 'Older than the transmission log';
+  const fromBirthday = ageFromBirthday(pc?.birthday || item.birthday);
+  if(fromBirthday != null) return `${fromBirthday}`;
+  if(item.age) return String(item.age);
+  return '';
+}
+
 function buildPlayerCardFront(item, unlocked, opts = {}){
   const pc = normalizePokeCard(item);
   const accent = getPlayerAccent(item, opts);
@@ -322,14 +349,17 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   const spirit = !hideSpirit && unlocked && pc.spiritAnimalImage
     ? `<div class="pc-spirit-sticker"><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : '';
   const xpBadge = (item.isCoderCard || (typeof state !== 'undefined' && (state.viewerCharacters || []).some(v => v.id === item.id)))
-    ? `<span class="pc-xp-badge">${item.points || 0} XP</span>` : '';
+    ? `<span class="pc-xp-badge">${item.points || 0} XP</span>`
+    : (item.points ? `<span class="pc-xp-badge">${item.points} XP</span>` : '');
+  const ageLabel = unlocked && displayCardAge(item, pc) ? `<span class="pc-age">Age ${esc(displayCardAge(item, pc))}</span>` : '';
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
     <div class="pc-frame-glow"></div>
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
-      <span class="pc-lv">Lv ${unlocked ? pc.level : '??'}</span>
+      <span class="pc-lv">Lv ${unlocked ? displayCardLevel(item, pc) : '??'}</span>
+      ${ageLabel}
       ${xpBadge}
     </div>
     <div class="pc-art">${buildCardPhotoHtml(artSrc, unlocked, item.name, focus)}${spirit}</div>
@@ -353,7 +383,7 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
   return `<div class="pc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>
     ${pc.subtitle || item.cardSubtitle ? `<div class="pc-row"><span>Title</span><span>${esc(pc.subtitle || item.cardSubtitle)}</span></div>` : ''}
-    ${row('Level', pc.level)}${row('MBTI', pc.mbti)}${row('Palette', pc.colorPalette)}
+    ${row('Level', displayCardLevel(item, pc))}${row('Age', displayCardAge(item, pc))}${row('MBTI', pc.mbti)}${row('Palette', pc.colorPalette)}
     ${row('Birthday', formatBirthdayDisplay(pc.birthday || item.birthday))}
     ${pc.vibe ? `<div class="pc-block"><div class="pc-block-title">Vibe</div><p>${esc(pc.vibe)}</p></div>` : ''}
     ${!hideSpirit ? (pc.spiritAnimalImage ? `<div class="pc-spirit-row"><span>Spirit</span><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : row('Spirit', pc.spiritPrompt)) : ''}

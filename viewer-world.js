@@ -1258,6 +1258,7 @@ const ViewerWorld = {
     document.getElementById('questCompleteBack')?.classList.add('hidden');
     this.pendingQuestClips = [];
     this.renderQuests();
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(20, 'quest_complete');
     renderHomeCheckIn();
   },
 
@@ -1281,6 +1282,7 @@ const ViewerWorld = {
     host.innerHTML = html;
     document.getElementById('vlogUploadForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitVlog(); });
     document.getElementById('vlogVideoFile')?.addEventListener('change', e => { this.pendingVlogFile = e.target.files?.[0] || null; });
+    if(isAdmin() && typeof OverloadLog !== 'undefined') OverloadLog.mountInVlog();
   },
 
   vlogEntryHtml(v){
