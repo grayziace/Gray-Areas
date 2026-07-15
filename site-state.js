@@ -54,22 +54,22 @@ const SITE_STATE = {
         "abilities": [
           {
             "name": "So Socially Adaptable",
-            "effect": "Passive — So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
+            "effect": "Passive â So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
           }
         ],
         "moves": [
           {
             "name": "Art",
-            "effect": "Channel art — tactical edge when Gray needs it."
+            "effect": "Channel art â tactical edge when Gray needs it."
           }
         ],
         "weakness": {
           "name": "Fringes",
-          "effect": "Fringe Phobia — double impact from opponents with fringe aesthetics; your focus shatters."
+          "effect": "Fringe Phobia â double impact from opponents with fringe aesthetics; your focus shatters."
         },
         "resistance": {
           "name": "Rocks",
-          "effect": "Rock-solid — immune to intimidation and pressure tactics. Rocks does not move you."
+          "effect": "Rock-solid â immune to intimidation and pressure tactics. Rocks does not move you."
         },
         "retreatCost": "1",
         "quote": "I promise I don't have a fringe kink",
@@ -82,7 +82,7 @@ const SITE_STATE = {
       "strengths": "Art, So Socially adaptable",
       "weaknesses": "Fringes",
       "resistances": "Rocks",
-      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
+      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person",
@@ -235,5 +235,115 @@ const SITE_STATE = {
       "amount": 45,
       "reason": "practical_help"
     }
-  ]
+  ],
+  "playerPoints": 0,
+  "playerXpHistory": [],
+  "grayRewardsVault": {
+    "stationNote": "Your private reward station — edit XP rules, set monthly goals, and claim treats when you unlock them.",
+    "xpRules": [
+      {
+        "id": "day_sealed",
+        "label": "Day sealed in log",
+        "xp": 25,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "pulse",
+        "label": "Pulse dropped live",
+        "xp": 5,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "quest_complete",
+        "label": "Quest completed for a coder",
+        "xp": 20,
+        "category": "social",
+        "note": ""
+      },
+      {
+        "id": "todo_done",
+        "label": "Live to-do ticked off",
+        "xp": 3,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "media_review",
+        "label": "Media unit rated",
+        "xp": 4,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "final_review",
+        "label": "Final media review written",
+        "xp": 15,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "new_card",
+        "label": "New player/place card",
+        "xp": 10,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "overload_session",
+        "label": "Overload session archived",
+        "xp": 12,
+        "category": "live",
+        "note": ""
+      },
+      {
+        "id": "login",
+        "label": "Daily login",
+        "xp": 3,
+        "category": "daily",
+        "note": ""
+      }
+    ],
+    "goals": [
+      {
+        "id": "ggoal-1784146005587-vr8h",
+        "title": "Monthly XP push",
+        "type": "monthly_xp",
+        "targetValue": 150,
+        "skillId": "",
+        "rewardNote": "Take yourself out — dinner, cinema, or something silly.",
+        "done": false
+      },
+      {
+        "id": "ggoal-1784146005587-sq6h",
+        "title": "Level up one skill tier",
+        "type": "skill_level",
+        "targetValue": 2,
+        "skillId": "",
+        "rewardNote": "Small upgrade for that hobby.",
+        "done": false
+      }
+    ],
+    "rewards": [
+      {
+        "id": "grw-1784146005587-qndd",
+        "title": "Victory pint",
+        "description": "Any pub, any day — you sealed the month.",
+        "unlockType": "xp_total",
+        "unlockValue": 100,
+        "skillId": "",
+        "claimed": false
+      },
+      {
+        "id": "grw-1784146005587-qzti",
+        "title": "Big treat",
+        "description": "Dinner or gadget — Gray picks when ready.",
+        "unlockType": "gray_level",
+        "unlockValue": 5,
+        "skillId": "",
+        "claimed": false
+      }
+    ]
+  }
 };
