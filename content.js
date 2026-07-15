@@ -135,7 +135,7 @@ const CONTENT = {
     "cardBlob": "Character Card: Gray, The Commander\n\nLevel: 22\nMBTI: ENTJ\nSpirit Animal: rose gold cybernetic fox, glowing pink eyes, neon tail, fierce loyal companion\nColour Palette: Pink & Rose Gold\nCharacter Vibe: The Commander\n\nAbilities and Moves:\n\nTotal Perception: You are always two steps ahead. Your opponent must play with their hand revealed. Immune to being Confused.\nResilience of the Fox: Once per turn, if your Active Pokémon would be Knocked Out, discard one energy card instead — left with 10 HP. You refuse to fold under pressure.\nDecisive Strike: Singular determination. 100 damage. If the target survives, they become Paralyzed by relentless pressure.\nSever Ties: Detach emotionally to optimize strategy. Discard all support cards attached to opponent's Pokémon.\n\nStats and Conditions:\n\nWeakness: The Void of Boredom & Harshness. If forced to skip a turn, lose 50 HP from internal frustration. Healing from teammates/items reduced by half.\nResistance: Validation Immunity. Immune to opponent Support/Buff manipulation. Cannot be Charmed, Confused, or Attracted.\nRetreat Cost: 2\n\nQuote:\n\n\"The world is wide and life is short.\"",
     "imageFocusX": 50,
     "imageFocusY": 50,
-    "points": 0,
+    "points": 3,
     pokeCard: defaultPokeCard({
         "level": 0,
         "mbti": "ENTJ",
@@ -221,7 +221,7 @@ const CONTENT = {
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 6,
+      "points": 9,
       "questsSent": 0,
       "questsCompleted": 0,
       "loginCount": 0,
@@ -231,7 +231,7 @@ const CONTENT = {
       "lookPrompt": "Dreads, red bandana, young guy, not intimidating, smiling",
       "cardDescription": "The God TM",
       pokeCard: defaultPokeCard({
-          "level": 1,
+          "level": 0,
           "mbti": "No Clue",
           "spiritPrompt": "Chameleon",
           "colorPalette": "Red",
@@ -272,6 +272,13 @@ const CONTENT = {
       "imageFocusY": 50,
       "type": "Person",
       "xpHistory": [
+        {
+          "id": "xp-1784149184320-lbux",
+          "at": "2026-07-15T20:59:44.320Z",
+          "amount": 3,
+          "reason": "login",
+          "label": "Daily login"
+        },
         {
           "id": "xp-1784136599406-b9ty",
           "at": "2026-07-15T17:29:59.406Z",

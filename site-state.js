@@ -35,7 +35,7 @@ const SITE_STATE = {
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 6,
+      "points": 9,
       "questsSent": 0,
       "questsCompleted": 0,
       "loginCount": 0,
@@ -45,7 +45,7 @@ const SITE_STATE = {
       "lookPrompt": "Dreads, red bandana, young guy, not intimidating, smiling",
       "cardDescription": "The God TM",
       "pokeCard": {
-        "level": 1,
+        "level": 0,
         "mbti": "No Clue",
         "spiritPrompt": "Chameleon",
         "colorPalette": "Red",
@@ -87,6 +87,13 @@ const SITE_STATE = {
       "imageFocusY": 50,
       "type": "Person",
       "xpHistory": [
+        {
+          "id": "xp-1784149184320-lbux",
+          "at": "2026-07-15T20:59:44.320Z",
+          "amount": 3,
+          "reason": "login",
+          "label": "Daily login"
+        },
         {
           "id": "xp-1784136599406-b9ty",
           "at": "2026-07-15T17:29:59.406Z",
@@ -195,8 +202,18 @@ const SITE_STATE = {
   ],
   "videoDiary": [],
   "liveTodos": [],
-  "instructionsHtml": "\n    <div class=\"instructions-panel sketch-card instructions-gray-voice\">\n      <p class=\"instructions-kicker\">Hi!</p>\n      <p class=\"instructions-p\">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>\n      <p class=\"instructions-p\">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, I got a little carried away.</p>\n      <p class=\"instructions-p\">Originally it was just a way for me to post what I am up to. However, I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>10 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, posts, recs, all that. Whoever ranks <strong>#1 on the deck</strong> gets a present — I don't know what yet.</p>\n      <p class=\"instructions-p\"><strong>Levelling:</strong> you start at <strong>Lv 0</strong>. Every <strong>100 XP = +1 level</strong> (Lv 1 at 100 XP, Lv 2 at 200…). The deck sorts by XP — whoever's <strong>#1</strong> gets a present from Gray eventually. It's competition for fun, not a life score.</p>\n      <p class=\"instructions-p\">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>\n      <h3 class=\"viewer-wizard-title\">The sidebar</h3>\n      <ul class=\"instructions-nav-list\">\n        <li><strong>Instructions</strong> — you're here. hello.</li>\n        <li><strong>Player Profile</strong> — me. my stats, mood, hero card.</li>\n        <li><strong>Coming To You Live</strong> — what I'm doing right now. to-do list + neon timeline.</li>\n        <li><strong>Daily Log</strong> — my days, steps, diary, reflections.</li>\n        <li><strong>Place Cards</strong> — places I visit in Shenzhen.</li>\n        <li><strong>Coder Cards</strong> — people in my orbit (the deck).</li>\n        <li><strong>Skill Cards</strong> — hobbies and skills I'm levelling.</li>\n        <li><strong>Media Log</strong> — films, shows, books.</li>\n        <li><strong>The Press</strong> — articles and writing.</li>\n        <li><strong>Photo Wall</strong> — photos with flip notes.</li>\n        <li><strong>Community</strong> — pinboard. log in to post; your card shows on your note.</li>\n        <li><strong>My Card</strong> — your Coders Card. make it, edit it, regenerate your look.</li>\n        <li><strong>Quests</strong> — send missions. guests can only watch.</li>\n        <li><strong>Video Log</strong> — my video notes.</li>\n      </ul>\n      <h3 class=\"viewer-wizard-title\">Logging in</h3>\n      <p class=\"instructions-p\">You don't <em>have</em> to log in — but if you don't, you can only see what I'm doing. No quests, no community posts, no voting. Watch-only.</p>\n      <p class=\"instructions-p\">To interact: create <strong>My Card</strong> once (leave blanks if you want — I'll fill gaps when I spot them), pick a unique console key, then log in each visit with <strong>name + key</strong> or the console as <code>Name::key</code>.</p>\n      \n      <button type=\"button\" class=\"btn primary\" id=\"instrGoCard\">Make My Card →</button>\n      \n      \n    </div>",
+  "instructionsHtml": "",
   "coderActivity": [
+    {
+      "id": "act-1784149184320-fwhw",
+      "at": "2026-07-15T20:59:44.320Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +3 XP · Daily login",
+      "amount": 3,
+      "reason": "login"
+    },
     {
       "id": "act-1784139493423-l3mg",
       "at": "2026-07-15T18:18:13.423Z",
@@ -236,8 +253,16 @@ const SITE_STATE = {
       "reason": "practical_help"
     }
   ],
-  "playerPoints": 0,
-  "playerXpHistory": [],
+  "playerPoints": 3,
+  "playerXpHistory": [
+    {
+      "id": "gxp-1784149579224-01et",
+      "at": "2026-07-15T21:06:19.224Z",
+      "amount": 3,
+      "reason": "login",
+      "label": "Daily login"
+    }
+  ],
   "grayRewardsVault": {
     "stationNote": "Your private reward station — edit XP rules, set monthly goals, and claim treats when you unlock them.",
     "xpRules": [
