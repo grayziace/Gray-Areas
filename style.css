@@ -310,14 +310,73 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   min-height:min(72vh,720px);padding:12px 0 8px;position:relative;
 }
-.about-stage .player-card-hero{width:380px;max-width:94vw;}
-.about-stage .player-card-hero .poke-flip-inner{min-height:480px;max-height:min(72vh,560px);}
-.about-stage .player-card-hero .pc-front{min-height:480px;max-height:min(72vh,560px);}
-.about-stage .player-card-hero .pc-back{min-height:0;max-height:100%;}
-.about-stage .player-card-hero .pc-front-hero{min-height:480px;}
-.about-stage .player-card-hero .card-photo-frame{aspect-ratio:3/4;}
+.about-stage .player-card-hero{width:min(380px,94vw);}
+.about-stage .player-card-hero .poke-flip-inner,
+.about-stage .player-card-hero .poke-flip-front{
+  height:min(72vh,560px);
+  min-height:460px;
+  max-height:min(72vh,560px);
+}
+.about-stage .player-card-hero .pc-front,
+.about-stage .player-card-hero .pc-front-hero{
+  height:100%;
+  min-height:0;
+  max-height:100%;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:12px 12px 24px;
+}
+.about-stage .player-card-hero .pc-back{
+  height:100%;
+  min-height:0;
+  max-height:100%;
+}
+.about-stage .player-card-hero .pc-head{flex-shrink:0;margin-bottom:8px;}
+.about-stage .player-card-hero .pc-art{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:6px;
+}
+.about-stage .player-card-hero .card-photo-frame{
+  width:min(100%,calc(min(46vh,360px) * 0.75));
+  max-height:min(46vh,360px);
+  aspect-ratio:3/4;
+  margin:0 auto;
+  flex-shrink:1;
+}
+.about-stage .player-card-hero .card-photo-frame img{
+  object-fit:cover;
+  object-position:center top;
+}
+.about-stage .player-card-hero .pc-spirit-sticker{
+  width:56px;
+  height:56px;
+  bottom:10px;
+  right:10px;
+  border-width:2px;
+  transform:rotate(6deg);
+  box-shadow:0 0 10px var(--pc-accent),0 3px 8px rgba(0,0,0,0.45);
+}
+.about-stage .player-card-hero .pc-spirit-sticker img{
+  object-fit:contain;
+  object-position:center;
+  background:radial-gradient(circle at 50% 45%,rgba(255,255,255,0.08),transparent 70%);
+}
+.about-stage .player-card-hero .pc-blurb{
+  flex-shrink:0;
+  margin-top:auto;
+  font-size:12px;
+  -webkit-line-clamp:3;
+}
+.about-stage .player-card-hero .flip-hint-front{
+  flex-shrink:0;
+  margin-top:4px;
+}
 .about-stage .player-card-hero .pc-name{font-size:clamp(20px,3vw,26px);}
-.about-stage .player-card-hero .pc-blurb{font-size:13px;-webkit-line-clamp:4;}
 .about-meta{font-size:10px;color:var(--text-low);letter-spacing:0.14em;text-transform:uppercase;margin:10px 0 0;text-align:center;}
 .about-edit-btn{margin-top:12px;}
 .about-pin-wall{
@@ -696,8 +755,9 @@ section.view.active{display:block;}
 .poke-flip.is-flipped .poke-flip-inner{transform:rotateY(180deg);}
 .poke-flip-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:6px;overflow:hidden;}
 .poke-flip-front{transform:rotateY(0deg);}
-.poke-flip-back{position:absolute;inset:0;transform:rotateY(180deg);display:flex;flex-direction:column;overflow:hidden;}
+.poke-flip-back{position:absolute;inset:0;transform:rotateY(180deg);display:flex;flex-direction:column;overflow:hidden;height:100%;}
 .poke-flip-back .pc-back{flex:1 1 auto;min-height:0;max-height:100%;}
+.player-card-hero .poke-flip-back .pc-back{height:100%;}
 
 /* TCG front */
 .ptcg-front{
