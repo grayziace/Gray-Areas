@@ -2427,12 +2427,44 @@ body.is-viewer #view-profile .view-title::after{
 .instructions-steps li{margin-bottom:10px;}
 .instructions-note{font-size:12px;color:var(--text-low);font-style:italic;margin:16px 0;}
 body.coder-gate-active #app{filter:blur(3px);pointer-events:none;}
-body.coder-gate-active .sidebar-console-wrap{pointer-events:auto;filter:none;}
-body.coder-gate-active #coderKeyGate,
+body.login-screen-active #app{display:none !important;}
+body.login-screen-active #loginPage{display:flex;}
+body.site-unlocked #loginPage{display:none !important;}
+
+.login-page{
+  display:none;
+  position:fixed;inset:0;z-index:9000;
+  align-items:center;justify-content:center;
+  padding:24px 16px;
+  background:#06040c;
+}
+.login-page-glow{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(255,79,216,0.12), transparent),
+    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(58,214,224,0.1), transparent);
+}
+.login-page-inner{
+  position:relative;width:100%;max-width:440px;
+  display:flex;flex-direction:column;gap:20px;
+}
+.login-page-brand{text-align:center;}
+.login-page-title{
+  margin:0;font-family:var(--font-display);font-size:clamp(28px,6vw,40px);
+  color:var(--text-hi);letter-spacing:0.04em;
+}
+.login-page-sub{margin:6px 0 0;font-size:12px;color:var(--text-low);letter-spacing:0.14em;text-transform:uppercase;}
+.login-page-card{padding:22px 24px;}
+.login-page-heading{margin:0 0 8px;font-family:var(--font-display);font-size:20px;color:#e8c547;}
+.login-page-hint{margin-bottom:16px;}
+.login-page-actions{display:flex;flex-direction:column;gap:10px;margin-top:8px;}
+.login-page-actions .btn.primary{width:100%;}
+.login-page-console{margin-top:4px;padding:12px 14px;border:1px dashed rgba(255,255,255,0.1);border-radius:4px;}
+
+body.coder-gate-active .sidebar-console-wrap,
 body.coder-gate-active #welcomeBack,
 body.coder-gate-active #birthdayBack{pointer-events:auto;filter:none;}
 .coder-key-gate{max-width:460px;}
-.coder-gate-actions{flex-wrap:wrap;justify-content:flex-end;}
 .welcome-modal,.birthday-modal{max-width:420px;text-align:center;}
 .welcome-modal--player .modal{max-width:520px;padding:32px 28px;}
 .welcome-modal--player #welcomeTitle{font-size:28px;color:#ff4fd8;}

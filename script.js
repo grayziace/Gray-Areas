@@ -54,12 +54,10 @@ function applyAdminUI(){
 
 function lockAdmin(){
   sessionStorage.removeItem('ga-admin');
-  if(typeof clearGuestMode === 'function') clearGuestMode();
-  try{ sessionStorage.removeItem('ga-coder-card-id'); }catch(e){}
+  if(typeof returnToLogin === 'function') returnToLogin();
+  else if(typeof showEntryGate === 'function') showEntryGate({ force: true });
   applyAdminUI();
   renderAll();
-  if(typeof showEntryGate === 'function') showEntryGate();
-  navigateToView('instructions');
   const toast = document.getElementById('editToast');
   if(toast){
     toast.textContent = 'Signed out.';
@@ -75,6 +73,7 @@ function unlockAdmin(opts = {}){
   try{ sessionStorage.removeItem('ga-coder-card-id'); }catch(e){}
   sessionStorage.setItem('ga-admin', '1');
   if(typeof hideEntryGate === 'function') hideEntryGate();
+  else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
   renderAll();
   if(opts.welcome !== false && typeof showWelcomePlayer === 'function') showWelcomePlayer();
@@ -1612,11 +1611,11 @@ function bootApp(){
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
   if(typeof isSiteUnlocked === 'function' && isSiteUnlocked()){
+    if(typeof enterMainSite === 'function') enterMainSite();
     if(isAdmin()) navigateToView('profile');
     else navigateToView('instructions');
   } else {
     if(typeof showEntryGate === 'function') showEntryGate();
-    navigateToView('instructions');
   }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();

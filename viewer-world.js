@@ -4,6 +4,7 @@ const CODERS_SESSION_KEY = 'ga-coder-card-id';
 const CODERS_LOGIN_DAY_KEY = 'ga-coder-login-day';
 const CODERS_BIRTHDAY_SHOWN_KEY = 'ga-coder-bday';
 const GUEST_SESSION_KEY = 'ga-guest';
+const CREATING_CARD_KEY = 'ga-creating-card';
 const VISITOR_WRITE_KEY = 'gray-areas-visitor';
 
 const POINTS = {
@@ -175,17 +176,35 @@ function isGuest(){
   try{ return sessionStorage.getItem(GUEST_SESSION_KEY) === '1'; }catch(e){ return false; }
 }
 
+function isCreatingCard(){
+  try{ return sessionStorage.getItem(CREATING_CARD_KEY) === '1'; }catch(e){ return false; }
+}
+
 function isSiteUnlocked(){
-  return isAdmin() || !!getCoderSessionId() || isGuest();
+  return isAdmin() || !!getCoderSessionId() || isGuest() || isCreatingCard();
+}
+
+function enterCardCreationMode(){
+  try{ sessionStorage.setItem(CREATING_CARD_KEY, '1'); }catch(e){}
+  clearGuestMode();
+  enterMainSite();
+  navigateToView('viewer-card');
+  applyAdminUI?.();
+  ViewerWorld.renderAll();
+}
+
+function clearCardCreationMode(){
+  try{ sessionStorage.removeItem(CREATING_CARD_KEY); }catch(e){}
 }
 
 function enterGuestMode(){
+  clearCardCreationMode();
   try{
     sessionStorage.setItem(GUEST_SESSION_KEY, '1');
     sessionStorage.removeItem(CODERS_SESSION_KEY);
   }catch(e){}
   sessionStorage.removeItem('ga-admin');
-  hideEntryGate();
+  enterMainSite();
   applyAdminUI?.();
   navigateToView('instructions');
   ViewerWorld.renderAll();
@@ -298,8 +317,9 @@ function showWelcomeCoder(card){
 
 function unlockCoderSession(cardId, opts = {}){
   clearGuestMode();
+  clearCardCreationMode();
   try{ sessionStorage.setItem(CODERS_SESSION_KEY, cardId); }catch(e){}
-  hideEntryGate();
+  enterMainSite();
   const card = (state.viewerCharacters || []).find(c => c.id === cardId);
   if(opts.welcome !== false && card) showWelcomeCoder(card);
   else if(card) showBirthdayCelebration(card);
@@ -555,15 +575,34 @@ function readCardFormFromDom(prefix, opts = {}){
   };
 }
 
-function showEntryGate(){
-  if(isSiteUnlocked()) return;
-  document.getElementById('coderKeyGate')?.classList.remove('hidden');
-  document.body.classList.add('coder-gate-active');
+function showEntryGate(opts = {}){
+  if(!opts.force && isSiteUnlocked()) return;
+  if(opts.force){
+    clearGuestMode();
+    clearCardCreationMode();
+    try{ sessionStorage.removeItem(CODERS_SESSION_KEY); }catch(e){}
+    sessionStorage.removeItem('ga-admin');
+  }
+  document.getElementById('loginPage')?.classList.remove('hidden');
+  document.getElementById('app')?.classList.add('hidden');
+  document.body.classList.add('login-screen-active');
+  document.body.classList.remove('site-unlocked');
+}
+
+function enterMainSite(){
+  document.getElementById('loginPage')?.classList.add('hidden');
+  document.getElementById('app')?.classList.remove('hidden');
+  document.body.classList.remove('login-screen-active');
+  document.body.classList.add('site-unlocked');
 }
 
 function hideEntryGate(){
-  document.getElementById('coderKeyGate')?.classList.add('hidden');
-  document.body.classList.remove('coder-gate-active');
+  enterMainSite();
+}
+
+function returnToLogin(){
+  showEntryGate({ force: true });
+  applyAdminUI?.();
 }
 
 function showCoderKeyGate(){ showEntryGate(); }
@@ -596,19 +635,45 @@ const ViewerWorld = {
     document.getElementById('coderGateKey')?.addEventListener('keydown', e => {
       if(e.key === 'Enter') this.submitKeyGate();
     });
-    document.getElementById('coderGateCreate')?.addEventListener('click', () => {
-      hideEntryGate();
-      navigateToView('viewer-card');
-    });
+    document.getElementById('coderGateCreate')?.addEventListener('click', () => enterCardCreationMode());
     document.getElementById('birthdayDismiss')?.addEventListener('click', () => {
       document.getElementById('birthdayBack')?.classList.add('hidden');
     });
+    this.bindLoginConsole();
     document.getElementById('questCompleteSave')?.addEventListener('click', () => this.saveQuestComplete());
     document.getElementById('questCompleteClips')?.addEventListener('change', e => {
       this.pendingQuestClips = [...(e.target.files || [])];
     });
     fetchVisitorData().then(() => {
       if(!isSiteUnlocked()) showEntryGate();
+      else enterMainSite();
+    });
+  },
+
+  bindLoginConsole(){
+    const input = document.getElementById('loginConsoleInput');
+    if(!input || input.dataset.bound) return;
+    input.dataset.bound = '1';
+    const hearts = '<3 <3 <3';
+    const reset = () => { input.value = hearts; };
+    reset();
+    input.addEventListener('focus', () => { if(input.value === hearts) input.select(); });
+    input.addEventListener('blur', () => { if(!input.value.trim()) reset(); });
+    input.addEventListener('keydown', e => {
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const v = e.target.value.trim();
+      if(v === hearts || !v){ reset(); return; }
+      if(v === ':)'){
+        tryPlayerLogin('Gray', ':)');
+        reset();
+        return;
+      }
+      if(tryCoderLoginFromConsole(v)){
+        reset();
+        return;
+      }
+      reset();
     });
   },
 
@@ -672,7 +737,7 @@ const ViewerWorld = {
       </div>`;
     host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
     host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToView('quests'));
-    host.querySelector('#instrGoLogin')?.addEventListener('click', () => showEntryGate());
+    host.querySelector('#instrGoLogin')?.addEventListener('click', () => returnToLogin());
   },
 
   renderViewerCard(){
@@ -694,7 +759,7 @@ const ViewerWorld = {
         </div>
       </div>`;
       host.querySelector('#guestGoCreate')?.addEventListener('click', () => navigateToView('viewer-card'));
-      host.querySelector('#guestGoLogin')?.addEventListener('click', () => showEntryGate());
+      host.querySelector('#guestGoLogin')?.addEventListener('click', () => returnToLogin());
       return;
     }
 

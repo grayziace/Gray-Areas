@@ -103,7 +103,35 @@
   </div>
 </div>
 
-<div id="app">
+<div id="loginPage" class="login-page">
+  <div class="login-page-glow" aria-hidden="true"></div>
+  <div class="login-page-inner">
+    <header class="login-page-brand">
+      <h1 class="login-page-title">Gray Areas</h1>
+      <p class="login-page-sub">project shenzhen · log in to enter</p>
+    </header>
+    <div class="login-page-card sketch-card">
+      <h2 class="login-page-heading">Who's connecting?</h2>
+      <p class="field-hint login-page-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests can watch only. Player: <strong>Gray</strong> / <strong>:)</strong></p>
+      <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
+      <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
+      <div class="login-page-actions">
+        <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
+        <button type="button" class="btn" id="coderGateGuest">Continue as guest</button>
+        <button type="button" class="btn" id="coderGateCreate">Make My Card</button>
+      </div>
+    </div>
+    <div class="login-page-console">
+      <label class="sidebar-console-label" for="loginConsoleInput">// console</label>
+      <div class="sidebar-console-row">
+        <span class="sidebar-console-prompt">&gt;</span>
+        <input type="text" class="sidebar-console-input" id="loginConsoleInput" value="&lt;3 &lt;3 &lt;3" autocomplete="off" spellcheck="false" aria-label="Login console">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
   <aside class="sidebar">
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
@@ -531,20 +559,6 @@
       <div class="ogl-err">&gt; routing to offload channel...</div>
     </div>
     <button type="button" class="ogl-enter-btn" id="oglEnterBtn">[ ENTER CHANNEL ]</button>
-  </div>
-</div>
-
-<div class="modal-back hidden" id="coderKeyGate">
-  <div class="modal sketch-card coder-key-gate">
-    <h3>Log in to Gray Areas</h3>
-    <p class="field-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests watch only. Player: name <strong>Gray</strong>, key <strong>:)</strong> — or use the sidebar console.</p>
-    <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
-    <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
-    <div class="modal-actions coder-gate-actions">
-      <button type="button" class="btn" id="coderGateGuest">Continue as guest</button>
-      <button type="button" class="btn" id="coderGateCreate">Create a Coders Card</button>
-      <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
-    </div>
   </div>
 </div>
 
