@@ -151,6 +151,7 @@ function bindMoodPicker(root, opts = {}){
 function setCurrentMood(id){
   state.currentMood = id || '';
   saveState();
+  if(id && typeof LiveSync !== 'undefined') LiveSync.moodChanged(moodLabel(id));
 }
 
 function getCurrentMood(){

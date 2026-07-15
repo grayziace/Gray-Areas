@@ -14,23 +14,30 @@ const GoogleSteps = {
     if(statusEl) statusEl.textContent = 'Contacting Google Fit…';
     try{
       const res = await fetch(`/api/google-fit-steps?date=${encodeURIComponent(key)}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if(!res.ok){
         const msg = data.hint || data.detail || data.error || 'Sync failed';
         if(statusEl) statusEl.textContent = msg;
-        if(data.error === 'not_configured') alert('Google Fit not configured yet.\n\nAdd GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_FIT_REFRESH_TOKEN to your Cloudflare Pages environment variables.');
-        else alert(msg);
+        if(data.error === 'not_configured'){
+          alert('Google Fit not configured yet.\n\nAdd GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_FIT_REFRESH_TOKEN to Cloudflare Pages environment variables.\n\nUntil then, enter steps manually.');
+        } else alert(msg);
         return null;
       }
-      if(input) input.value = data.steps;
-      if(statusEl) statusEl.textContent = `Synced ${data.steps.toLocaleString()} steps from Google Fit`;
-      if(opts.autoSave && typeof DailyLog !== 'undefined' && DailyLog.currentKey?.() === key){
-        DailyLog.save?.();
-      }
-      return data.steps;
+      const steps = data.steps;
+      if(input) input.value = steps;
+      if(typeof ensureTodayStream === 'function') ensureTodayStream();
+      if(!state.entries[key]) state.entries[key] = {};
+      state.entries[key].steps = steps;
+      saveState();
+      if(typeof LiveSync !== 'undefined') LiveSync.stepsSynced(steps);
+      if(statusEl) statusEl.textContent = `Synced ${Number(steps).toLocaleString()} steps`;
+      if(typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
+      if(opts.autoSave && typeof DailyLog !== 'undefined' && DailyLog.currentKey?.() === key) DailyLog.save?.();
+      return steps;
     }catch(err){
       if(statusEl) statusEl.textContent = 'Sync failed — check connection';
       console.error('Google steps sync:', err);
+      alert('Could not reach Google Fit API. Check deploy URL and Cloudflare function.');
       return null;
     }finally{
       if(btn){
@@ -43,14 +50,7 @@ const GoogleSteps = {
   init(){
     document.getElementById('syncGoogleSteps')?.addEventListener('click', () => {
       const key = document.getElementById('logDateKey')?.value || (typeof todayKey === 'function' ? todayKey() : '');
-      this.syncForDate(key, { input: document.getElementById('logSteps'), autoSave: false });
-    });
-    document.getElementById('syncLiveSteps')?.addEventListener('click', () => {
-      this.syncForDate(typeof todayKey === 'function' ? todayKey() : '', {
-        input: document.getElementById('logSteps'),
-        statusEl: document.getElementById('liveStepsSyncStatus'),
-        autoSave: true,
-      });
+      this.syncForDate(key, { input: document.getElementById('logSteps'), statusEl: document.getElementById('stepsSyncStatus') });
     });
   },
 };

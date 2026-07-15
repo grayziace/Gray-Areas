@@ -516,6 +516,10 @@ function saveContentEdit(){
   }
 
   saveState();
+  if(type === 'article' && data.title) LiveSync?.pressSaved(data.title);
+  else if(type === 'gallery') LiveSync?.gallerySaved(data.caption || data.place);
+  else if(type === 'place' && data.name) LiveSync?.pulse('place', `Place: ${data.name}`, { type: 'place' });
+  else if(type === 'character' && data.name) LiveSync?.pulse('character', `Player: ${data.name}`, { type: 'person' });
   pendingContentImage = null;
   pendingSpiritImage = null;
   document.getElementById('contentEditBack').classList.add('hidden');
@@ -651,7 +655,6 @@ const DailyLog = {
     mountMoodPicker('logMoodPicker', resolveEntryMood(n) || getCurrentMood(), { name: 'logMood', compact: true });
     document.getElementById('logSteps').value = n.steps || 0;
     document.getElementById('logWork').value = n.workHours || 0;
-    document.getElementById('logMandarin').value = n.mandarinHours || 0;
     document.getElementById('logPeople').value = n.people.join(', ');
     document.getElementById('logPlaces').value = n.places.filter(p => !CONTENT.zones.includes(p)).join(', ');
     document.getElementById('logDiary').value = n.diary || '';
@@ -690,14 +693,15 @@ const DailyLog = {
     const dayMood = readMoodPickerValue(document.getElementById('logMoodPicker'), 'logMood');
     if(dayMood) setCurrentMood(dayMood);
     const existing = state.entries[key] || {};
+    const hobby = document.getElementById('logHobbySelect').value;
+    const hobbyHours = document.getElementById('logHobbyHours').value;
     state.entries[key] = {
       currentMood: dayMood,
       mood: dayMood,
       steps: document.getElementById('logSteps').value,
       workHours: document.getElementById('logWork').value,
-      mandarinHours: document.getElementById('logMandarin').value,
-      hobby: document.getElementById('logHobbySelect').value,
-      hobbyHours: document.getElementById('logHobbyHours').value,
+      hobby,
+      hobbyHours,
       people,
       places,
       diary: document.getElementById('logDiary').value,
@@ -707,6 +711,7 @@ const DailyLog = {
 
     places.forEach(z => { if(!state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
     saveState();
+    if(hobby) LiveSync?.hobbyLogged(hobby, hobbyHours);
     document.getElementById('logEditHint').textContent = `Saved ${fmtDateLong(key)}`;
     renderLogCalendar();
     renderHomeCheckIn();
@@ -854,6 +859,8 @@ function ensureStreamForDate(dateStr){
 }
 
 const STREAM_NODE_META = {
+  glitch: { label: 'System Glitch', neon: '#f43f8e', icon: '⚡' },
+  press: { label: 'The Press', neon: '#fca5a5', icon: '▤' },
   wake: { label: 'Wake', neon: '#6ee7a0', icon: '◉' },
   sleep: { label: 'Sleep', neon: '#71717a', icon: '◎' },
   note: { label: 'Note', neon: '#3ad6e0', icon: '◆' },
@@ -1180,6 +1187,18 @@ function getHobbyNamesForSkill(skill){
   return [skill.name];
 }
 
+function getMandarinHobbyNames(){
+  const skill = getSkills().find(s => s.id === 'mandarin');
+  return skill ? getHobbyNamesForSkill(skill) : ['Mandarin'];
+}
+
+function mandarinHoursFromEntry(e){
+  const n = normalizeEntry(e);
+  const names = getMandarinHobbyNames().map(x => x.toLowerCase());
+  if(n.hobby && names.includes(n.hobby.toLowerCase())) return Number(n.hobbyHours) || 0;
+  return 0;
+}
+
 function getHobbyOptions(){
   return getSkills().flatMap(getHobbyNamesForSkill);
 }
@@ -1198,7 +1217,6 @@ function getTotalSkillHours(skillId){
 
   Object.values(state.entries).forEach(raw => {
     const e = normalizeEntry(raw);
-    if(skillId === 'mandarin') hrs += Number(e.mandarinHours) || 0;
     if(e.hobby){
       const mapped = getHobbySkillMap()[e.hobby];
       if(mapped === skillId) hrs += Number(e.hobbyHours) || 0;
@@ -1475,7 +1493,7 @@ function aggregateLogMetrics(days){
     days: rows.length,
     avgMood: moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : '—',
     steps: sum(e => Number(e.steps) || 0),
-    mandarin: sum(e => Number(e.mandarinHours) || 0),
+    mandarin: sum(e => mandarinHoursFromEntry(e)),
     work: sum(e => Number(e.workHours) || 0),
     hobby: sum(e => Number(e.hobbyHours) || 0),
     people: rows.reduce((s, e) => s + (e.people?.length || 0), 0),
@@ -1624,7 +1642,7 @@ function renderAbout(){
 
       ${profileStatGroup('All-time totals', [
         profileStatCell('Steps', stats.allTime.steps.toLocaleString(), 'lifetime counter', '#3ad6e0'),
-        profileStatCell('Mandarin', stats.allTime.mandarin + 'h', 'total study', '#7c4dff'),
+        profileStatCell('Mandarin', getTotalSkillHours('mandarin') + 'h', 'skill matrix + hobby logs', '#7c4dff'),
         profileStatCell('Work', stats.allTime.work + 'h', 'total logged', '#e8a87c'),
         profileStatCell('People', stats.people, 'unique names met', '#e94ff5'),
         profileStatCell('Places', stats.places, 'unique locations', '#4fa3ff'),
@@ -1698,6 +1716,14 @@ const HomeCheckIn = {
     spread.querySelector('#homeOpenPulse')?.addEventListener('click', () => this.openPulseComposer());
     spread.querySelectorAll('[data-pulse-quick]').forEach(btn => {
       btn.addEventListener('click', () => this.openPulseComposer(btn.dataset.pulseQuick));
+    });
+    spread.querySelector('#syncLiveSteps')?.addEventListener('click', () => {
+      if(typeof GoogleSteps !== 'undefined'){
+        GoogleSteps.syncForDate(todayKey(), {
+          statusEl: document.getElementById('liveStepsSyncStatus'),
+          button: spread.querySelector('#syncLiveSteps'),
+        });
+      }
     });
   },
 
@@ -1927,7 +1953,6 @@ const HomeCheckIn = {
     mountMoodPicker('endMoodPicker', resolveEntryMood(n) || getCurrentMood(), { name: 'endMood', compact: true });
     document.getElementById('endSteps').value = n.steps || 0;
     document.getElementById('endWork').value = n.workHours || 0;
-    document.getElementById('endMandarin').value = n.mandarinHours || 0;
     const hobbySel = document.getElementById('endHobbySelect');
     hobbySel.innerHTML = '<option value="">—</option>' + getHobbyOptions().map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
     hobbySel.value = n.hobby || '';
@@ -1960,7 +1985,6 @@ const HomeCheckIn = {
       mood: dayMood,
       steps: document.getElementById('endSteps').value,
       workHours: document.getElementById('endWork').value,
-      mandarinHours: document.getElementById('endMandarin').value,
       hobby: document.getElementById('endHobbySelect').value,
       hobbyHours: document.getElementById('endHobbyHours').value,
       people,
@@ -2116,8 +2140,8 @@ function renderHomeCheckIn(){
           <span class="live-stat-lbl">${esc(moodLabel(currentMood))}</span>
         </div>
         <div class="live-stat">
-          <span class="live-stat-num">${today.mandarinHours || 0}h</span>
-          <span class="live-stat-lbl">Mandarin today</span>
+          <span class="live-stat-num">${mandarinHoursFromEntry(today)}h</span>
+          <span class="live-stat-lbl">Mandarin (hobby+skill)</span>
         </div>
         ${admin ? `<div class="live-stat live-stat-sync">
           <button type="button" class="btn" id="syncLiveSteps">Sync Google Health steps</button>
@@ -2150,7 +2174,7 @@ function buildDayDetailHTML(key, e){
     ${moodId ? `<div class="dlt-row"><span>Current mood</span><span>${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span></div>`:''}
     ${n.steps ? `<div class="dlt-row"><span>Steps</span><span>${Number(n.steps).toLocaleString()}</span></div>`:''}
     ${n.workHours ? `<div class="dlt-row"><span>Work (hours)</span><span>${n.workHours}h</span></div>`:''}
-    ${n.mandarinHours ? `<div class="dlt-row"><span>Mandarin (hours)</span><span>${n.mandarinHours}h</span></div>`:''}
+    ${mandarinHoursFromEntry(n) ? `<div class="dlt-row"><span>Mandarin (hobby+skill)</span><span>${mandarinHoursFromEntry(n)}h</span></div>`:''}
     ${hobbyLine ? `<div class="dlt-row"><span>Hobby</span><span>${hobbyLine}</span></div>`:''}
     ${n.people.length ? `<div class="dlt-row"><span>People met</span><span>${esc(n.people.join(', '))}</span></div>`:''}
     ${n.places.length ? `<div class="dlt-row"><span>Places visited</span><span>${esc(n.places.join(', '))}</span></div>`:''}
@@ -2395,8 +2419,11 @@ function renderSkillControls(){
   skillCtrl.querySelectorAll('button[data-skill]').forEach(btn => {
     btn.addEventListener('click', () => {
       if(!isAdmin()) return;
-      state.skillHours[btn.dataset.skill] = Math.max(0, (state.skillHours[btn.dataset.skill] || 0) + Number(btn.dataset.delta));
+      const skill = getSkills().find(s => s.id === btn.dataset.skill);
+      const delta = Number(btn.dataset.delta);
+      state.skillHours[btn.dataset.skill] = Math.max(0, (state.skillHours[btn.dataset.skill] || 0) + delta);
       saveState();
+      if(skill) LiveSync?.skillUpdated(skill.name, delta);
       renderSkillSkyline();
       renderAbout();
       renderHomeCheckIn();
@@ -2632,7 +2659,9 @@ function openDramaDetail(id){
     const cur = getDrama(id).currentEpisode;
     state.dramaState[id].currentEpisode = Math.min(d.totalEpisodes, cur + 1);
     if(state.dramaState[id].currentEpisode >= d.totalEpisodes) state.dramaState[id].status = 'completed';
-    saveState(); openDramaDetail(id); renderDramaDeck(); renderHomeCheckIn();
+    saveState();
+    LiveSync?.dramaUpdated(d.title, state.dramaState[id].currentEpisode);
+    openDramaDetail(id); renderDramaDeck(); renderHomeCheckIn();
   });
   document.getElementById('dramaEpDown')?.addEventListener('click', () => {
     ensureDramaState(id);
@@ -3048,6 +3077,7 @@ document.getElementById('pinForm')?.addEventListener('submit', e => {
     if(mood) setCurrentMood(mood);
     state.pinboard.push({ id:'pin-'+Date.now(), name, text, mood, photo: photo||'', neonColor: pinColor, time: new Date().toISOString() });
     saveState();
+    LiveSync?.pinPosted(name);
     document.getElementById('pinForm').reset();
     mountMoodPicker('pinMoodPicker', getCurrentMood(), { name: 'pinMood', compact: true });
     renderPinboard();

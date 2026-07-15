@@ -186,12 +186,11 @@
               <input type="number" id="logSteps" value="0">
               <button type="button" class="btn" id="syncGoogleSteps">Sync Google Health</button>
             </div>
-            <p class="field-hint" id="stepsSyncStatus"></p>
+            <p class="field-hint" id="stepsSyncStatus">Links to Google Fit when Cloudflare env vars are set.</p>
           </div>
           <div class="field"><label>Work hours</label><input type="number" id="logWork" min="0" step="0.5" value="0"></div>
-          <div class="field"><label>Mandarin (hrs)</label><input type="number" id="logMandarin" min="0" step="0.5" value="0"></div>
           <div class="field"><label>Hobby</label><select id="logHobbySelect"><option value="">—</option></select></div>
-          <div class="field"><label>Hobby hours</label><input type="number" id="logHobbyHours" min="0" step="0.5" value="0"></div>
+          <div class="field"><label>Hobby hours</label><input type="number" id="logHobbyHours" min="0" step="0.5" value="0"><span class="field-hint">Mandarin &amp; skill hours update from hobby + skill matrix automatically.</span></div>
         </div>
         <div class="field"><label>People met <span class="field-hint">comma-separated</span></label><input type="text" id="logPeople" placeholder="names"></div>
         <div class="field"><label>Places discovered</label><input type="text" id="logPlaces" placeholder="or pick below"></div>
@@ -426,7 +425,6 @@
       <div class="field field-mood"><label>Current mood</label><div id="endMoodPicker"></div></div>
       <div class="field"><label>Steps</label><input type="number" id="endSteps" value="0"></div>
       <div class="field"><label>Work hours</label><input type="number" id="endWork" min="0" step="0.5" value="0"></div>
-      <div class="field"><label>Mandarin (hrs)</label><input type="number" id="endMandarin" min="0" step="0.5" value="0"></div>
       <div class="field"><label>Hobby</label><select id="endHobbySelect"><option value="">—</option></select></div>
       <div class="field"><label>Hobby hours</label><input type="number" id="endHobbyHours" min="0" step="0.5" value="0"></div>
     </div>
@@ -483,7 +481,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){

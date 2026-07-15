@@ -129,13 +129,190 @@ const GLITCH_ERRORS = [
   '&gt; LOAD: logic_core only mode',
 ];
 
-const DIAGNOSTIC_CORE = [
-  { id: 'core', text: 'KERNEL: Reduce the rant to one factual sentence. No metaphors. No story.' },
-  { id: 'facts', text: 'PARSER: Output 3 verified facts from your rant. Prefix each [FACT].' },
-  { id: 'assumptions', text: 'PARSER: Output 3 assumptions. Prefix each [ASSUME].' },
-  { id: 'control', text: 'FILTER: List variables outside your control. Mark each [DISCARD].' },
-  { id: 'action60', text: 'RUNTIME: Smallest executable action in the next 60 minutes. One line only.' },
-];
+const DIAGNOSTIC_CORE = [];
+
+const RantLogicEngine = {
+  emotionProblem(id){
+    const map = {
+      sick: 'Physical subsystem degraded — maintenance protocol required',
+      guilty: 'Moral checksum mismatch — rule violation signal active',
+      ashamed: 'Social status simulation running — audience may be internal only',
+      anxious: 'Threat model active — probability assessment incomplete',
+      overwhelmed: 'Thread count exceeds processing capacity',
+      exhausted: 'Recovery debt exceeds available rest bandwidth',
+      lonely: 'Connection channel open — no active peer detected',
+      hopeless: 'Future projection module returning null outcomes',
+      angry: 'Boundary violation or blocked objective detected',
+      sad: 'Loss signal — object, state, or expectation removed',
+      numb: 'Affect output suppressed — possible overload shutdown',
+      stagnant: 'No state change detected across time window',
+      panicked: 'Acute threat response — logic tree collapsed',
+      heartbroken: 'Attachment severed — reroute dependency required',
+      burnt_out: 'Output exceeded recovery for extended period',
+      powerless: 'Agency signal low — control variables unclear',
+      stuck: 'Decision tree blocked — exit vector not selected',
+    };
+    return map[id] || (OVERLOAD_PROMPTS[id] ? OVERLOAD_PROMPTS[id].replace(/\.$/, '') : 'Active emotional flag — decomposition required');
+  },
+
+  extractSentences(rant){
+    return rant.split(/[\n.!?]+/).map(s => s.trim()).filter(s => s.length > 6);
+  },
+
+  summarizeRant(rant){
+    const s = rant.trim().replace(/\s+/g, ' ');
+    return s.length > 160 ? s.slice(0, 160) + '…' : s;
+  },
+
+  identifyProblems(sentences, emotions){
+    const patterns = [
+      /i (can'?t|cannot|couldn'?t|won'?t|shouldn'?t)/i,
+      /i (feel|am|\'m) /i,
+      /i (hate|need|want|wish|miss|regret)/i,
+      /why (do|does|did|is|am|can)/i,
+      /(always|never|every time|no one|nobody)/i,
+      /(sick|ill|pain|hurt|tired|exhausted|guilty|ashamed|lonely|scared|anxious)/i,
+      /(they|he|she|people) (won'?t|don'?t|didn'?t|can'?t)/i,
+    ];
+    const found = [];
+    sentences.forEach(s => {
+      if(patterns.some(p => p.test(s)) || s.length > 35){
+        found.push({ text: s.charAt(0).toUpperCase() + s.slice(1), category: 'rant_extract' });
+      }
+    });
+    if(!found.length && sentences.length){
+      found.push({ text: sentences[0].charAt(0).toUpperCase() + sentences[0].slice(1), category: 'primary' });
+    }
+    emotions.forEach(id => {
+      const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
+      if(em) found.push({ text: `Active ${em.label.toLowerCase()} state flagged by user`, category: 'emotion', emotionId: id });
+    });
+    const seen = new Set();
+    return found.filter(p => {
+      const k = p.text.toLowerCase().slice(0, 40);
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 10);
+  },
+
+  classifyControl(text){
+    const t = text.toLowerCase();
+    const unctrl = [
+      /\b(they|them|their|he |she |people|others?|someone else)\b/,
+      /\b(past|already happened|can't change|cannot change|too late)\b/,
+      /\b(weather|economy|government|pandemic)\b/,
+      /\b(died|death|passed away)\b/,
+      /\bwhat (will|would) (they|he|she)\b/,
+      /\bif (they|he|she) (don't|doesn't|won't)\b/,
+    ];
+    const ctrl = [
+      /\b(i can|i will|i should|i need to|i could|my |myself)\b/,
+      /\b(sleep|eat|rest|walk|drink|call|text|ask|leave|start|stop|take|go)\b/,
+      /\b(hour|minute|today|tonight|tomorrow)\b/,
+    ];
+    if(unctrl.some(p => p.test(t))){
+      return { class: 'UNCONTROLLABLE', reason: 'External agent or closed timeline. Not assignable to user runtime.' };
+    }
+    if(ctrl.some(p => p.test(t))){
+      return { class: 'CONTROLLABLE', reason: 'User-executable variable detected in statement.' };
+    }
+    if(/\b(maybe|might|unsure|don't know)\b/.test(t)){
+      return { class: 'PARTIAL', reason: 'Uncertainty present — gather one data point before action.' };
+    }
+    return { class: 'PARTIAL', reason: 'Influence mixed — split into facts vs requests vs feelings.' };
+  },
+
+  generateSolution(problem, emotions, ctrl){
+    if(ctrl.class === 'UNCONTROLLABLE'){
+      return 'Acknowledge output. Mark [DISCARD]. Allocate zero further processing. Redirect attention to nearest controllable subsystem.';
+    }
+    const id = problem.emotionId;
+    if(id === 'sick' || emotions.includes('sick') || emotions.includes('unwell')){
+      return 'Run body protocol: hydration, food checkpoint, rest block minimum 20min. Escalate to medical if symptoms worsen or persist >48h.';
+    }
+    if(id === 'guilty' || emotions.includes('guilty')){
+      return 'Identify violated rule. If self-imposed: revise or repeal. If external: clarify expectation or accept non-compliance cost. No punishment loop.';
+    }
+    if(id === 'ashamed' || emotions.includes('ashamed')){
+      return 'Name the simulated audience. If absent in reality: downgrade shame signal. One private corrective action only.';
+    }
+    if(emotions.includes('exhausted') || emotions.includes('burnt_out')){
+      return 'Schedule non-negotiable recovery window within 2h. Defer all non-critical threads.';
+    }
+    if(emotions.includes('anxious') || emotions.includes('panicked')){
+      return 'Write worst-case + best-case + most-likely. Assign rough %. Act only on most-likely path.';
+    }
+    if(emotions.includes('lonely')){
+      return 'Send one low-stakes connection signal (message, voice note). No attachment to response time.';
+    }
+    if(emotions.includes('stuck') || emotions.includes('stagnant')){
+      return 'Select smallest reversible action completable in <15 minutes. Execute before evaluating.';
+    }
+    if(emotions.includes('angry') || emotions.includes('frustrated')){
+      return 'Extract one factual blocker. One boundary or request to address it. No replay of narrative.';
+    }
+    return 'Define one action ≤15 minutes. Execute without evaluation loop.';
+  },
+
+  suggestCommand(solutions, emotions){
+    const ctrl = solutions.find(s => s.control === 'CONTROLLABLE');
+    if(ctrl) return 'EXECUTE: ' + ctrl.solution.split('.')[0].slice(0, 90);
+    if(emotions.includes('sick')) return 'EXECUTE: rest + hydration checkpoint within 20 minutes';
+    if(emotions.includes('exhausted')) return 'EXECUTE: sleep window within 2 hours — defer non-critical threads';
+    if(emotions.includes('guilty')) return 'EXECUTE: write the rule you think you broke — then mark valid or self-imposed';
+    return 'EXECUTE: one 10-minute maintenance task (water, food, shower, or walk)';
+  },
+
+  parse(rant, emotionIds){
+    const sentences = this.extractSentences(rant);
+    const problems = this.identifyProblems(sentences, emotionIds);
+    const transcript = [];
+    const solutions = [];
+
+    transcript.push({ role: 'system', text: '>>> RANT_BUFFER CLOSED' });
+    transcript.push({ role: 'system', text: '>>> AUTONOMOUS_LOGIC_PARSE — no user input required' });
+    transcript.push({ role: 'system', text: `>>> INPUT_LENGTH: ${rant.length} chars · ${sentences.length} segment(s)` });
+    transcript.push({ role: 'system', text: `>>> ACTIVE_FLAGS: ${emotionIds.map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(' | ')}` });
+
+    emotionIds.forEach(id => {
+      const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
+      transcript.push({ role: 'system', text: `>>> FLAG::${(em?.label || id).toUpperCase()} — ${this.emotionProblem(id)}` });
+    });
+
+    if(!problems.length){
+      problems.push({ text: this.summarizeRant(rant) || 'Emotional discharge without named target', category: 'summary' });
+    }
+
+    problems.forEach((p, i) => {
+      const ctrl = this.classifyControl(p.text);
+      const sol = this.generateSolution(p, emotionIds, ctrl);
+      const num = String(i + 1).padStart(2, '0');
+      transcript.push({ role: 'system', text: `>>> PROBLEM_${num}: ${p.text}` });
+      transcript.push({ role: 'system', text: `>>> VARIABLE_${num}: ${ctrl.class} — ${ctrl.reason}` });
+      transcript.push({ role: 'system', text: `>>> RESOLUTION_${num}: ${sol}` });
+      solutions.push({ problem: p.text, control: ctrl.class, reason: ctrl.reason, solution: sol });
+    });
+
+    const uncontrollable = solutions.filter(s => s.control === 'UNCONTROLLABLE');
+    const controllable = solutions.filter(s => s.control === 'CONTROLLABLE');
+
+    transcript.push({ role: 'system', text: `>>> PARSE_COMPLETE: ${controllable.length} controllable · ${uncontrollable.length} uncontrollable · ${solutions.length - controllable.length - uncontrollable.length} partial` });
+    if(uncontrollable.length){
+      transcript.push({ role: 'system', text: '>>> DISCARD_PROTOCOL ENGAGED — uncontrollable variables marked below' });
+      uncontrollable.forEach(u => transcript.push({ role: 'system', text: `>>> [DISCARD] ${u.problem}` }));
+    }
+    if(controllable.length){
+      transcript.push({ role: 'system', text: '>>> ACTIONABLE_QUEUE:' });
+      controllable.forEach((c, i) => transcript.push({ role: 'system', text: `>>> [${i + 1}] ${c.solution}` }));
+    }
+
+    const suggestedCommand = this.suggestCommand(solutions, emotionIds);
+    transcript.push({ role: 'system', text: `>>> SUGGESTED_EXECUTE: ${suggestedCommand}` });
+
+    return { transcript, solutions, problems, suggestedCommand, diagnostics: { controllable: controllable.length, uncontrollable: uncontrollable.length } };
+  },
+};
 
 const OverloadLog = {
   view: 'hub',
@@ -291,18 +468,18 @@ const OverloadLog = {
   },
 
   exitChannel(){
+    document.body.classList.remove('mind-channel-open');
+    document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById('view-' + this.returnView) || document.getElementById('view-profile');
+    target?.classList.add('active');
+    const navBtn = document.querySelector(`.node-btn[data-view="${this.returnView}"]`) || document.querySelector('.node-btn[data-view="profile"]');
+    navBtn?.classList.add('active');
+    this.view = 'hub';
+    this.editingId = null;
+    this.sessionDraft = null;
     document.body.classList.add('mind-repair-active');
-    setTimeout(() => {
-      document.body.classList.remove('mind-channel-open', 'mind-repair-active');
-      document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
-      const target = document.getElementById('view-' + this.returnView) || document.getElementById('view-profile');
-      target?.classList.add('active');
-      const navBtn = document.querySelector(`.node-btn[data-view="${this.returnView}"]`) || document.querySelector('.node-btn[data-view="profile"]');
-      navBtn?.classList.add('active');
-      this.view = 'hub';
-      this.editingId = null;
-      this.sessionDraft = null;
-    }, 1100);
+    setTimeout(() => document.body.classList.remove('mind-repair-active'), 700);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
   newLog(){
@@ -354,21 +531,7 @@ const OverloadLog = {
     return [...document.querySelectorAll('.ol-emotion-check:checked')].map(el => el.value);
   },
 
-  buildDiagnosticQueue(emotions){
-    const q = [...DIAGNOSTIC_CORE];
-    const seen = new Set(q.map(x => x.id));
-    emotions.forEach(id => {
-      if(seen.has(id)) return;
-      const prompt = OVERLOAD_PROMPTS[id];
-      if(!prompt) return;
-      seen.add(id);
-      const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
-      q.push({ id, text: `FLAG::${(em?.label || id).toUpperCase()} — ${prompt}` });
-    });
-    return q;
-  },
-
-  startDiagnostic(){
+  runAutoParse(){
     const emotions = this.getSelectedEmotions();
     const rant = document.getElementById('olRant')?.value || '';
     if(!emotions.length){ alert('Select at least one emotion flag.'); return; }
@@ -378,56 +541,19 @@ const OverloadLog = {
     this.sessionDraft.rant = rant;
     this.sessionDraft.date = document.getElementById('olDate')?.value || this.sessionDraft.date;
     this.sessionDraft.title = document.getElementById('olTitle')?.value?.trim() || this.sessionDraft.title || ('overload ' + (this.sessionDraft.date || todayKey()));
-    this.sessionDraft.transcript = [
-      { role: 'system', text: 'RANT_BUFFER closed. Beginning logic parse. Emotional drivers offline.' },
-      { role: 'system', text: `FLAGS: ${emotions.map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(', ')}` },
-    ];
-    this.diagnosticQueue = this.buildDiagnosticQueue(emotions);
-    this.diagnosticIndex = 0;
-    this.sessionPhase = 'diagnostic';
+
+    const analysis = RantLogicEngine.parse(rant, emotions);
+    this.sessionDraft.transcript = analysis.transcript;
+    this.sessionDraft.solutions = analysis.solutions;
+    this.sessionDraft.diagnostics = analysis.diagnostics;
+    this.sessionDraft.suggestedCommand = analysis.suggestedCommand;
+    this.sessionDraft.command = analysis.suggestedCommand;
+    this.sessionPhase = 'parse';
     this.render();
-    this.appendDiagnosticQuestion();
-  },
-
-  appendDiagnosticQuestion(){
-    const log = document.getElementById('olTermLog');
-    const q = this.diagnosticQueue[this.diagnosticIndex];
-    if(!log || !q) return;
-    const line = document.createElement('div');
-    line.className = 'ol-term-line system';
-    line.innerHTML = `<span class="ol-term-tag">SYS</span><p>${esc(q.text)}</p>`;
-    log.appendChild(line);
-    log.scrollTop = log.scrollHeight;
-    document.getElementById('olDiagInput')?.focus();
-  },
-
-  submitDiagnosticAnswer(){
-    const input = document.getElementById('olDiagInput');
-    const answer = input?.value?.trim();
-    if(!answer) return;
-    const q = this.diagnosticQueue[this.diagnosticIndex];
-    if(!q) return;
-    const log = document.getElementById('olTermLog');
-    const userLine = document.createElement('div');
-    userLine.className = 'ol-term-line user';
-    userLine.innerHTML = `<span class="ol-term-tag">USR</span><p>${esc(answer)}</p>`;
-    log?.appendChild(userLine);
-    this.sessionDraft.transcript.push({ role: 'system', text: q.text });
-    this.sessionDraft.transcript.push({ role: 'user', text: answer });
-    this.sessionDraft.diagnostics[q.id] = answer;
-    input.value = '';
-    this.diagnosticIndex++;
-    if(this.diagnosticIndex >= this.diagnosticQueue.length){
-      this.sessionPhase = 'command';
-      this.render();
-      return;
-    }
-    this.appendDiagnosticQuestion();
-    log && (log.scrollTop = log.scrollHeight);
   },
 
   saveSession(){
-    const command = document.getElementById('olCommand')?.value?.trim();
+    const command = document.getElementById('olCommand')?.value?.trim() || this.sessionDraft?.suggestedCommand || '';
     if(!command){ alert('Issue one terminal command before closing the session.'); return; }
     if(!this.sessionDraft) this.sessionDraft = this.emptyDraft();
     this.sessionDraft.command = command;
@@ -444,6 +570,7 @@ const OverloadLog = {
       rant: this.sessionDraft.rant || '',
       transcript: this.sessionDraft.transcript || [],
       diagnostics: this.sessionDraft.diagnostics || {},
+      solutions: this.sessionDraft.solutions || [],
       command,
       createdAt: this.editingId
         ? (state.overloadLogs.find(l => l.id === this.editingId)?.createdAt || new Date().toISOString())
@@ -456,6 +583,7 @@ const OverloadLog = {
     else state.overloadLogs.push(payload);
 
     saveState();
+    if(typeof LiveSync !== 'undefined') LiveSync.overloadArchived(payload.title, payload.emotions);
     this.view = 'hub';
     this.editingId = null;
     this.sessionDraft = null;
@@ -498,7 +626,7 @@ const OverloadLog = {
               <p class="ol-kicker sys-flicker">// buffer_archive · persistent</p>
               <h3 class="ol-title">SESSION LOG</h3>
             </div>
-            <button type="button" class="btn primary sys-btn" id="olNewBtn">+ NEW SESSION</button>
+            <button type="button" class="btn ol-btn-new" id="olNewBtn">+ NEW SESSION</button>
           </header>
           <div class="ol-archive-grid">
             ${logs.length ? logs.map(log => {
@@ -529,7 +657,7 @@ const OverloadLog = {
 
   renderSession(){
     const draft = this.sessionDraft || this.emptyDraft();
-    if(this.sessionPhase === 'diagnostic') return this.renderDiagnostic(draft);
+    if(this.sessionPhase === 'parse') return this.renderParse(draft);
     if(this.sessionPhase === 'command') return this.renderCommand(draft);
 
     return `
@@ -556,14 +684,17 @@ const OverloadLog = {
             <textarea id="olRant" class="ol-rant sys-input" rows="18" placeholder="Type everything. Do not stop for grammar, logic, or shame.">${esc(draft.rant)}</textarea>
             <div class="ol-rant-actions">
               <button type="button" class="btn" id="olBackHub">← ARCHIVE</button>
-              <button type="button" class="btn primary sys-btn" id="olFinishedRant">■ FINISHED RANT — RUN PARSE</button>
+              <button type="button" class="btn ol-btn-finished" id="olFinishedRant">■ FINISHED RANT — RUN PARSE</button>
             </div>
           </section>
         </div>
       </div>`;
   },
 
-  renderDiagnostic(draft){
+  renderParse(draft){
+    const solutions = draft.solutions || [];
+    const ctrl = solutions.filter(s => s.control === 'CONTROLLABLE');
+    const unctrl = solutions.filter(s => s.control === 'UNCONTROLLABLE');
     return `
       <div class="mind-session-layout diagnostic">
         <div class="mind-session-progress">
@@ -574,26 +705,25 @@ const OverloadLog = {
         </div>
         <section class="ol-terminal sys-panel">
           <header class="ol-terminal-head">
-            <span>LOGIC_CORE v0.9</span>
-            <span class="sys-flicker">emotional_subsystems: OFFLINE</span>
+            <span>LOGIC_CORE v1.0 — AUTONOMOUS</span>
+            <span class="sys-flicker">user input: DISABLED · parsing complete</span>
           </header>
-          <div class="ol-term-rant-echo sys-panel">
-            <span class="ol-term-tag">DUMP</span>
-            <pre>${esc((draft.rant || '').slice(0, 500))}${(draft.rant || '').length > 500 ? '\n…[truncated for parse view]' : ''}</pre>
+          <div class="ol-parse-summary">
+            <div class="ol-parse-stat"><strong>${ctrl.length}</strong><span>controllable</span></div>
+            <div class="ol-parse-stat discard"><strong>${unctrl.length}</strong><span>discard</span></div>
+            <div class="ol-parse-stat"><strong>${solutions.length}</strong><span>problems parsed</span></div>
           </div>
-          <div class="ol-term-log" id="olTermLog">
+          <div class="ol-term-log read" id="olTermLog">
             ${(draft.transcript || []).map(line => `
               <div class="ol-term-line ${line.role}">
-                <span class="ol-term-tag">${line.role === 'user' ? 'USR' : 'SYS'}</span>
+                <span class="ol-term-tag">SYS</span>
                 <p>${esc(line.text)}</p>
               </div>`).join('')}
           </div>
-          <div class="ol-term-input-row">
-            <span class="ol-prompt-char">&gt;</span>
-            <input type="text" id="olDiagInput" class="sys-input" placeholder="Respond in plain logic. No performance." autocomplete="off">
-            <button type="button" class="btn primary sys-btn" id="olDiagSend">SEND</button>
+          <div class="ol-rant-actions">
+            <button type="button" class="btn" id="olBackToRant">← RE-RANT</button>
+            <button type="button" class="btn ol-btn-finished" id="olContinueCommand">ACCEPT PARSE → COMMAND</button>
           </div>
-          <p class="field-hint">Question ${Math.min(this.diagnosticIndex + 1, this.diagnosticQueue.length)} / ${this.diagnosticQueue.length}</p>
         </section>
       </div>`;
   },
@@ -612,11 +742,11 @@ const OverloadLog = {
           <p class="field-hint">One executable instruction for your next move. Imperative mood.</p>
           <div class="ol-command-wrap ol-command-large">
             <span class="ol-prompt-char">&gt;</span>
-            <input type="text" id="olCommand" class="sys-input" value="${esc(draft.command)}" placeholder="EXECUTE: …">
+            <input type="text" id="olCommand" class="sys-input" value="${esc(draft.command || draft.suggestedCommand || '')}" placeholder="EXECUTE: …">
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn" id="olBackToRant">← BACK</button>
-            <button type="button" class="btn primary sys-btn" id="olSaveSession">■ ARCHIVE SESSION</button>
+            <button type="button" class="btn" id="olBackToParse">← PARSE</button>
+            <button type="button" class="btn ol-btn-finished" id="olSaveSession">■ ARCHIVE SESSION</button>
           </div>
         </section>
       </div>`;
@@ -669,9 +799,9 @@ const OverloadLog = {
 
     root.querySelector('#olNewBtn')?.addEventListener('click', () => this.newLog());
     root.querySelector('#olBackHub')?.addEventListener('click', () => { this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.render(); });
-    root.querySelector('#olFinishedRant')?.addEventListener('click', () => this.startDiagnostic());
-    root.querySelector('#olDiagSend')?.addEventListener('click', () => this.submitDiagnosticAnswer());
-    root.querySelector('#olDiagInput')?.addEventListener('keydown', e => { if(e.key === 'Enter') this.submitDiagnosticAnswer(); });
+    root.querySelector('#olFinishedRant')?.addEventListener('click', () => this.runAutoParse());
+    root.querySelector('#olContinueCommand')?.addEventListener('click', () => { this.sessionPhase = 'command'; this.render(); });
+    root.querySelector('#olBackToParse')?.addEventListener('click', () => { this.sessionPhase = 'parse'; this.render(); });
     root.querySelector('#olBackToRant')?.addEventListener('click', () => { this.sessionPhase = 'emotions'; this.render(); });
     root.querySelector('#olSaveSession')?.addEventListener('click', () => this.saveSession());
     root.querySelector('#olEditCurrent')?.addEventListener('click', () => this.editLog(this.editingId));
@@ -679,7 +809,7 @@ const OverloadLog = {
     root.querySelectorAll('[data-ol-edit]').forEach(btn => btn.addEventListener('click', () => this.editLog(btn.dataset.olEdit)));
     root.querySelectorAll('[data-ol-del]').forEach(btn => btn.addEventListener('click', () => this.deleteLog(btn.dataset.olDel)));
 
-    if(this.view === 'session' && this.sessionPhase === 'diagnostic'){
+    if(this.view === 'session' && this.sessionPhase === 'parse'){
       queueMicrotask(() => {
         const log = document.getElementById('olTermLog');
         if(log) log.scrollTop = log.scrollHeight;
@@ -692,6 +822,8 @@ const OverloadLog = {
     this.ensureLogs();
     document.getElementById('oglEnterBtn')?.addEventListener('click', e => { e.stopPropagation(); this.completeGlitchTransition(); });
     document.getElementById('overloadGlitchScreen')?.addEventListener('click', () => this.completeGlitchTransition());
-    document.getElementById('mindExitBtn')?.addEventListener('click', () => this.exitChannel());
+    document.addEventListener('click', e => {
+      if(e.target.closest('#mindExitBtn')){ e.preventDefault(); this.exitChannel(); }
+    });
   },
 };
