@@ -290,7 +290,6 @@ function tryPlayerLogin(name, key){
   if(typeof unlockAdmin === 'function'){
     unlockAdmin({ toast: false, view: 'sync', welcome: false });
   }
-  if(typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
   if(typeof notifyGrayCoderBirthdays === 'function') notifyGrayCoderBirthdays();
   return true;
 }

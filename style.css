@@ -2847,30 +2847,33 @@ body.coder-notify-open .coder-notify-drawer{transform:translateX(0);}
 .inbox-popup-msg p{margin:4px 0 0;font-size:12px;color:var(--text-mid);}
 
 .corner-fab-stack{
-  position:fixed;right:18px;bottom:18px;z-index:860;
+  position:fixed;right:18px;bottom:18px;z-index:9200;
   display:flex;flex-direction:column;align-items:flex-end;gap:10px;
   pointer-events:none;
 }
 .corner-fab{
   pointer-events:auto;position:relative;
-  width:52px;height:52px;border-radius:50%;
+  width:52px;min-height:52px;padding:6px 0 4px;border-radius:14px;
+  flex-direction:column;align-items:center;justify-content:center;gap:2px;
   border:2px solid color-mix(in srgb,#c084fc 45%,var(--border-glass));
   background:linear-gradient(145deg,rgba(12,8,20,0.96),rgba(20,12,32,0.92));
   color:#e9d5ff;cursor:pointer;
   box-shadow:0 8px 28px rgba(0,0,0,0.45),0 0 18px rgba(192,132,252,0.15);
   transition:transform 0.18s ease,border-color 0.18s ease,box-shadow 0.18s ease;
 }
+.corner-fab-label{font-size:8px;letter-spacing:0.08em;text-transform:uppercase;line-height:1;opacity:0.85;}
+body.is-player-gray .corner-fab-stack{display:flex !important;}
+body.is-player-gray #inboxFab,
+body.is-player-gray #grayRewardsFab{
+  display:flex !important;visibility:visible !important;opacity:1 !important;
+}
 .corner-fab:hover{transform:translateY(-2px);border-color:#c084fc;box-shadow:0 10px 32px rgba(0,0,0,0.5),0 0 22px rgba(192,132,252,0.28);}
 .corner-fab-icon{font-size:20px;line-height:1;}
 .rewards-fab{border-color:color-mix(in srgb,#fcd34d 45%,var(--border-glass));color:#fef08a;box-shadow:0 8px 28px rgba(0,0,0,0.45),0 0 18px rgba(252,211,77,0.12);}
 .rewards-fab:hover{border-color:#fcd34d;box-shadow:0 10px 32px rgba(0,0,0,0.5),0 0 22px rgba(252,211,77,0.28);}
 .inbox-fab-badge{
-  position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;
+  position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 5px;
   border-radius:9px;font-size:9px;line-height:18px;text-align:center;
-}
-body.is-player-gray #inboxFab:not(.hidden),
-body.is-player-gray #grayRewardsFab:not(.hidden){
-  display:flex !important;align-items:center;justify-content:center;
 }
 
 .char-deck-item{margin-bottom:20px;}

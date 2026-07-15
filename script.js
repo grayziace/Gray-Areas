@@ -45,17 +45,8 @@ function applyAdminUI(){
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.add('hidden'));
-  const inboxFab = document.getElementById('inboxFab');
-  const rewardsFab = document.getElementById('grayRewardsFab');
-  if(inboxFab){
-    inboxFab.classList.toggle('hidden', !canInbox);
-    if(canInbox) inboxFab.classList.remove('hidden');
-  }
-  if(rewardsFab){
-    rewardsFab.classList.toggle('hidden', !admin);
-    if(admin) rewardsFab.classList.remove('hidden');
-  }
   if(typeof updateInboxBadge === 'function') updateInboxBadge();
+  syncCornerFabVisibility();
   if(admin && typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
   if(admin && typeof notifyGrayCoderBirthdays === 'function') notifyGrayCoderBirthdays();
   const pinForm = document.getElementById('pinForm');
@@ -106,6 +97,7 @@ function unlockAdmin(opts = {}){
   else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
   renderAll();
+  syncCornerFabVisibility();
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   if(typeof awardGrayLoginPoints === 'function') awardGrayLoginPoints();
   if(opts.welcome !== false && typeof showWelcomePlayer === 'function') showWelcomePlayer();
@@ -117,17 +109,57 @@ function unlockAdmin(opts = {}){
       setTimeout(() => toast?.classList.add('hidden'), 2200);
     }
   }
-  if(opts.view){
-    if(typeof navigateToView === 'function') navigateToView(opts.view);
-    else document.querySelector(`.node-btn[data-view="${opts.view}"]`)?.click();
+  const view = opts.view || 'sync';
+  if(typeof navigateToView === 'function') navigateToView(view);
+  else document.querySelector(`.node-btn[data-view="${view}"]`)?.click();
+  scheduleLiveViewRefresh();
+}
+
+function syncCornerFabVisibility(){
+  const admin = isAdmin();
+  const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+  const stack = document.querySelector('.corner-fab-stack');
+  const inboxFab = document.getElementById('inboxFab');
+  const rewardsFab = document.getElementById('grayRewardsFab');
+
+  if(stack){
+    stack.classList.toggle('hidden', !canInbox && !admin);
+    stack.setAttribute('aria-hidden', (!canInbox && !admin) ? 'true' : 'false');
   }
-  if(typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
+  if(inboxFab){
+    inboxFab.classList.remove('hidden');
+    inboxFab.hidden = !canInbox;
+    inboxFab.style.display = canInbox ? 'flex' : 'none';
+    inboxFab.setAttribute('aria-hidden', canInbox ? 'false' : 'true');
+  }
+  if(rewardsFab){
+    rewardsFab.classList.remove('hidden');
+    rewardsFab.hidden = !admin;
+    rewardsFab.style.display = admin ? 'flex' : 'none';
+    rewardsFab.setAttribute('aria-hidden', admin ? 'false' : 'true');
+  }
+  if(typeof updateInboxBadge === 'function') updateInboxBadge();
+}
+
+function scheduleLiveViewRefresh(){
+  if(!isAdmin()) return;
+  const run = () => {
+    if(typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
+  };
+  run();
+  requestAnimationFrame(run);
+  setTimeout(run, 50);
+  setTimeout(run, 250);
 }
 
 function refreshLiveViewForAdmin(){
   if(!isAdmin()) return;
   if(typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
-  if(typeof HomeCheckIn !== 'undefined') HomeCheckIn.startClock?.();
+  if(typeof HomeCheckIn !== 'undefined'){
+    HomeCheckIn.startClock?.();
+    const spread = document.getElementById('homeSpread');
+    if(spread) HomeCheckIn.bindSpread?.(spread);
+  }
 }
 
 /* Easter egg: five quick clicks on "Gray Areas" → editing mode + Daily Log */
@@ -2343,6 +2375,7 @@ function navigateToView(view){
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
   if(view === 'vlog' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
+  if(view === 'sync' && isAdmin()) scheduleLiveViewRefresh();
 }
 
 function bootApp(){
@@ -2361,6 +2394,7 @@ function bootApp(){
   }
   try{ DailyLog.init(); }catch(err){ console.error('DailyLog init failed:', err); }
   try{ applyAdminUI(); }catch(err){ console.error('Admin UI failed:', err); }
+  try{ syncCornerFabVisibility(); }catch(err){ console.error('FAB sync failed:', err); }
   try{ renderAll(); }catch(err){ console.error('Render failed:', err); }
   try{ if(typeof OverloadLog !== 'undefined') OverloadLog.init(); }catch(err){ console.error('Overload log init failed:', err); }
   try{ if(typeof GoogleSteps !== 'undefined') GoogleSteps.init(); }catch(err){ console.error('Google steps init failed:', err); }
@@ -5100,7 +5134,7 @@ document.getElementById('cancelAdmin')?.addEventListener('click', () => document
 document.getElementById('confirmAdmin')?.addEventListener('click', () => {
   if(document.getElementById('adminKeyInput').value === ADMIN_KEY){
     document.getElementById('adminModalBack').classList.add('hidden');
-    unlockAdmin({ toast: false });
+    unlockAdmin({ toast: false, welcome: false, view: 'sync' });
   }
 });
 
