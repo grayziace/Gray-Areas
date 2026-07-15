@@ -6,6 +6,7 @@ const CODERS_BIRTHDAY_SHOWN_KEY = 'ga-coder-bday';
 const GUEST_SESSION_KEY = 'ga-guest';
 const CREATING_CARD_KEY = 'ga-creating-card';
 const VISITOR_WRITE_KEY = 'gray-areas-visitor';
+const GRAY_INBOX_ID = 'gray';
 
 const POINTS = {
   quest_submit: 5,
@@ -284,6 +285,76 @@ function ensureViewerState(){
   if(!state.viewerCharacters) state.viewerCharacters = [];
   if(!state.quests) state.quests = [];
   if(!state.videoDiary) state.videoDiary = [];
+  if(!state.inboxMessages) state.inboxMessages = [];
+  if(!state.xpRequests) state.xpRequests = [];
+}
+
+function getInboxUserId(){
+  if(isAdmin()) return GRAY_INBOX_ID;
+  return getCoderSessionId() || '';
+}
+
+function getInboxUserName(){
+  if(isAdmin()) return 'Player Gray';
+  const card = getMyCoderCard();
+  return card?.name || getLoggedInCoderDisplayName() || 'Coder';
+}
+
+function getInboxMessages(){
+  return state.inboxMessages || [];
+}
+
+function getInboxForUser(userId){
+  if(!userId) return [];
+  return getInboxMessages()
+    .filter(m => m.toId === userId || m.fromId === userId)
+    .sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+}
+
+function getUnreadInboxForUser(userId){
+  if(!userId) return [];
+  return getInboxMessages().filter(m =>
+    m.toId === userId && !(m.readBy || []).includes(userId),
+  );
+}
+
+function getInboxableCoders(){
+  const seen = new Set();
+  const out = [];
+  (state.viewerCharacters || []).forEach(c => {
+    if(!c?.id || seen.has(c.id)) return;
+    seen.add(c.id);
+    out.push(c);
+  });
+  if(typeof getCharacters === 'function'){
+    getCharacters().forEach(c => {
+      if(!c?.id || seen.has(c.id)) return;
+      seen.add(c.id);
+      out.push(c);
+    });
+  }
+  return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
+
+function getXpRequestOptionsHtml(selected){
+  return Object.entries(XP_AWARDS)
+    .filter(([k, v]) => !v.auto && k !== 'custom' && k !== 'login')
+    .map(([k, v]) => `<option value="${k}"${selected === k ? ' selected' : ''}>${esc(v.label)}</option>`)
+    .join('');
+}
+
+function getPendingXpRequests(){
+  return (state.xpRequests || []).filter(r => r.status === 'pending');
+}
+
+function updateInboxBadge(){
+  const badge = document.getElementById('inboxBadge');
+  if(!badge) return;
+  const userId = typeof getInboxUserId === 'function' ? getInboxUserId() : '';
+  const n = userId && typeof getUnreadInboxForUser === 'function' ? getUnreadInboxForUser(userId).length : 0;
+  badge.textContent = n ? String(n) : '';
+  badge.classList.toggle('has-signals', n > 0);
+  badge.classList.toggle('hidden', !n);
 }
 
 function normalizeCoderKey(key){
@@ -428,7 +499,10 @@ function showWelcomePlayer(){
   showWelcomeModal(
     `Welcome, Player: ${name}`,
     '<p class="welcome-player-tag">Full board control unlocked.</p><p>Quest inbox, daily log, live to-do, coder XP — all yours. Go play.</p>',
-    { onDismiss: () => back?.classList.remove('welcome-modal--player') },
+    { onDismiss: () => {
+      back?.classList.remove('welcome-modal--player');
+      if(typeof showUnreadInboxPopup === 'function') showUnreadInboxPopup(GRAY_INBOX_ID);
+    }},
   );
 }
 
@@ -437,8 +511,48 @@ function showWelcomeCoder(card){
   showWelcomeModal(
     `Welcome back, Coder: ${card.name}`,
     `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>You're in. Send quests, post on Community, edit My Card anytime.</p>`,
-    { onDismiss: () => showBirthdayCelebration(card) },
+    { onDismiss: () => {
+      showBirthdayCelebration(card);
+      showUnreadInboxPopup(card.id);
+    }},
   );
+}
+
+function showUnreadInboxPopup(userId){
+  const unread = getUnreadInboxForUser(userId);
+  if(!unread.length) return;
+  try{
+    const key = 'ga-inbox-popup:' + userId;
+    if(sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  }catch(e){}
+  const preview = unread.slice(0, 3).map(m =>
+    `<div class="inbox-popup-msg"><strong>${esc(m.fromName || 'Someone')}</strong><p>${esc((m.body || '').slice(0, 160))}${(m.body || '').length > 160 ? '…' : ''}</p></div>`,
+  ).join('');
+  const more = unread.length > 3 ? `<p class="field-hint">+ ${unread.length - 3} more in your inbox</p>` : '';
+  showWelcomeModal(
+    unread.length === 1 ? 'New message for you' : `${unread.length} new messages`,
+    `${preview}${more}<p class="field-hint">Private messages — not on the Community board.</p>`,
+    { onDismiss: () => {
+      markInboxRead(userId, unread.map(m => m.id));
+      if(typeof navigateToView === 'function') navigateToView('inbox');
+    }},
+  );
+}
+
+async function markInboxRead(userId, ids){
+  if(!userId || !ids?.length) return;
+  const local = getInboxMessages();
+  ids.forEach(id => {
+    const m = local.find(x => x.id === id);
+    if(!m || m.toId !== userId) return;
+    if(!m.readBy) m.readBy = [];
+    if(!m.readBy.includes(userId)) m.readBy.push(userId);
+  });
+  saveState();
+  await postVisitorData('markMessagesRead', { readerId: userId, ids });
+  if(typeof updateInboxBadge === 'function') updateInboxBadge();
+  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderInbox?.();
 }
 
 function unlockCoderSession(cardId, opts = {}){
@@ -741,6 +855,17 @@ function mergeVisitorDataFile(remote){
   mergeById(state.viewerCharacters, remote.viewerCharacters);
   mergeById(state.quests, remote.quests);
   mergeById(state.videoDiary, remote.videoDiary);
+  mergeById(state.inboxMessages, remote.inboxMessages);
+  mergeById(state.xpRequests, remote.xpRequests);
+  const pulses = remote.coderActivityPulses || [];
+  pulses.forEach(p => {
+    if(!p?.id) return;
+    if(!state.coderActivity) state.coderActivity = [];
+    if(!state.coderActivity.some(a => a.id === p.id)){
+      state.coderActivity.unshift(p);
+    }
+  });
+  state.coderActivity = (state.coderActivity || []).slice(0, 120);
 }
 
 async function fetchVisitorData(){
@@ -750,7 +875,16 @@ async function fetchVisitorData(){
     mergeVisitorDataFile(await res.json());
     saveState();
     ViewerWorld.renderAll();
+    maybeShowInboxPopupOnLoad();
   }catch(e){}
+}
+
+function maybeShowInboxPopupOnLoad(){
+  const userId = getInboxUserId();
+  if(!userId || isCreatingCard()) return;
+  const unread = getUnreadInboxForUser(userId);
+  if(!unread.length) return;
+  setTimeout(() => showUnreadInboxPopup(userId), 500);
 }
 
 async function postVisitorData(action, data){
@@ -788,13 +922,13 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
     return `
     <div class="card-wizard-layout">
       <div class="card-wizard-form-col">
-        <div class="field-row">
-          <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name" required></div>
-          <div class="field"><label>Title</label><input type="text" id="${id('Title')}" value="${esc(c.cardSubtitle || c.pokeCard?.subtitle || '')}" placeholder="optional"></div>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name" required>
         </div>
         <div class="field-row">
-          <div class="field"><label>Birthday</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
-          <div class="field"><label>MBTI</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
+          <div class="field"><label>Birthday (optional)</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
+          <div class="field"><label>MBTI (optional)</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
         </div>
         <div class="field card-border-field">
           <label>Border colour</label>
@@ -819,19 +953,16 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
           <p class="field-hint" id="${id('PortraitStatus')}">Describe yourself, then generate your portrait before summoning.</p>
         </div>
         <div class="field card-gen-field">
-          <label>Spirit animal</label>
+          <label>Spirit animal (optional)</label>
           <input type="text" id="${id('Spirit')}" value="${esc(c.spiritAnimal || c.pokeCard?.spiritPrompt || '')}" placeholder="e.g. neon fox, crystal owl…">
           <button type="button" class="btn" id="${id('GenSpiritBtn')}">Generate spirit animal</button>
           <p class="field-hint" id="${id('SpiritStatus')}">Optional — generate if you want one on your card.</p>
         </div>
-        <details class="card-wizard-more">
-          <summary>More card details (optional)</summary>
-          <div class="field"><label>Vibe</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
-          <div class="field"><label>Strengths</label><textarea id="${id('Strengths')}" rows="2" placeholder="optional">${esc(c.strengths || '')}</textarea></div>
-          <div class="field"><label>Weaknesses</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="optional">${esc(c.weaknesses || '')}</textarea></div>
-          <div class="field"><label>Resistances</label><textarea id="${id('Resistances')}" rows="2" placeholder="optional">${esc(c.resistances || '')}</textarea></div>
-          <div class="field"><label>Quote</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
-        </details>
+        <div class="field"><label>Vibe (optional)</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
+        <div class="field"><label>Strengths (optional)</label><textarea id="${id('Strengths')}" rows="2" placeholder="optional">${esc(c.strengths || '')}</textarea></div>
+        <div class="field"><label>Weaknesses (optional)</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="optional">${esc(c.weaknesses || '')}</textarea></div>
+        <div class="field"><label>Resistances (optional)</label><textarea id="${id('Resistances')}" rows="2" placeholder="optional">${esc(c.resistances || '')}</textarea></div>
+        <div class="field"><label>Quote (optional)</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
       </div>
       <aside class="card-wizard-preview-col">
         <p class="card-preview-kicker">Live preview</p>
@@ -856,32 +987,29 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
   }
 
   return `
+    <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name"></div>
     <div class="field-row">
-      <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name"></div>
-      <div class="field"><label>Title</label><input type="text" id="${id('Title')}" value="${esc(c.cardSubtitle || c.pokeCard?.subtitle || '')}" placeholder="optional"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Birthday</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
-      <div class="field"><label>MBTI</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
+      <div class="field"><label>Birthday (optional)</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
+      <div class="field"><label>MBTI (optional)</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Border colour</label><input type="color" id="${id('CardColor')}" value="${esc(c.pokeCard?.cardColor || '#4ade80')}"><span class="field-hint">Neon border glow only</span></div>
-      <div class="field"><label>Favourite colour</label><input type="text" id="${id('Palette')}" value="${esc(c.pokeCard?.colorPalette || '')}" placeholder="e.g. rose gold, midnight blue…"></div>
+      <div class="field"><label>Favourite colour (optional)</label><input type="text" id="${id('Palette')}" value="${esc(c.pokeCard?.colorPalette || '')}" placeholder="e.g. rose gold, midnight blue…"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Hair colour</label><input type="text" id="${id('Hair')}" value="${esc(c.hairColor || '')}" placeholder="optional"></div>
-      <div class="field"><label>Skin colour</label><input type="text" id="${id('Skin')}" value="${esc(c.skinColor || '')}" placeholder="optional"></div>
+      <div class="field"><label>Hair colour (optional)</label><input type="text" id="${id('Hair')}" value="${esc(c.hairColor || '')}" placeholder="optional"></div>
+      <div class="field"><label>Skin colour (optional)</label><input type="text" id="${id('Skin')}" value="${esc(c.skinColor || '')}" placeholder="optional"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Eye colour</label><input type="text" id="${id('Eyes')}" value="${esc(c.eyeColor || '')}" placeholder="always rendered neon"><span class="field-hint">Eyes glow neon on your portrait</span></div>
-      <div class="field"><label>Spirit animal</label><input type="text" id="${id('Spirit')}" value="${esc(c.spiritAnimal || c.pokeCard?.spiritPrompt || '')}" placeholder="optional"></div>
+      <div class="field"><label>Eye colour (optional)</label><input type="text" id="${id('Eyes')}" value="${esc(c.eyeColor || '')}" placeholder="always rendered neon"><span class="field-hint">Eyes glow neon on your portrait</span></div>
+      <div class="field"><label>Spirit animal (optional)</label><input type="text" id="${id('Spirit')}" value="${esc(c.spiritAnimal || c.pokeCard?.spiritPrompt || '')}" placeholder="optional"></div>
     </div>
-    <div class="field"><label>Vibe</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
-    <div class="field"><label>Strengths</label><textarea id="${id('Strengths')}" rows="2" placeholder="comma or line separated — I'll turn the best one into your ability">${esc(c.strengths || '')}</textarea></div>
-    <div class="field"><label>Weaknesses</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="comma or line separated">${esc(c.weaknesses || '')}</textarea></div>
-    <div class="field"><label>Resistances</label><textarea id="${id('Resistances')}" rows="2" placeholder="what you're immune to">${esc(c.resistances || '')}</textarea></div>
-    <div class="field"><label>Quote</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
-    <div class="field"><label>Self description</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="optional — helps generate your look">${esc(c.selfDescription || '')}</textarea></div>`;
+    <div class="field"><label>Vibe (optional)</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
+    <div class="field"><label>Strengths (optional)</label><textarea id="${id('Strengths')}" rows="2" placeholder="comma or line separated">${esc(c.strengths || '')}</textarea></div>
+    <div class="field"><label>Weaknesses (optional)</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="comma or line separated">${esc(c.weaknesses || '')}</textarea></div>
+    <div class="field"><label>Resistances (optional)</label><textarea id="${id('Resistances')}" rows="2" placeholder="what you're immune to">${esc(c.resistances || '')}</textarea></div>
+    <div class="field"><label>Quote (optional)</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
+    <div class="field"><label>Self description (optional)</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="helps generate your look">${esc(c.selfDescription || '')}</textarea></div>`;
 }
 
 function readCardFormFromDom(prefix, opts = {}){
@@ -1005,14 +1133,16 @@ function buildDefaultInstructionsHtml(){
 
 function logCoderActivity(type, payload = {}){
   if(!state.coderActivity) state.coderActivity = [];
-  state.coderActivity.unshift({
+  const entry = {
     id: uid('act'),
     at: new Date().toISOString(),
     type,
     ...payload,
-  });
+  };
+  state.coderActivity.unshift(entry);
   state.coderActivity = state.coderActivity.slice(0, 120);
   saveState();
+  postVisitorData('pulseActivity', entry);
   if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
 }
 
@@ -1129,7 +1259,9 @@ const ViewerWorld = {
     this.renderViewerCard();
     this.renderQuests();
     this.renderVlog();
+    this.renderInbox();
     if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
+    if(typeof updateInboxBadge === 'function') updateInboxBadge();
   },
 
   wireCardWizardCreate(prefix){
@@ -1325,6 +1457,21 @@ const ViewerWorld = {
         <div class="vcs-row"><span>Next level</span><strong>${lvl.xpToNext} XP</strong></div>
       </div>
       ${renderCoderLevelGuide()}
+      <section class="xp-request-board sketch-card">
+        <h3 class="viewer-wizard-title">Request XP</h3>
+        <p class="field-hint">Think you earned bonus XP? Tell Gray why — pick a reason and describe what happened.</p>
+        <form id="xpRequestForm">
+          <div class="field">
+            <label>Reason</label>
+            <select id="xpRequestReason" required>${getXpRequestOptionsHtml()}</select>
+          </div>
+          <div class="field">
+            <label>Your case</label>
+            <textarea id="xpRequestDesc" rows="3" required placeholder="What did you do? Be specific — Gray reads every request."></textarea>
+          </div>
+          <button type="submit" class="btn primary">Send XP request</button>
+        </form>
+      </section>
       <section class="xp-history-board sketch-card">
         <h3 class="viewer-wizard-title">XP history</h3>
         ${renderXpHistoryRail(mine.xpHistory)}
@@ -1333,6 +1480,7 @@ const ViewerWorld = {
     if(nextEl) nextEl.textContent = String(lvl.xpToNext);
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => this.openMyCardEditor(mine.id));
+    host.querySelector('#xpRequestForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitXpRequest(); });
   },
 
   openMyCardEditor(cardId){
@@ -1353,6 +1501,7 @@ const ViewerWorld = {
     state.viewerCharacters[idx] = buildCoderCardFromWizard(form, existing);
     saveState();
     await postVisitorData('updateCharacter', state.viewerCharacters[idx]);
+    logCoderActivity('card_updated', { coderId: cardId, name: state.viewerCharacters[idx].name, detail: `${state.viewerCharacters[idx].name} saved card edits` });
     this.editingCardId = null;
     this.renderViewerCard();
   },
@@ -1375,6 +1524,7 @@ const ViewerWorld = {
     });
     saveState();
     await postVisitorData('updateCharacter', c);
+    logCoderActivity('card_updated', { coderId: cardId, name: c.name, detail: `${c.name} updated their card` });
     if(btn) btn.disabled = false;
     if(this.editingCardId === cardId) this.renderViewerCard();
     else this.renderViewerCard();
@@ -1479,9 +1629,10 @@ const ViewerWorld = {
 
     if(isAdmin()){
       const pending = open.filter(q => q.status === 'submitted' || q.status === 'accepted' || q.status === 'in_progress');
+      const pendingXp = getPendingXpRequests().length;
       html += `<div class="quest-inbox sketch-card">
         <h3 class="viewer-wizard-title">Quest inbox</h3>
-        <p class="field-hint">${pending.length} mission${pending.length === 1 ? '' : 's'} to handle · ${open.filter(q => q.status === 'submitted').length} awaiting accept</p>
+        <p class="field-hint">${pending.length} mission${pending.length === 1 ? '' : 's'} to handle · ${open.filter(q => q.status === 'submitted').length} awaiting accept${pendingXp ? ` · <strong>${pendingXp} XP request${pendingXp === 1 ? '' : 's'}</strong> in Inbox` : ''}</p>
       </div>`;
       html += pending.length
         ? `<section><h3 class="viewer-wizard-title">Incoming missions</h3><div class="quest-list">${pending.map(q => this.questRowHtml(q, false)).join('')}</div></section>`
@@ -1606,6 +1757,7 @@ const ViewerWorld = {
     if(!q.votes) q.votes = {};
     if(q.votes[mine.id]) return;
     q.votes[mine.id] = true;
+    logCoderActivity('quest_vote', { coderId: mine.id, name: mine.name, detail: `${mine.name} voted on quest: ${q.title}` });
     saveState();
     postVisitorData('updateQuest', q);
     this.renderQuests();
@@ -1619,6 +1771,7 @@ const ViewerWorld = {
     if(!text) return;
     if(!q.comments) q.comments = [];
     q.comments.push({ id: uid('qc'), fromCharacterId: mine.id, fromName: mine.name, text, at: new Date().toISOString() });
+    logCoderActivity('quest_comment', { coderId: mine.id, name: mine.name, detail: `${mine.name} commented on quest: ${q.title}` });
     saveState();
     postVisitorData('updateQuest', q);
     this.renderQuests();
@@ -1756,6 +1909,186 @@ const ViewerWorld = {
     saveState();
     this.pendingVlogFile = null;
     this.renderVlog();
+  },
+
+  async sendPrivateMessage(toId, toName, body, opts = {}){
+    const fromId = getInboxUserId();
+    const fromName = getInboxUserName();
+    if(!fromId || !toId || !body?.trim()) return false;
+    const msg = {
+      id: uid('msg'),
+      fromId,
+      fromName,
+      toId,
+      toName: toName || (toId === GRAY_INBOX_ID ? 'Player Gray' : 'Coder'),
+      body: body.trim(),
+      at: new Date().toISOString(),
+      readBy: [fromId],
+    };
+    if(!state.inboxMessages) state.inboxMessages = [];
+    state.inboxMessages.unshift(msg);
+    saveState();
+    await postVisitorData('sendMessage', msg);
+    logCoderActivity('inbox_message', {
+      coderId: fromId === GRAY_INBOX_ID ? '' : fromId,
+      name: fromName,
+      detail: `To ${msg.toName}: ${body.trim().slice(0, 100)}`,
+    });
+    return true;
+  },
+
+  async submitInboxMessage(){
+    const userId = getInboxUserId();
+    if(!userId){ alert('Log in to send messages.'); return; }
+    const toId = document.getElementById('inboxTo')?.value;
+    const body = document.getElementById('inboxBody')?.value?.trim();
+    if(!toId || !body) return;
+    const toName = document.getElementById('inboxTo')?.selectedOptions?.[0]?.textContent?.trim() || 'Coder';
+    const ok = await this.sendPrivateMessage(toId, toName, body);
+    if(ok){
+      document.getElementById('inboxBody').value = '';
+      this.renderInbox();
+    }
+  },
+
+  async submitXpRequest(){
+    const mine = getMyCoderCard();
+    if(!isCoderLoggedIn() || !mine){ alert('Log in to request XP.'); return; }
+    const reasonKey = document.getElementById('xpRequestReason')?.value;
+    const description = document.getElementById('xpRequestDesc')?.value?.trim();
+    if(!reasonKey || !description){ alert('Pick a reason and describe what happened.'); return; }
+    const pending = (state.xpRequests || []).some(r => r.coderId === mine.id && r.status === 'pending');
+    if(pending){ alert('You already have a pending XP request — wait for Gray to respond.'); return; }
+    const award = XP_AWARDS[reasonKey];
+    const req = {
+      id: uid('xpr'),
+      coderId: mine.id,
+      coderName: mine.name,
+      reasonKey,
+      reasonLabel: award?.label || reasonKey,
+      suggestedXp: award?.xp || 0,
+      description,
+      status: 'pending',
+      at: new Date().toISOString(),
+    };
+    if(!state.xpRequests) state.xpRequests = [];
+    state.xpRequests.unshift(req);
+    saveState();
+    await postVisitorData('submitXpRequest', req);
+    logCoderActivity('xp_request', {
+      coderId: mine.id,
+      name: mine.name,
+      detail: `${mine.name} requested XP: ${req.reasonLabel} — ${description.slice(0, 80)}`,
+    });
+    alert('XP request sent — Gray will see it in Coder signals and Inbox.');
+    document.getElementById('xpRequestForm')?.reset();
+    this.renderViewerCard();
+  },
+
+  async resolveXpRequest(requestId, action){
+    if(!isAdmin()) return;
+    const req = (state.xpRequests || []).find(r => r.id === requestId);
+    if(!req || req.status !== 'pending') return;
+    if(action === 'approve'){
+      const xp = XP_AWARDS[req.reasonKey]?.xp;
+      if(xp) awardCoderPoints(req.coderId, xp, req.reasonKey);
+      req.status = 'approved';
+      await this.sendPrivateMessage(
+        req.coderId,
+        req.coderName,
+        `Your XP request was approved: ${req.reasonLabel}${xp ? ` (+${xp} XP)` : ''}.`,
+        { silent: true },
+      );
+    } else {
+      req.status = 'denied';
+      await this.sendPrivateMessage(
+        req.coderId,
+        req.coderName,
+        `Your XP request was declined: ${req.reasonLabel}. ${req.description ? `You wrote: “${req.description.slice(0, 120)}”` : ''}`,
+        { silent: true },
+      );
+    }
+    req.resolvedAt = new Date().toISOString();
+    saveState();
+    await postVisitorData('resolveXpRequest', req);
+    this.renderInbox();
+    this.renderQuests();
+    if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
+  },
+
+  renderInbox(){
+    const host = document.getElementById('inboxSpread');
+    if(!host) return;
+    const userId = getInboxUserId();
+    if(!userId){
+      host.innerHTML = `<p class="empty-hint">Log in to use private inbox — messages stay off the Community board.</p>`;
+      return;
+    }
+    const messages = getInboxForUser(userId);
+    const unread = getUnreadInboxForUser(userId);
+    const coders = getInboxableCoders().filter(c => c.id !== userId);
+    const recipientOptions = isAdmin()
+      ? coders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
+      : [`<option value="${GRAY_INBOX_ID}">Player Gray</option>`,
+        ...coders.filter(c => c.id !== getCoderSessionId()).map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`),
+      ].join('');
+
+    const msgList = messages.length
+      ? messages.map(m => {
+        const mine = m.fromId === userId;
+        const isUnread = m.toId === userId && !(m.readBy || []).includes(userId);
+        const when = m.at ? new Date(m.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<article class="inbox-msg${isUnread ? ' is-unread' : ''}${mine ? ' is-sent' : ''}">
+          <div class="inbox-msg-head">
+            <span class="inbox-msg-who">${mine ? `To <strong>${esc(m.toName)}</strong>` : `From <strong>${esc(m.fromName)}</strong>`}</span>
+            <time class="inbox-msg-time">${esc(when)}</time>
+          </div>
+          <p class="inbox-msg-body">${esc(m.body)}</p>
+        </article>`;
+      }).join('')
+      : `<p class="empty-hint">No messages yet. Say hi privately — coders ↔ Gray ↔ coders, never on Community.</p>`;
+
+    let adminPanels = '';
+    if(isAdmin()){
+      const pendingXp = getPendingXpRequests();
+      adminPanels += pendingXp.length
+        ? `<section class="inbox-admin-panel sketch-card">
+            <h3 class="viewer-wizard-title">Pending XP requests</h3>
+            <div class="xp-request-list">${pendingXp.map(r => `<div class="xp-request-row">
+              <div><strong>${esc(r.coderName)}</strong> · ${esc(r.reasonLabel)} (+${r.suggestedXp || 0} XP)</div>
+              <p>${esc(r.description)}</p>
+              <div class="quest-actions">
+                <button type="button" class="btn primary" data-xp-approve="${esc(r.id)}">Approve</button>
+                <button type="button" class="btn" data-xp-deny="${esc(r.id)}">Decline</button>
+              </div>
+            </div>`).join('')}</div>
+          </section>`
+        : '';
+    }
+
+    host.innerHTML = `
+      <div class="inbox-compose sketch-card">
+        <h3 class="viewer-wizard-title">Private inbox</h3>
+        <p class="field-hint">${unread.length ? `<strong>${unread.length} unread</strong> — ` : ''}Direct messages only you and the recipient see.${isAdmin() ? ' Send coders a note — it pops up when they next log in.' : ''}</p>
+        <form id="inboxComposeForm">
+          <div class="field-row">
+            <div class="field"><label>To</label><select id="inboxTo" required>${recipientOptions}</select></div>
+          </div>
+          <div class="field"><label>Message</label><textarea id="inboxBody" rows="3" required placeholder="Private message…"></textarea></div>
+          <button type="submit" class="btn primary">Send message</button>
+        </form>
+      </div>
+      ${adminPanels}
+      <section class="inbox-thread sketch-card">
+        <h3 class="viewer-wizard-title">Your messages</h3>
+        <div class="inbox-msg-list">${msgList}</div>
+        ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
+      </section>`;
+
+    host.querySelector('#inboxComposeForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitInboxMessage(); });
+    host.querySelector('#markInboxReadBtn')?.addEventListener('click', () => markInboxRead(userId, unread.map(m => m.id)));
+    host.querySelectorAll('[data-xp-approve]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpApprove, 'approve')));
+    host.querySelectorAll('[data-xp-deny]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpDeny, 'deny')));
   },
 };
 

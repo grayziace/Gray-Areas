@@ -1,5 +1,7 @@
 /* Cloudflare Pages — append viewer quests / characters to visitor-data.json */
 
+import { notifyGrayFromActivity } from '../_shared/notify-gray.js';
+
 async function githubRequest(url, token, options = {}) {
   const res = await fetch(url, {
     ...options,
@@ -73,7 +75,7 @@ export async function onRequestPost(context) {
       env.GITHUB_TOKEN,
     );
 
-    let store = { viewerCharacters: [], quests: [], videoDiary: [] };
+    let store = { viewerCharacters: [], quests: [], videoDiary: [], inboxMessages: [], xpRequests: [], coderActivityPulses: [] };
     let sha = null;
     if (getRes.ok && fileMeta.content) {
       sha = fileMeta.sha;
@@ -104,9 +106,40 @@ export async function onRequestPost(context) {
       else store.quests.push(payload);
     } else if (action === 'deleteCharacter') {
       store.viewerCharacters = (store.viewerCharacters || []).filter(c => c.id !== payload.id);
+    } else if (action === 'pulseActivity') {
+      store.coderActivityPulses = store.coderActivityPulses || [];
+      const exists = store.coderActivityPulses.some(a => a.id === payload.id);
+      if (!exists) {
+        store.coderActivityPulses.unshift(payload);
+        store.coderActivityPulses = store.coderActivityPulses.slice(0, 200);
+      }
+    } else if (action === 'sendMessage') {
+      store.inboxMessages = store.inboxMessages || [];
+      store.inboxMessages.unshift(payload);
+      store.inboxMessages = store.inboxMessages.slice(0, 500);
+    } else if (action === 'markMessagesRead') {
+      store.inboxMessages = store.inboxMessages || [];
+      const ids = Array.isArray(payload.ids) ? payload.ids : [];
+      const readerId = payload.readerId;
+      store.inboxMessages = store.inboxMessages.map(m => {
+        if (!ids.includes(m.id) || !readerId) return m;
+        const readBy = Array.isArray(m.readBy) ? [...m.readBy] : [];
+        if (!readBy.includes(readerId)) readBy.push(readerId);
+        return { ...m, readBy };
+      });
+    } else if (action === 'submitXpRequest') {
+      store.xpRequests = store.xpRequests || [];
+      const exists = store.xpRequests.some(r => r.id === payload.id);
+      if (!exists) store.xpRequests.unshift(payload);
+    } else if (action === 'resolveXpRequest') {
+      store.xpRequests = store.xpRequests || [];
+      const idx = store.xpRequests.findIndex(r => r.id === payload.id);
+      if (idx >= 0) store.xpRequests[idx] = { ...store.xpRequests[idx], ...payload };
     } else {
       return jsonResponse({ error: 'Unknown action' }, 400);
     }
+
+    const notifyActivity = (action === 'pulseActivity') ? payload : null;
 
     const content = JSON.stringify(store, null, 2);
     const { res: putRes, data: putData } = await githubRequest(
@@ -125,6 +158,11 @@ export async function onRequestPost(context) {
     );
 
     if (!putRes.ok) throw new Error(putData.message || 'GitHub write failed');
+
+    if (notifyActivity) {
+      try { await notifyGrayFromActivity(env, notifyActivity); } catch (err) { console.error('visitor-submit notify:', err); }
+    }
+
     return jsonResponse({ ok: true });
   } catch (err) {
     console.error('visitor-submit:', err);

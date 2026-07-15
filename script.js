@@ -43,6 +43,9 @@ function applyAdminUI(){
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   if(admin && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+  const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+  document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.toggle('hidden', !canInbox));
+  if(typeof updateInboxBadge === 'function') updateInboxBadge();
   const pinForm = document.getElementById('pinForm');
   if(pinForm) pinForm.classList.toggle('hidden', !canPost);
   const commHint = document.getElementById('commBoardHint');
@@ -1812,7 +1815,7 @@ function navigateToView(view){
   } else if(view !== 'mind'){
     document.body.classList.remove('mind-channel-open', 'mind-repair-active');
   }
-  if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions'){
+  if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions' || view === 'inbox'){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   }
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
@@ -2811,11 +2814,16 @@ const HomeCheckIn = {
 /* ---------- Coder activity rail (Player Gray) ---------- */
 const CODER_ACTIVITY_META = {
   card_created: { label: 'Card created', icon: '◆', neon: '#fcd34d' },
+  card_updated: { label: 'Card updated', icon: '✎', neon: '#fcd34d' },
   quest_sent: { label: 'Quest sent', icon: '▶', neon: '#4ade80' },
   quest_complete: { label: 'Quest completed', icon: '★', neon: '#3ad6e0' },
+  quest_comment: { label: 'Quest comment', icon: '💬', neon: '#4ade80' },
+  quest_vote: { label: 'Quest vote', icon: '▲', neon: '#86efac' },
   xp_award: { label: 'XP awarded', icon: '↑', neon: '#fbbf24' },
+  xp_request: { label: 'XP request', icon: '?', neon: '#fbbf24' },
   community_post: { label: 'Community post', icon: '◎', neon: '#38bdf8' },
   community_reply: { label: 'Reply', icon: '↩', neon: '#a78bfa' },
+  inbox_message: { label: 'Private message', icon: '✉', neon: '#c084fc' },
 };
 
 function openCoderNotify(){
@@ -4371,7 +4379,14 @@ function renderPinboard(){
           time: new Date().toISOString(),
         });
         saveState();
-        LiveSync?.pinPosted(name, location);
+        if(typeof logCoderActivity === 'function'){
+          logCoderActivity('community_reply', {
+            coderId: author.characterId || '',
+            name: author.name,
+            detail: `${author.name} replied on Community`,
+          });
+        }
+        LiveSync?.pinPosted(author.name, location);
         renderPinboard();
       };
       if(file){

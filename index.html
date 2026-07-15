@@ -155,6 +155,7 @@
       <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span>System Overload</span></button>
       <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
       <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
+      <button data-view="inbox" class="node-btn inbox-nav hidden" style="--nc:#c084fc"><span class="node-dot"></span><span>Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
@@ -341,6 +342,12 @@
       <h2 class="view-title sketch-title" id="questViewTitle">Quests</h2>
       <p class="gallery-hint viewer-hint" id="questViewHint">Give Gray missions — places, food, comfort, Press pieces, meetups.</p>
       <div id="questSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-inbox" style="--sec-neon:#c084fc">
+      <h2 class="view-title sketch-title">Inbox</h2>
+      <p class="gallery-hint viewer-hint">Private messages — coders ↔ Gray ↔ coders. Not on the Community board.</p>
+      <div id="inboxSpread"></div>
     </section>
 
     <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">

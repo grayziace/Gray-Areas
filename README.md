@@ -31,6 +31,24 @@ On your **Cloudflare Pages** URL, edits in **editing mode** auto-save to GitHub 
 
 Add both for **Production** (and Preview if you use preview deploys). Redeploy once after adding them.
 
+### Instant email / text when coders do anything
+
+Add these **optional** env vars on Cloudflare Pages (Settings → Environment variables). Without them, Coder signals in the app still work — you just won't get email/SMS.
+
+| Variable | Value |
+|----------|--------|
+| `RESEND_API_KEY` | API key from [resend.com](https://resend.com) (free tier works) |
+| `GRAY_NOTIFY_EMAIL` | Your email address |
+| `RESEND_FROM` | Verified sender, e.g. `Gray Areas <notify@yourdomain.com>` (optional — defaults to Resend onboarding address) |
+| `GRAY_NOTIFY_PHONE` | Your mobile number, e.g. `+44…` (optional, for SMS) |
+| `TWILIO_ACCOUNT_SID` | From Twilio (optional, for SMS) |
+| `TWILIO_AUTH_TOKEN` | From Twilio (optional, for SMS) |
+| `TWILIO_FROM_NUMBER` | Twilio sender number (optional, for SMS) |
+
+You'll get notified when coders create cards, send quests, post on Community, request XP, send private inbox messages, and more.
+
+**Private inbox:** Coders and Gray have an **Inbox** tab — direct messages that pop up on next login. Gray can message specific coders; coders can message Gray or each other.
+
 Auto-sync only runs on the Cloudflare URL (not `file://` or GitHub Pages). **Export to code** in the sidebar is still there as a manual fallback.
 
 **What gets saved:**
