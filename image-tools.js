@@ -167,15 +167,34 @@ const ImageTools = (function(){
     const hiddenId = opts.hiddenId || `${p}_value`;
     const focus = opts.initialFocus || { x: opts.imageFocusX ?? 50, y: opts.imageFocusY ?? 50 };
     const framing = opts.framing !== false;
+    const variant = opts.previewVariant || (opts.kind === 'spirit' ? 'spirit' : 'portrait');
     const e = typeof esc === 'function' ? esc : s => String(s ?? '');
     const pos = `${focus.x}% ${focus.y}%`;
+    const variantClass = variant === 'spirit' ? 'image-gen-block--spirit' : 'image-gen-block--portrait';
+    const heroHint = variant === 'spirit'
+      ? 'Spirit sticker on your card'
+      : 'Portrait on your card front';
+
+    const heroInner = url
+      ? `<img src="${e(url)}" alt="" style="object-fit:cover;object-position:${pos}">`
+      : `<span class="ig-hero-empty">No image yet — describe below and hit Generate</span>`;
+
+    const frameClass = variant === 'spirit'
+      ? 'ig-frame-preview ig-frame-preview--spirit'
+      : 'ig-frame-preview card-photo-frame ig-frame-preview--portrait';
 
     return `
-    <div class="image-gen-block" data-img-prefix="${p}" data-img-hidden="${e(hiddenId)}">
-      <div class="field"><label>${e(label)}</label></div>
+    <div class="image-gen-block ${variantClass}" data-img-prefix="${p}" data-img-hidden="${e(hiddenId)}" data-img-variant="${variant}">
+      <div class="ig-hero-head">
+        <div>
+          <div class="ig-hero-title">${e(label)}</div>
+          <div class="ig-hero-sub">${heroHint}</div>
+        </div>
+      </div>
+      <div id="${p}_preview" class="ig-hero-preview ig-hero-preview--${variant}">${heroInner}</div>
       <div class="field">
         <label class="ig-sublabel">Describe</label>
-        <textarea id="${p}_desc" rows="2" placeholder="${e(placeholder)}">${e(desc)}</textarea>
+        <textarea id="${p}_desc" rows="3" placeholder="${e(placeholder)}">${e(desc)}</textarea>
       </div>
       <div class="gen-actions">
         <button type="button" class="btn primary" data-ig="gen-text" data-prefix="${p}">Generate from description</button>
@@ -194,12 +213,11 @@ const ImageTools = (function(){
         <input type="file" id="${p}_direct" accept="image/*" class="ig-file-input">
         <button type="button" class="btn admin-delete" data-ig="clear" data-prefix="${p}" id="${p}_clear"${url ? '' : ' disabled'}>Remove</button>
       </div>
-      <p class="gen-note">Describe → generate from text · Reference → same photo in anime cyberpunk · Upload as-is → frame with sliders</p>
-      <div id="${p}_preview" class="char-gen-preview">${url ? `<img src="${e(url)}" alt="" style="object-fit:cover;object-position:${pos};width:100%;max-height:220px">` : ''}</div>
+      <p class="gen-note">Describe → generate · Reference → anime stylize · Upload as-is → reposition with sliders</p>
       ${framing ? `
       <div class="ig-framing${url ? '' : ' hidden'}" id="${p}_framing">
-        <label class="ig-sublabel">Frame in card — use sliders to reposition</label>
-        <div class="ig-frame-preview card-photo-frame" id="${p}_frame_box">${url ? `<img src="${e(url)}" alt="" style="object-position:${pos}">` : ''}</div>
+        <label class="ig-sublabel">Frame in card — drag sliders to reposition</label>
+        <div class="${frameClass}" id="${p}_frame_box">${url ? `<img src="${e(url)}" alt="" style="object-position:${pos}">` : ''}</div>
         <div class="ig-focus-sliders">
           <label class="ig-focus-row"><span>Left ↔ Right</span><input type="range" id="${p}_focus_x_range" min="0" max="100" value="${focus.x}"></label>
           <label class="ig-focus-row"><span>Up ↔ Down</span><input type="range" id="${p}_focus_y_range" min="0" max="100" value="${focus.y}"></label>
@@ -211,25 +229,49 @@ const ImageTools = (function(){
     </div>`;
   }
 
-  function setPreview(prefix, url, focus, hiddenId){
+  function previewVariantFor(prefix){
+    const root = document.querySelector(`.image-gen-block[data-img-prefix="${prefix}"]`);
+    return root?.dataset?.imgVariant || 'portrait';
+  }
+
+  function heroPreviewHtml(url, prefix, focus){
     const fx = focus?.x ?? readFocusValues(prefix).x;
     const fy = focus?.y ?? readFocusValues(prefix).y;
+    if(!url){
+      return `<span class="ig-hero-empty">No image yet — describe below and hit Generate</span>`;
+    }
+    return `<img src="${url}" alt="" style="object-fit:cover;object-position:${fx}% ${fy}%">`;
+  }
+
+  function setLoadingPreview(prefix, message){
+    const prev = document.getElementById(`${prefix}_preview`);
+    if(!prev) return;
+    prev.innerHTML = `<div class="ig-hero-loading"><span class="ig-hero-loading-pulse"></span><span>${message || 'Generating…'}</span></div>`;
+    prev.classList.add('is-loading');
+  }
+
+  function clearLoadingPreview(prefix){
+    document.getElementById(`${prefix}_preview`)?.classList.remove('is-loading');
+  }
+
+  function setPreview(prefix, url, focus, hiddenId){
+    clearLoadingPreview(prefix);
     const prev = document.getElementById(`${prefix}_preview`);
     if(prev){
-      prev.innerHTML = url
-        ? `<img src="${url}" alt="" style="object-fit:cover;object-position:${fx}% ${fy}%;width:100%;max-height:220px">`
-        : '';
+      prev.innerHTML = url ? heroPreviewHtml(url, prefix, focus) : `<span class="ig-hero-empty">No image yet — describe below and hit Generate</span>`;
     }
     const clearBtn = document.getElementById(`${prefix}_clear`);
     if(clearBtn) clearBtn.disabled = !url;
     setFramingVisible(prefix, !!url);
-    updateFramePreview(prefix, hiddenId, { x: fx, y: fy });
+    updateFramePreview(prefix, hiddenId, focus || readFocusValues(prefix));
   }
 
   function setRefPreview(prefix, url){
     const el = document.getElementById(`${prefix}_ref_preview`);
     if(!el) return;
-    el.innerHTML = url ? `<img src="${url}" alt="" class="ig-ref-thumb"><span class="ig-ref-tag">Reference ready</span>` : '';
+    el.innerHTML = url
+      ? `<img src="${url}" alt="" class="ig-ref-thumb ig-ref-thumb--large"><span class="ig-ref-tag">Reference — will stylize to match describe box</span>`
+      : '';
     const btn = document.getElementById(`${prefix}_style_btn`);
     if(btn) btn.disabled = !url;
   }
@@ -291,14 +333,15 @@ const ImageTools = (function(){
       btn.disabled = true;
       const old = btn.textContent;
       btn.textContent = 'Generating…';
-      const prev = document.getElementById(`${p}_preview`);
-      if(prev) prev.innerHTML = '<span class="gen-loading">Painting…</span>';
+      setLoadingPreview(p, 'Painting your new look…');
       try{
         let url = await CharGen.generate(kind, desc);
         url = await maybeCrop(url, wireOpts);
         applyValue(wireOpts, url);
       }catch{
-        if(prev) prev.innerHTML = '<span class="gen-error">Failed — try upload instead.</span>';
+        clearLoadingPreview(p);
+        const prev = document.getElementById(`${p}_preview`);
+        if(prev) prev.innerHTML = '<span class="ig-hero-empty ig-hero-error">Failed — try upload instead.</span>';
       }finally{
         btn.disabled = false;
         btn.textContent = old;
@@ -327,14 +370,15 @@ const ImageTools = (function(){
       btn.disabled = true;
       const old = btn.textContent;
       btn.textContent = 'Stylizing…';
-      const prev = document.getElementById(`${p}_preview`);
-      if(prev) prev.innerHTML = '<span class="gen-loading">Stylizing — can take up to a minute…</span>';
+      setLoadingPreview(p, 'Stylizing reference — can take up to a minute…');
       try{
         const url = await CharGen.stylizeFromReference(kind, desc, ref);
         applyValue(wireOpts, await maybeCrop(url, wireOpts));
       }catch(err){
         console.error('Reference stylize failed:', err);
-        if(prev) prev.innerHTML = '<span class="gen-error">Stylize failed — try Generate from description, or Upload as-is.</span>';
+        clearLoadingPreview(p);
+        const prev = document.getElementById(`${p}_preview`);
+        if(prev) prev.innerHTML = '<span class="ig-hero-empty ig-hero-error">Stylize failed — try Generate or Upload as-is.</span>';
       }finally{
         btn.disabled = !refStore.get(p);
         btn.textContent = 'Anime stylize reference';

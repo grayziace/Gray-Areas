@@ -462,6 +462,8 @@ function playerCardEditorHtml(item, opts = {}){
       ${ImageTools.blockHtml({
         prefix: 'ce_portrait',
         label: 'Portrait',
+        kind: 'portrait',
+        previewVariant: 'portrait',
         currentUrl: img || '',
         descValue: item?.lookPrompt || '',
         descPlaceholder: 'Rose gold hair, sharp eyes, cyberpunk jacket, neon rain…',
@@ -473,6 +475,8 @@ function playerCardEditorHtml(item, opts = {}){
       ${showSpirit ? ImageTools.blockHtml({
         prefix: 'ce_spirit',
         label: 'Spirit animal',
+        kind: 'spirit',
+        previewVariant: 'spirit',
         currentUrl: pc.spiritAnimalImage || '',
         descValue: pc.spiritPrompt || '',
         descPlaceholder: 'Rose gold cybernetic fox, glowing pink eyes, neon tail…',

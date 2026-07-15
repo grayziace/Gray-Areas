@@ -22,6 +22,7 @@ function applyAdminUI(){
   document.body.classList.toggle('is-player', admin);
   document.body.classList.toggle('is-viewer', !admin);
   document.body.classList.toggle('is-guest', guest && !admin);
+  if(!admin) closeCoderNotify();
   const qt = document.getElementById('questViewTitle');
   const qh = document.getElementById('questViewHint');
   if(qt) qt.textContent = admin ? 'Quest Inbox' : 'Quests';
@@ -1644,9 +1645,12 @@ function navigateToView(view){
   document.querySelectorAll(`.node-btn[data-view="${view}"]`).forEach(b => b.classList.add('active'));
   document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view)?.classList.add('active');
+  document.body.dataset.activeView = view;
+  if(view === 'sync') closeCoderNotify();
   if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions'){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   }
+  if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
 }
 
 function bootApp(){
@@ -1671,6 +1675,8 @@ function bootApp(){
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
+  document.getElementById('toggleCoderNotify')?.addEventListener('click', toggleCoderNotify);
+  document.getElementById('coderNotifyBackdrop')?.addEventListener('click', closeCoderNotify);
   showLoginIfNeeded();
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
@@ -2023,6 +2029,22 @@ const HomeCheckIn = {
     spread.querySelectorAll('[data-pulse-quick]').forEach(btn => {
       btn.addEventListener('click', () => this.openPulseComposer(btn.dataset.pulseQuick));
     });
+    spread.querySelectorAll('[data-live-node-del]').forEach(btn => {
+      btn.addEventListener('click', () => this.deleteStreamNode(btn.dataset.liveNodeDel));
+    });
+  },
+
+  deleteStreamNode(nodeId){
+    if(!isAdmin() || !nodeId) return;
+    const key = todayKey();
+    const stream = getDayStream(key);
+    const node = stream.nodes.find(n => n.id === nodeId);
+    if(!node || node.type === 'wake' || node.type === 'sleep') return;
+    if(!confirm(`Remove this pulse from the transmission log?\n\n${node.text || node.type}`)) return;
+    stream.nodes = stream.nodes.filter(n => n.id !== nodeId);
+    if(state.entries[key]) state.entries[key].stream = stream;
+    saveState();
+    renderHomeCheckIn();
   },
 
   requireActiveDay(){
@@ -2376,10 +2398,11 @@ const HomeCheckIn = {
   },
 
   renderTimeline(stream, refDayKey){
+    const admin = isAdmin();
     if(!stream.nodes.length){
       return `<div class="live-rail-empty">
         <div class="live-rail-spine"></div>
-        <p>Awaiting transmission. Start day, then pulse updates.</p>
+        <p>${admin ? 'Awaiting transmission. Hit ▶ Start day, then drop pulses.' : 'Awaiting transmission. Start day, then pulse updates.'}</p>
       </div>`;
     }
     const sorted = [...stream.nodes].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
@@ -2399,7 +2422,9 @@ const HomeCheckIn = {
           const photoHtml = node.photo ? `<div class="live-node-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : '';
           const body = node.body && node.body !== node.text ? node.body : '';
           const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 220 ? body.slice(0, 220) + '…' : body)}</p>` : '';
-          return `<article class="live-node" style="--ln-neon:${meta.neon}">
+          const canDel = admin && node.type !== 'wake' && node.type !== 'sleep';
+          const delBtn = canDel ? `<button type="button" class="live-node-del" data-live-node-del="${esc(node.id)}" title="Remove pulse">×</button>` : '';
+          return `<article class="live-node${canDel ? ' is-editable' : ''}" style="--ln-neon:${meta.neon}">
             <div class="live-node-marker" title="${meta.label}">
               <span class="live-node-glow"></span>
               <span class="live-node-core"></span>
@@ -2410,6 +2435,7 @@ const HomeCheckIn = {
                 <span class="live-node-type">${meta.icon} ${meta.label}</span>
                 ${moodBadge}
                 ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
+                ${delBtn}
               </div>
               <p class="live-node-text">${esc(node.text || '')}</p>
               ${bodyHtml}
@@ -2604,15 +2630,46 @@ const CODER_ACTIVITY_META = {
   community_reply: { label: 'Reply', icon: '↩', neon: '#a78bfa' },
 };
 
+function openCoderNotify(){
+  if(!isAdmin()) return;
+  const rail = document.getElementById('coderNotifyRail');
+  if(!rail) return;
+  rail.classList.remove('hidden');
+  document.body.classList.add('coder-notify-open');
+  document.getElementById('coderNotifyBackdrop')?.classList.remove('hidden');
+}
+
+function closeCoderNotify(){
+  document.body.classList.remove('coder-notify-open');
+  document.getElementById('coderNotifyBackdrop')?.classList.add('hidden');
+  document.getElementById('coderNotifyRail')?.classList.add('hidden');
+}
+
+function toggleCoderNotify(){
+  if(document.body.classList.contains('coder-notify-open')) closeCoderNotify();
+  else openCoderNotify();
+}
+
+function updateCoderSignalBadge(){
+  const badge = document.getElementById('coderSignalBadge');
+  if(!badge) return;
+  const n = (state.coderActivity || []).length;
+  badge.textContent = String(n);
+  badge.classList.toggle('has-signals', n > 0);
+}
+
 function renderCoderNotifyRail(){
+  updateCoderSignalBadge();
   const rail = document.getElementById('coderNotifyRail');
   if(!rail) return;
   if(!isAdmin()){
     rail.classList.add('hidden');
     rail.innerHTML = '';
+    closeCoderNotify();
     return;
   }
-  rail.classList.remove('hidden');
+  if(!document.body.classList.contains('coder-notify-open')) rail.classList.add('hidden');
+  else rail.classList.remove('hidden');
   const acts = (state.coderActivity || []).slice(0, 80);
   const nodes = acts.length ? acts.map(act => {
     const meta = CODER_ACTIVITY_META[act.type] || { label: act.type, icon: '·', neon: '#94a3b8' };
@@ -2631,8 +2688,11 @@ function renderCoderNotifyRail(){
   }).join('') : `<p class="live-rail-empty">Coder activity will show here — quests, posts, XP, new cards.</p>`;
   rail.innerHTML = `
     <div class="coder-notify-head">
-      <span class="live-rail-label">Coder signal</span>
-      <span class="live-rail-count">${acts.length}</span>
+      <div>
+        <span class="live-rail-label">Coder signals</span>
+        <span class="coder-notify-sub">Quests · posts · XP · new cards</span>
+      </div>
+      <button type="button" class="coder-notify-close" id="closeCoderNotify" aria-label="Close">×</button>
     </div>
     <div class="coder-notify-scroll">
       <div class="live-rail-track">
@@ -2640,6 +2700,7 @@ function renderCoderNotifyRail(){
         <div class="live-rail-nodes">${nodes}</div>
       </div>
     </div>`;
+  document.getElementById('closeCoderNotify')?.addEventListener('click', closeCoderNotify);
 }
 
 function renderHomeCheckIn(){
@@ -2652,21 +2713,36 @@ function renderHomeCheckIn(){
   const nodeCount = stream.nodes.length;
   const onAir = stream.startedAt && !stream.endedAt;
 
+  spread.className = admin ? 'live-broadcast live-broadcast--edit' : 'live-broadcast';
+
   spread.innerHTML = `
     <aside class="live-rail-col">
       <div class="live-rail-head">
         <span class="live-rail-label">Transmission log</span>
-        <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}</span>
+        <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}${admin ? ' · edit' : ''}</span>
       </div>
       <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
     </aside>
 
     <main class="live-stage-col">
+      ${admin ? `<div class="live-edit-banner sketch-card">
+        <span class="live-edit-dot" aria-hidden="true"></span>
+        <div>
+          <p class="live-edit-kicker">Player Gray · edit mode</p>
+          <p class="live-edit-text">Start your day, edit the to-do list, drop pulses. Viewers see updates on the transmission log — tap × on a pulse to remove it.</p>
+        </div>
+      </div>` : ''}
+
       <div class="live-on-air ${onAir ? 'is-live' : ''}">
         <span class="live-on-air-dot"></span>
         <span class="live-on-air-text">${onAir ? 'ON AIR' : 'OFF AIR'} · Coming To You Live</span>
         <span class="live-on-air-date">${fmtDateLong(key)}</span>
       </div>
+
+      ${admin ? `<div class="live-controls live-controls--edit">
+        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
+        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
+      </div>` : ''}
 
       <div class="live-clocks-row">
         <div class="live-clock-card">
@@ -2689,12 +2765,7 @@ function renderHomeCheckIn(){
 
       ${HomeCheckIn.renderLiveTodos(admin)}
 
-      ${admin ? `<div class="live-controls">
-        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
-        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
-      </div>` : ''}
-
-      ${admin ? `<section class="live-pulse-board">
+      ${admin ? `<section class="live-pulse-board live-pulse-board--edit">
         <div class="live-pulse-head">
           <div>
             <h3 class="live-pulse-title">Drop a pulse</h3>

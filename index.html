@@ -167,6 +167,7 @@
     <div class="admin-bar admin-only hidden" id="adminBar">
       <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Player mode</span></div>
       <span class="sync-status" id="syncStatus" aria-live="polite"></span>
+      <button type="button" class="btn" id="toggleCoderNotify" title="Coder quests, posts, XP">Coder signals <span class="coder-signal-badge" id="coderSignalBadge">0</span></button>
       <button type="button" class="btn admin-exit" id="exitEditing">Exit player mode</button>
       <button type="button" class="btn" id="exportCodeBtn" title="Manual fallback — download content.js + site-state.js">Export to code</button>
     </div>
@@ -349,9 +350,11 @@
     </section>
 
   </div>
-  <aside class="coder-notify-rail admin-only hidden" id="coderNotifyRail" aria-label="Coder activity"></aside>
   </div>
 </div>
+
+<div class="coder-notify-backdrop hidden" id="coderNotifyBackdrop" aria-hidden="true"></div>
+<aside class="coder-notify-drawer hidden" id="coderNotifyRail" aria-label="Coder activity"></aside>
 
 <!-- Modals -->
 <div class="modal-back hidden" id="cardModalBack">

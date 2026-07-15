@@ -172,7 +172,7 @@ function tryPlayerLogin(name, key){
   if(normalizeCoderName(name) !== PLAYER_LOGIN_NAME) return false;
   if((key || '').trim() !== PLAYER_LOGIN_KEY) return false;
   if(typeof unlockAdmin === 'function'){
-    unlockAdmin({ toast: false, view: 'profile', welcome: false });
+    unlockAdmin({ toast: false, view: 'sync', welcome: false });
   }
   hideEntryGate();
   return true;
