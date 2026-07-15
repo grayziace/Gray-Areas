@@ -3,8 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gray Areas — Project Shenzhen</title>
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>Gray Areas</title>
+<script>
+(function(){
+  var href = location.href.split('#')[0].split('?')[0];
+  var base = href.substring(0, href.lastIndexOf('/') + 1);
+  var tag = document.createElement('base');
+  tag.href = base;
+  document.head.appendChild(tag);
+})();
+</script>
 <link rel="stylesheet" href="style.css">
+<script>
+(function(){
+  function finishBoot(){
+    document.body.classList.add('app-ready');
+    var el = document.getElementById('loading');
+    if(!el || el.dataset.dismissed) return;
+    el.dataset.dismissed = '1';
+    el.classList.add('is-dismissed');
+    setTimeout(function(){ if(el.parentNode) el.remove(); }, 500);
+  }
+  window.__gaFinishBoot = finishBoot;
+  window.addEventListener('pageshow', function(e){
+    if(e.persisted) finishBoot();
+  });
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(finishBoot, 8000);
+  });
+})();
+</script>
 </head>
 <body>
 
@@ -12,295 +41,325 @@
   <div class="glow a"></div>
   <div class="glow b"></div>
   <div class="glow c"></div>
+  <div class="rain"></div>
   <div class="grain"></div>
-  <svg id="skyline" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
-    <rect x="30" y="200" width="70" height="220" fill="#1b1030"/>
-    <rect x="110" y="150" width="45" height="270" fill="#160c26"/>
-    <rect x="180" y="220" width="55" height="200" fill="#1b1030"/>
-    <rect x="260" y="180" width="40" height="240" fill="#160c26"/>
-    <rect x="880" y="160" width="60" height="260" fill="#160c26"/>
-    <rect x="950" y="210" width="50" height="210" fill="#1b1030"/>
-    <rect x="1010" y="130" width="65" height="290" fill="#160c26"/>
-    <rect x="1090" y="190" width="45" height="230" fill="#1b1030"/>
-    <g fill="#e94ff5" opacity="0.55">
-      <rect x="45" y="220" width="5" height="7"/><rect x="65" y="240" width="5" height="7"/>
-      <rect x="45" y="270" width="5" height="7"/><rect x="65" y="300" width="5" height="7"/>
-      <rect x="895" y="190" width="5" height="7"/><rect x="915" y="220" width="5" height="7"/>
-    </g>
-    <g fill="#4fa3ff" opacity="0.5">
-      <rect x="120" y="180" width="5" height="7"/><rect x="135" y="210" width="5" height="7"/>
-      <rect x="120" y="240" width="5" height="7"/>
-      <rect x="1025" y="160" width="5" height="7"/><rect x="1045" y="200" width="5" height="7"/>
-      <rect x="1025" y="240" width="5" height="7"/>
-    </g>
-    <g fill="#3ad6e0" opacity="0.5">
-      <rect x="190" y="250" width="5" height="7"/><rect x="210" y="280" width="5" height="7"/>
-      <rect x="960" y="240" width="5" height="7"/><rect x="980" y="270" width="5" height="7"/>
-    </g>
-    <rect x="1145" y="80" width="10" height="340" fill="#e94ff5" opacity="0.3"/>
-    <rect x="1160" y="140" width="6" height="280" fill="#4fa3ff" opacity="0.3"/>
-  </svg>
+  <svg id="skyline" viewBox="0 0 2400 720" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg"></svg>
 </div>
 
-<!-- Loading sequence: UK -> Shenzhen -->
-<div id="loading" class="phase-uk">
-  <div class="scene-tiles">
-    <div class="tile">
-      <div class="uk-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="6" y="4" width="18" height="24" rx="2" fill="#c0323f"/><rect x="10" y="9" width="10" height="2" fill="#f3ecfb" opacity="0.6"/><rect x="10" y="14" width="10" height="2" fill="#f3ecfb" opacity="0.4"/></svg>
-      </div>
-      <div class="sz-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="9" y="2" width="6" height="26" fill="#e94ff5"/><rect x="17" y="8" width="6" height="20" fill="#4fa3ff"/></svg>
-      </div>
+<div id="loading">
+  <div class="intro-journey" id="introJourney">
+    <div class="intro-places">
+      <p class="intro-place intro-place-uk" id="introUk">United Kingdom</p>
+      <p class="intro-place intro-place-sz" id="introSz">Shenzhen</p>
     </div>
-    <div class="tile">
-      <div class="uk-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><rect x="4" y="6" width="8" height="20" fill="#8a5a3a"/><rect x="13" y="4" width="8" height="22" fill="#6b4226"/><rect x="22" y="7" width="6" height="19" fill="#8a5a3a"/></svg>
-      </div>
-      <div class="sz-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="9" fill="none" stroke="#3ad6e0" stroke-width="2"/><circle cx="15" cy="15" r="3" fill="#3ad6e0"/></svg>
-      </div>
-    </div>
-    <div class="tile">
-      <div class="uk-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><path d="M8 24 L15 6 L22 24 Z" fill="#c9a35a"/><rect x="6" y="24" width="18" height="3" fill="#e9d9c8"/></svg>
-      </div>
-      <div class="sz-glyph">
-        <svg width="30" height="30" viewBox="0 0 30 30"><line x1="6" y1="4" x2="2" y2="26" stroke="#9b5cff" stroke-width="2"/><line x1="16" y1="4" x2="12" y2="26" stroke="#4fa3ff" stroke-width="2"/><line x1="26" y1="4" x2="22" y2="26" stroke="#3ad6e0" stroke-width="2"/></svg>
-      </div>
+    <div class="intro-travel" id="introTravel" aria-hidden="true">
+      <span class="intro-travel-track"></span>
+      <span class="intro-travel-marker"></span>
     </div>
   </div>
-  <div class="loading-label" id="loadingLabel">United Kingdom</div>
-  <div class="loading-title" id="loadingTitle">Departure</div>
-  <div class="plane-track"><div class="plane-dot"></div></div>
-  <button class="skip-btn" id="skipLoading">Skip intro</button>
+  <div class="loading-brand" id="loadingBrand">
+    <h1 class="loading-title">Gray Areas</h1>
+    <p class="loading-sub">project shenzhen</p>
+  </div>
+  <button class="skip-btn" id="skipLoading" aria-label="Skip intro">×</button>
 </div>
 
 <div id="app">
-
   <aside class="sidebar">
-    <div class="brand">
-      <div class="name">Gray Areas</div>
-      <div class="sub">PROJECT SHENZHEN</div>
-    </div>
+    <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
-      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player: Gray</span></button>
-      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>The Relay</span></button>
-      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Chronos Ledger</span></button>
-      <button data-view="atlas" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>The Grid</span></button>
-      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>The Roster</span></button>
-      <button data-view="archive" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>The Archive</span></button>
-      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>The Wire</span></button>
+      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>About Gray</span></button>
+      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Home Check-In</span></button>
+      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
+      <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
+      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Player Cards</span></button>
+      <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>Skill Towers</span></button>
+      <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span>Media Log</span></button>
+      <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
+      <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
+      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Pinboard</span></button>
     </nav>
+    <div class="admin-bar admin-only hidden" id="adminBar">
+      <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Editing</span></div>
+      <button type="button" class="btn admin-exit" id="exitEditing">Exit editing</button>
+    </div>
+    <button class="admin-unlock" id="adminUnlock">·</button>
   </aside>
 
   <div class="main-col">
 
-    <!-- Player Profile -->
-    <section class="view active" id="view-profile">
-      <h2 class="view-title">Player profile</h2>
-      <p class="view-sub">Your character sheet for this run.</p>
-      <div class="card">
-        <div class="profile-hero">
-          <div class="profile-avatar">G</div>
-          <div class="profile-info">
-            <div class="profile-name">Gray</div>
-            <div class="profile-class">Class: Newcomer // Rank: <span id="profileRank">Level 1 explorer</span></div>
-            <div class="profile-rank" id="profileStats">0 days logged · 0 zones unlocked · 0 characters met</div>
-            <textarea class="profile-bio" id="profileBio" placeholder="write your character's bio here..."></textarea>
-            <div style="margin-top:10px;"><button class="btn primary" id="saveBio">Save bio</button></div>
-          </div>
+    <section class="view active neon-section" id="view-profile" style="--sec-neon:#ff4fd8">
+      <h2 class="view-title sketch-title">About Gray</h2>
+      <div class="about-root" id="aboutSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-sync" style="--sec-neon:#3ad6e0">
+      <h2 class="view-title sketch-title">Home Check-In</h2>
+      <div class="manga-spread" id="homeSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-ledger" style="--sec-neon:#9b5cff">
+      <h2 class="view-title sketch-title">Daily Log</h2>
+      <div class="log-header-bar">
+        <div class="log-tally" id="logTally">0 days logged</div>
+        <div class="log-cal-nav">
+          <button type="button" class="btn cal-nav-btn" id="calPrev" aria-label="Previous month">‹</button>
+          <span class="log-month-label" id="monthLabel"></span>
+          <button type="button" class="btn cal-nav-btn" id="calNext" aria-label="Next month">›</button>
         </div>
-        <div class="stat-grid">
-          <div class="vital">
-            <div class="vital-label"><span>Mood</span><span id="profileMoodLabel">—</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="profileMoodFill" style="width:0%"></div></div>
-          </div>
-          <div class="vital">
-            <div class="vital-label"><span>Steps this week</span><span id="profileStepsLabel">0</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="profileStepsFill" style="width:0%"></div></div>
-          </div>
-          <div class="vital">
-            <div class="vital-label"><span>Mandarin</span><span id="profileMandarinLabel">0%</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="profileMandarinFill" style="width:0%"></div></div>
-          </div>
+      </div>
+      <div class="log-calendar" id="logCalendar"></div>
+      <div class="log-edit-bar admin-only hidden" id="logEditBar">
+        <span class="log-edit-hint" id="logEditHint">Click any day to edit it</span>
+        <button type="button" class="btn" id="editTodayBtn">Jump to today</button>
+      </div>
+      <div class="daily-log-editor admin-only hidden" id="dailyLogEditor">
+        <input type="hidden" id="logDateKey" value="">
+        <h3 class="log-editor-title" id="logEditorTitle">Daily log</h3>
+        <div class="day-form-grid">
+          <div class="field"><label>Mood (1–10)</label><input type="range" id="logMood" min="1" max="10" value="7"><span class="range-val" id="logMoodVal">7</span></div>
+          <div class="field"><label>Steps</label><input type="number" id="logSteps" value="0"></div>
+          <div class="field"><label>Work hours</label><input type="number" id="logWork" min="0" step="0.5" value="0"></div>
+          <div class="field"><label>Mandarin (hrs)</label><input type="number" id="logMandarin" min="0" step="0.5" value="0"></div>
+          <div class="field"><label>Hobby</label><select id="logHobbySelect"><option value="">—</option></select></div>
+          <div class="field"><label>Hobby hours</label><input type="number" id="logHobbyHours" min="0" step="0.5" value="0"></div>
         </div>
+        <div class="field"><label>People met <span class="field-hint">comma-separated</span></label><input type="text" id="logPeople" placeholder="names"></div>
+        <div class="field"><label>Places discovered</label><input type="text" id="logPlaces" placeholder="or pick below"></div>
+        <div class="field"><label>From list</label><select id="logZone"><option value="">—</option></select></div>
+        <div class="field"><label>Diary entry</label><textarea id="logDiary" rows="5" placeholder="how the day actually felt"></textarea></div>
+        <div class="field"><label>Photos of the day</label><input type="file" id="logPhotos" accept="image/*" multiple></div>
+        <div class="day-photo-preview" id="dayPhotoPreview"></div>
+        <div class="log-editor-actions">
+          <button class="btn admin-delete" id="deleteDay" type="button">Delete day</button>
+          <button class="btn" id="cancelLog" type="button">Close</button>
+          <button class="btn primary" id="saveLog" type="button">Save day</button>
+        </div>
+      </div>
+      <p class="gallery-hint">In editing mode, click any day on the calendar to open and save that day.</p>
+    </section>
+
+    <section class="view neon-section" id="view-places" style="--sec-neon:#4fa3ff">
+      <h2 class="view-title sketch-title">Place Cards</h2>
+      <p class="gallery-hint">Click a card to flip it over.</p>
+      <div class="card-deck" id="placeDeck"></div>
+      <button class="btn admin-only hidden" id="addPlaceBtn" style="margin-top:14px">+ Add place</button>
+    </section>
+
+    <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
+      <h2 class="view-title sketch-title">Player Cards</h2>
+      <p class="gallery-hint">Click to flip.</p>
+      <div class="card-deck" id="charDeck"></div>
+      <button class="btn admin-only hidden" id="addCharBtn" style="margin-top:14px">+ Add player</button>
+    </section>
+
+    <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
+      <h2 class="view-title sketch-title">Skill Towers</h2>
+      <div class="tier-legend" id="tierLegend"></div>
+      <div class="skill-skyline-wrap">
+        <div class="skill-skyline" id="skillSkyline"></div>
+        <div class="skill-ground"></div>
+      </div>
+      <p class="gallery-hint">Click a tower to see the skill journey.</p>
+      <div class="card sketch-card edit-when-editing" style="margin-top:20px;">
+        <h3>Manage towers</h3>
+        <p class="gallery-hint" style="margin-top:0;">Add or edit towers and the hobbies that appear in the daily log. Adjust hours here too.</p>
+        <div id="skillControls"></div>
+        <button class="btn primary" id="addSkillBtn" type="button" style="margin-top:12px;">+ Add tower</button>
       </div>
     </section>
 
-    <!-- The Relay -->
-    <section class="view" id="view-sync">
-      <h2 class="view-title">The Relay</h2>
-      <p class="view-sub">A peaceful overview for anyone checking in from home.</p>
-      <div class="grid-2col">
-        <div class="card">
-          <h3>Recent discoveries</h3>
-          <div id="discoveryTicker"></div>
-        </div>
-        <div class="card">
-          <h3>Vitals</h3>
-          <div class="vital">
-            <div class="vital-label"><span>Current mood</span><span id="moodLabel">Good</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="moodFill" style="width:70%"></div></div>
+    <section class="view neon-section" id="view-drama" style="--sec-neon:#f43f8e">
+      <h2 class="view-title sketch-title">Media Log</h2>
+      <p class="gallery-hint">TV, film, books, albums, songs — rated with neon dots.</p>
+      <div class="drama-deck" id="dramaDeck"></div>
+      <button class="btn admin-only hidden" id="addDramaBtn" style="margin-top:16px;">+ Add media</button>
+    </section>
+
+    <section class="view neon-section" id="view-press" style="--sec-neon:#f472b6">
+      <h2 class="view-title sketch-title">The Press</h2>
+      <div class="manga-spread" id="pressSpread"></div>
+      <button class="btn admin-only hidden" id="addArticleBtn" style="margin-top:14px">+ Add article</button>
+    </section>
+
+    <section class="view neon-section" id="view-gallery" style="--sec-neon:#a78bfa">
+      <h2 class="view-title sketch-title">Photo Wall</h2>
+      <p class="gallery-hint">Click a photo to flip it over.</p>
+      <div class="photo-wall" id="photoWall"></div>
+      <button class="btn admin-only hidden" id="addGalleryBtn" style="margin-top:14px">+ Add photo</button>
+    </section>
+
+    <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
+      <h2 class="view-title sketch-title">Pinboard</h2>
+      <div class="pinboard-layout">
+        <form class="pin-form sketch-card" id="pinForm">
+          <div class="field-row">
+            <div class="field"><label>Name</label><input type="text" id="pinName" required placeholder="who are you"></div>
+            <div class="field"><label>Mood today (1–10)</label><input type="number" id="pinMood" min="1" max="10" value="7"></div>
           </div>
-          <div class="vital">
-            <div class="vital-label"><span>Steps this week</span><span id="stepsLabel">0</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="stepsFill" style="width:0%"></div></div>
-          </div>
-          <div class="bell">◈ <span id="bellText">No new updates yet — log a day to get started.</span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Chronos Ledger -->
-    <section class="view" id="view-ledger">
-      <h2 class="view-title">Chronos Ledger</h2>
-      <p class="view-sub" id="monthLabel"></p>
-      <div class="card">
-        <div class="month-grid" id="monthGrid"></div>
-      </div>
-    </section>
-
-    <!-- The Grid -->
-    <section class="view" id="view-atlas">
-      <h2 class="view-title">The Grid</h2>
-      <p class="view-sub">Unlock a zone whenever you log a new place in your daily entry.</p>
-      <div class="card">
-        <div class="atlas-grid" id="atlasGrid"></div>
-      </div>
-    </section>
-
-    <!-- The Roster -->
-    <section class="view" id="view-characters">
-      <h2 class="view-title">The Roster</h2>
-      <p class="view-sub">Everyone you've met so far — people, cats, whoever counts.</p>
-      <div class="char-grid" id="charGrid"></div>
-    </section>
-
-    <!-- The Archive -->
-    <section class="view" id="view-archive">
-      <h2 class="view-title">The Archive</h2>
-      <p class="view-sub">Language progress, dramas, hobbies.</p>
-      <div class="grid-2col">
-        <div class="card">
-          <h3>Mandarin module</h3>
-          <div class="skill-row">
-            <div class="vital-label"><span>Progress</span><span id="mandarinPct">0%</span></div>
-            <div class="vital-bar"><div class="vital-fill" id="mandarinFill" style="width:0%"></div></div>
-          </div>
-          <button class="btn" id="bumpMandarin">+ Log practice</button>
-        </div>
-        <div class="card">
-          <h3>CDrama database</h3>
-          <div class="drama-list" id="dramaList"></div>
-          <button class="btn" id="addDramaBtn" style="margin-top:10px;">+ Add drama</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- The Wire -->
-    <section class="view" id="view-comm">
-      <h2 class="view-title">The Wire</h2>
-      <p class="view-sub">Messages from home, whenever they're ready.</p>
-      <div class="card">
-        <div class="terminal" id="terminal"></div>
-        <div class="comm-input">
-          <input type="text" id="commInput" placeholder="type a message to Shenzhen...">
-          <button class="btn primary" id="commSend">Send</button>
-        </div>
+          <div class="field"><label>Say something</label><textarea id="pinText" required placeholder="whatever's on your mind"></textarea></div>
+          <div class="field"><label>Neon colour</label><input type="color" id="pinColor" value="#3ad6e0"></div>
+          <div class="field"><label>Photo (optional)</label><input type="file" id="pinPhoto" accept="image/*"></div>
+          <button class="btn primary" type="submit">Pin it</button>
+        </form>
+        <div class="pin-wall" id="pinWall"></div>
       </div>
     </section>
 
   </div>
 </div>
 
-<!-- Day log modal -->
+<!-- Modals -->
+<div class="modal-back hidden" id="cardModalBack">
+  <div class="modal card-modal"><button class="modal-close" id="closeCardModal">×</button><div id="cardModalContent"></div></div>
+</div>
+
+<div class="modal-back hidden" id="articleModalBack">
+  <div class="modal article-modal"><button class="modal-close" id="closeArticleModal">×</button><div id="articleModalContent"></div></div>
+</div>
+
 <div class="modal-back hidden" id="dayModalBack">
-  <div class="modal">
-    <h3 id="dayModalTitle">Log this day</h3>
-    <div class="field-row">
-      <div class="field">
-        <label>Mood (1-10)</label>
-        <input type="number" id="logMood" min="1" max="10" value="7">
-      </div>
-      <div class="field">
-        <label>Steps</label>
-        <input type="number" id="logSteps" value="0">
-      </div>
-    </div>
-    <div class="field">
-      <label>New place visited (unlocks a zone)</label>
-      <select id="logZone">
-        <option value="">— none today —</option>
+  <div class="modal sketch-card day-modal-wide">
+    <button class="modal-close" id="closeDayModal">×</button>
+    <h3 id="dayModalTitle"></h3>
+    <div id="dayDetailView"></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="dramaDetailBack">
+  <div class="modal drama-detail-modal">
+    <button class="modal-close" id="closeDramaDetail">×</button>
+    <div id="dramaDetailContent"></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="episodeModalBack">
+  <div class="modal sketch-card episode-modal">
+    <button class="modal-close" id="closeEpisodeModal">×</button>
+    <h3 id="episodeModalTitle"></h3>
+    <input type="hidden" id="epDramaId"><input type="hidden" id="epNum">
+    <div class="field"><label>Logged on</label><input type="date" id="epDate"></div>
+    <div class="ep-attr-grid" id="epAttrGrid"></div>
+    <div class="field"><label>Review notes</label><textarea id="epReview" rows="4"></textarea></div>
+    <div class="modal-actions"><button class="btn" id="cancelEpisode">Cancel</button><button class="btn primary" id="saveEpisode">Save rating</button></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="charModalBack">
+  <div class="modal sketch-card">
+    <h3>New player card</h3>
+    <div class="field"><label>Name</label><input type="text" id="charName"></div>
+    <div class="field"><label>Type</label><input type="text" id="charType" placeholder="Person / Creature"></div>
+    <div class="field"><label>Subtype</label><input type="text" id="charSubtype"></div>
+    <div class="field"><label>Quote</label><input type="text" id="charQuote"></div>
+    <div class="field"><label>Personality</label><input type="text" id="charPersonality"></div>
+    <div class="field"><label>Distinction</label><input type="text" id="charDistinction"></div>
+    <div class="modal-actions"><button class="btn" id="cancelChar">Cancel</button><button class="btn primary" id="saveChar">Add</button></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="dramaModalBack">
+  <div class="modal sketch-card">
+    <h3 id="dramaModalTitle">Add media</h3>
+    <input type="hidden" id="dramaEditId">
+    <div class="field"><label>Title</label><input type="text" id="dramaTitle"></div>
+    <div class="field"><label>Type</label>
+      <select id="dramaMediaType">
+        <option value="tv">TV Series</option>
+        <option value="film">Film</option>
+        <option value="book">Book</option>
+        <option value="album">Album</option>
+        <option value="song">Song</option>
       </select>
     </div>
-    <div class="field">
-      <label>New person or animal met</label>
-      <input type="text" id="logPerson" placeholder="e.g. Coffee Shop Cat">
-    </div>
-    <div class="field">
-      <label>Hobby practiced</label>
-      <input type="text" id="logHobby" placeholder="e.g. sketching">
-    </div>
-    <div class="field">
-      <label>Late night thoughts</label>
-      <textarea id="logThoughts" placeholder="the deeper stuff..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" id="cancelLog">Cancel</button>
-      <button class="btn primary" id="saveLog">Save entry</button>
-    </div>
-  </div>
-</div>
-
-<!-- Character add modal -->
-<div class="modal-back hidden" id="charModalBack">
-  <div class="modal">
-    <h3>New character</h3>
-    <div class="field">
-      <label>Name</label>
-      <input type="text" id="charName" placeholder="e.g. Yuèlíng">
-    </div>
-    <div class="field">
-      <label>Class</label>
-      <input type="text" id="charClass" placeholder="e.g. Fellow Teacher">
-    </div>
-    <div class="field">
-      <label>Quote</label>
-      <input type="text" id="charQuote" placeholder="something they said">
-    </div>
-    <div class="modal-actions">
-      <button class="btn" id="cancelChar">Cancel</button>
-      <button class="btn primary" id="saveChar">Add to gallery</button>
-    </div>
-  </div>
-</div>
-
-<!-- Drama add modal -->
-<div class="modal-back hidden" id="dramaModalBack">
-  <div class="modal">
-    <h3>New drama</h3>
-    <div class="field">
-      <label>Title</label>
-      <input type="text" id="dramaTitle" placeholder="drama title">
-    </div>
     <div class="field-row">
-      <div class="field">
-        <label>Genre</label>
-        <input type="text" id="dramaGenre" placeholder="e.g. wuxia">
-      </div>
-      <div class="field">
-        <label>Verdict (1-10)</label>
-        <input type="number" id="dramaVerdict" min="1" max="10" value="8">
-      </div>
+      <div class="field"><label>Genre / style</label><input type="text" id="dramaGenre"></div>
+      <div class="field"><label id="dramaTotalLabel">Total episodes</label><input type="number" id="dramaTotal" min="1" value="24"></div>
     </div>
+    <div class="field"><label>Status</label>
+      <select id="dramaStatus">
+        <option value="watching">Watching</option>
+        <option value="completed">Completed</option>
+        <option value="on-hold">On hold</option>
+        <option value="dropped">Dropped</option>
+      </select>
+    </div>
+    <div id="dramaImageBlock"></div>
+    <div class="modal-actions"><button class="btn" id="cancelDrama">Cancel</button><button class="btn primary" id="saveDrama">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="skillEditBack">
+  <div class="modal sketch-card">
+    <button class="modal-close" id="closeSkillEdit">×</button>
+    <h3 id="skillEditTitle">Edit tower</h3>
+    <input type="hidden" id="skillEditId">
+    <div class="field"><label>Tower name</label><input type="text" id="skillEditName" placeholder="e.g. Skateboarding"></div>
+    <div class="field"><label>Hobbies in daily log</label><input type="text" id="skillEditHobbies" placeholder="comma-separated, e.g. Photography, Sketching"><span class="field-hint">Each name becomes a hobby option linked to this tower. Leave blank to use the tower name.</span></div>
+    <div class="field"><label>Neon colour</label><input type="color" id="skillEditColor" value="#7c4dff"></div>
     <div class="modal-actions">
-      <button class="btn" id="cancelDrama">Cancel</button>
-      <button class="btn primary" id="saveDrama">Add</button>
+      <button class="btn admin-delete hidden" id="deleteSkillBtn" type="button">Delete tower</button>
+      <button class="btn" id="cancelSkillEdit" type="button">Cancel</button>
+      <button class="btn primary" id="saveSkillEdit" type="button">Save</button>
     </div>
   </div>
 </div>
 
-<script src="script.js"></script>
+<div class="modal-back hidden" id="skillJourneyBack">
+  <div class="modal skill-journey-modal">
+    <button class="modal-close" id="closeSkillJourney">×</button>
+    <div id="skillJourneyContent"></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="contentEditBack">
+  <div class="modal sketch-card content-edit-modal">
+    <button class="modal-close" id="closeContentEdit">×</button>
+    <h3 id="contentEditTitle">Edit</h3>
+    <input type="hidden" id="contentEditType">
+    <input type="hidden" id="contentEditId">
+    <div class="content-edit-scroll" id="contentEditFields"></div>
+    <div class="modal-actions">
+      <button class="btn admin-delete hidden" id="deleteContent" type="button">Delete</button>
+      <button class="btn" id="cancelContentEdit" type="button">Cancel</button>
+      <button class="btn primary" id="saveContentEdit" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="editToast" class="edit-toast hidden" aria-live="polite">Editing.</div>
+
+<div class="modal-back hidden" id="adminModalBack">
+  <div class="modal sketch-card">
+    <h3>Unlock editing</h3>
+    <div class="field"><label>Key</label><input type="password" id="adminKeyInput"></div>
+    <div class="modal-actions"><button class="btn" id="cancelAdmin">Cancel</button><button class="btn primary" id="confirmAdmin">Go</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var files = ['content.js', 'character-gen.js', 'image-tools.js', 'player-cards.js', 'place-cards.js', 'script.js'];
+  var i = 0;
+  function loadNext(){
+    if(i >= files.length){
+      if(!window.__grayAreasReady){
+        window.__gaFinishBoot?.();
+        console.error('Gray Areas did not start — check the browser console for errors.');
+      }
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = files[i++];
+    s.onload = loadNext;
+    s.onerror = function(){
+      console.error('Gray Areas: could not load', s.src);
+      loadNext();
+    };
+    document.body.appendChild(s);
+  }
+  loadNext();
+})();
+</script>
 </body>
 </html>
