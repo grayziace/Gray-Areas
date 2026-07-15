@@ -22,7 +22,7 @@
       "fire": 0,
       "questsSent": 0,
       "questsCompleted": 0,
-      "cardColor": "#f50000",
+      "cardColor": "#ff2828",
       "pokeCard": {
         "level": 1,
         "mbti": "Unknown",
@@ -56,13 +56,13 @@
         },
         "retreatCost": "1",
         "quote": "I promise I don't have a fringe kink",
-        "cardColor": "#f50000",
+        "cardColor": "#ff2828",
         "birthday": "2004-05-15",
         "spiritAnimalImage": ""
       },
       "cardDescription": "Dreads, red bandana, young guy, not intimidating",
       "isCoderCard": true,
-      "updatedAt": "2026-07-15T16:11:05.990Z",
+      "updatedAt": "2026-07-15T16:11:09.880Z",
       "consoleKey": "",
       "birthday": "2004-05-15",
       "cardSubtitle": "Viewer character",
@@ -111,17 +111,17 @@
         "abilities": [
           {
             "name": "So Socially Adaptable",
-            "effect": "Your so socially adaptable is your edge â when the board gets heavy, you steady the room."
+            "effect": "Your so socially adaptable is your edge Ã¢ÂÂ when the board gets heavy, you steady the room."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Fringes",
-          "effect": "Double impact from fringes â high-pressure days hit harder."
+          "effect": "Double impact from fringes Ã¢ÂÂ high-pressure days hit harder."
         },
         "resistance": {
           "name": "Rocks",
-          "effect": "Immune to rocks â you shrug off what would bend others."
+          "effect": "Immune to rocks Ã¢ÂÂ you shrug off what would bend others."
         },
         "retreatCost": "1",
         "quote": "I promise I don't have a fringe kink",
