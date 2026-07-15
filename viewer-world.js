@@ -9,43 +9,34 @@ const VISITOR_WRITE_KEY = 'gray-areas-visitor';
 const GRAY_INBOX_ID = 'gray';
 
 const POINTS = {
-  quest_submit: 5,
+  quest_submit: 10,
   quest_complete: 50,
 };
 
 const XP_AWARDS = {
-  quest_submit: { label: 'Quest sent', xp: 5, auto: true },
+  quest_submit: { label: 'Quest sent', xp: 10, auto: true },
   quest_complete: { label: 'Quest completed', xp: 50, auto: true },
-  meet_in_person: { label: 'Met in person', xp: 100 },
-  video_call: { label: 'Video call', xp: 50 },
-  phone_call: { label: 'Phone call', xp: 10 },
-  voice_note: { label: 'Voice note / voice message', xp: 8 },
-  letter_postcard: { label: 'Letter or postcard', xp: 25 },
-  care_package: { label: 'Care package sent', xp: 40 },
-  surprise_gift: { label: 'Surprise gift', xp: 30 },
-  inside_joke: { label: 'Made Gray laugh', xp: 15 },
-  emotional_support: { label: 'Emotional support', xp: 35 },
-  good_advice: { label: 'Genuinely good advice', xp: 20 },
-  media_rec: { label: 'Book/film rec Gray consumed', xp: 18 },
-  community_gem: { label: 'Great community post', xp: 5 },
-  milestone: { label: 'Shared a milestone', xp: 15 },
-  practical_help: { label: 'Helped Gray practically', xp: 45 },
-  chaos_quest: { label: 'Chaos gremlin quest (worked)', xp: 10 },
-  patience: { label: 'Patience during overload', xp: 25 },
-  mandarin_cheer: { label: 'Mandarin encouragement', xp: 12 },
-  photo_shoutout: { label: 'Photo shoutout', xp: 8 },
-  press_collab: { label: 'Press collab', xp: 30 },
   login: { label: 'Daily login', xp: 3, auto: true },
-  login_streak_7: { label: '7-day login streak', xp: 20 },
-  first_quest: { label: 'First quest ever', xp: 10 },
-  legendary: { label: 'Legendary moment', xp: 75 },
-  birthday: { label: 'Birthday', xp: 50 },
-  random_kindness: { label: 'Random kindness', xp: 20 },
-  showed_up: { label: 'Showed up when it mattered', xp: 60 },
-  taught_something: { label: 'Taught Gray something new', xp: 22 },
-  sent_photos: { label: 'Sent photos / memories', xp: 12 },
-  game_night: { label: 'Online hangout / game night', xp: 28 },
-  recipe_share: { label: 'Recipe or food tip', xp: 8 },
+  login_streak_7: { label: '7-day login streak', xp: 70 },
+  meet_in_person: { label: 'Met in person', xp: 200 },
+  video_call: { label: 'Video call', xp: 58 },
+  phone_call: { label: 'Phone call', xp: 25 },
+  voice_note: { label: 'Voice note / voice message', xp: 10 },
+  letter_postcard: { label: 'Letter or postcard', xp: 50 },
+  posted_to_gray: { label: 'Posted something for Gray', xp: 100 },
+  big_life_event: { label: 'Big life event', xp: 100 },
+  game_night: { label: 'Video gaming together', xp: 50 },
+  good_advice: { label: 'Genuinely good advice', xp: 25 },
+  bad_advice: { label: 'Really shitty advice', xp: 50 },
+  media_rec_5star: { label: 'Rec consumed — 5 stars', xp: 100 },
+  media_rec_4star: { label: 'Rec consumed — 4 stars', xp: 50 },
+  media_rec_low: { label: 'Rec finished below 4 stars', xp: 25 },
+  sent_photos: { label: 'Photos sent to Gray', xp: 15 },
+  community_post: { label: 'Community post', xp: 25 },
+  birthday: { label: 'Birthday', xp: 150 },
+  practical_help: { label: 'Helped Gray practically', xp: 50 },
+  inside_joke: { label: 'Made Gray laugh', xp: 15 },
+  random_vibe: { label: 'Just being a vibe (Gray picks amount)', xp: 0 },
   custom: { label: 'Custom award', xp: 0 },
 };
 
@@ -295,11 +286,39 @@ const GRAY_LOGIN_DAY_KEY = 'ga-gray-login-day';
 function tryPlayerLogin(name, key){
   if(normalizeCoderName(name) !== PLAYER_LOGIN_NAME) return false;
   if((key || '').trim() !== PLAYER_LOGIN_KEY) return false;
+  hideEntryGate();
   if(typeof unlockAdmin === 'function'){
     unlockAdmin({ toast: false, view: 'sync', welcome: false });
   }
-  hideEntryGate();
+  if(typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
+  if(typeof notifyGrayCoderBirthdays === 'function') notifyGrayCoderBirthdays();
   return true;
+}
+
+function getTodayBirthdayCoders(){
+  return (state.viewerCharacters || []).filter(c => c?.birthday && isBirthdayToday(c.birthday));
+}
+
+function notifyGrayCoderBirthdays(){
+  if(!isAdmin()) return;
+  const bdays = getTodayBirthdayCoders();
+  if(!bdays.length) return;
+  try{
+    const key = 'ga-gray-bday-alert:' + (typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10));
+    if(sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  }catch(e){}
+  const names = bdays.map(c => c.name).join(', ');
+  if(typeof logCoderActivity === 'function'){
+    bdays.forEach(c => logCoderActivity('birthday_today', { coderId: c.id, name: c.name, detail: `${c.name}'s birthday today — award 150 XP` }));
+  }
+  const toast = document.getElementById('editToast');
+  if(toast){
+    toast.textContent = `Birthday today: ${names}`;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast?.classList.add('hidden'), 5000);
+  }
+  if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
 }
 
 function ensureViewerState(){
@@ -511,7 +530,7 @@ function showBirthdayCelebration(card){
   if(!back || !title || !body) return;
   title.textContent = `Happy Birthday, ${card.name}!`;
   body.innerHTML = `<p>It's your birthday. Gray owes you cake eventually.</p>
-    <p class="birthday-xp">Gray awards birthday XP manually — enjoy the fanfare.</p>`;
+    <p class="birthday-xp">Birthday XP is <strong>150</strong> — Gray will award it when they see this.</p>`;
   back.classList.remove('hidden');
 }
 
@@ -1244,7 +1263,7 @@ function buildDefaultInstructionsHtml(){
       <p class="instructions-kicker">Hi!</p>
       <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
       <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
-      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. Whoever ranks <strong>#1 on the deck</strong> gets a present — I don't know what yet.</p>
+      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>10 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, posts, recs, all that. Whoever ranks <strong>#1 on the deck</strong> gets a present — I don't know what yet.</p>
       <p class="instructions-p"><strong>Levelling:</strong> you start at <strong>Lv 0</strong>. Every <strong>100 XP = +1 level</strong> (Lv 1 at 100 XP, Lv 2 at 200…). The deck sorts by XP — whoever's <strong>#1</strong> gets a present from Gray eventually. It's competition for fun, not a life score.</p>
       <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
       <h3 class="viewer-wizard-title">The sidebar</h3>

@@ -2868,6 +2868,28 @@ body.coder-notify-open .coder-notify-drawer{transform:translateX(0);}
   position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;
   border-radius:9px;font-size:9px;line-height:18px;text-align:center;
 }
+body.is-player-gray #inboxFab:not(.hidden),
+body.is-player-gray #grayRewardsFab:not(.hidden){
+  display:flex !important;align-items:center;justify-content:center;
+}
+
+.char-deck-item{margin-bottom:20px;}
+.coder-quote-log{
+  margin-top:10px;padding:12px 14px;border:1px dashed rgba(252,211,77,0.25);
+  border-radius:8px;background:rgba(252,211,77,0.04);
+}
+.coder-quote-title{margin:0 0 8px;font-family:var(--font-voice);font-size:12px;color:#fef08a;}
+.coder-quote-item{margin:0 0 10px;padding:8px 10px;border-left:2px solid rgba(252,211,77,0.45);}
+.coder-quote-item p{margin:0 0 4px;font-size:13px;line-height:1.45;}
+.coder-quote-item cite{font-size:10px;color:var(--text-low);font-style:normal;}
+.live-quote-board{margin-top:14px;}
+.live-quote-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.live-quote-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.live-quote-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;}
+.live-quote-item{margin:0;padding:10px 12px;border-left:2px solid rgba(252,211,77,0.5);background:rgba(255,255,255,0.02);}
+.live-quote-who{display:block;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#fcd34d;margin-bottom:4px;}
+.live-quote-item p{margin:0;font-size:13px;line-height:1.45;}
+.live-quote-item cite{display:block;margin-top:4px;font-size:10px;color:var(--text-low);font-style:normal;}
 
 .inbox-drawer-backdrop{
   position:fixed;inset:0;z-index:870;background:rgba(4,2,10,0.55);backdrop-filter:blur(2px);

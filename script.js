@@ -45,9 +45,19 @@ function applyAdminUI(){
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.add('hidden'));
-  document.getElementById('inboxFab')?.classList.toggle('hidden', !canInbox);
-  document.getElementById('grayRewardsFab')?.classList.toggle('hidden', !admin);
+  const inboxFab = document.getElementById('inboxFab');
+  const rewardsFab = document.getElementById('grayRewardsFab');
+  if(inboxFab){
+    inboxFab.classList.toggle('hidden', !canInbox);
+    if(canInbox) inboxFab.classList.remove('hidden');
+  }
+  if(rewardsFab){
+    rewardsFab.classList.toggle('hidden', !admin);
+    if(admin) rewardsFab.classList.remove('hidden');
+  }
   if(typeof updateInboxBadge === 'function') updateInboxBadge();
+  if(admin && typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
+  if(admin && typeof notifyGrayCoderBirthdays === 'function') notifyGrayCoderBirthdays();
   const pinForm = document.getElementById('pinForm');
   if(pinForm) pinForm.classList.toggle('hidden', !canPost);
   const commHint = document.getElementById('commBoardHint');
@@ -108,9 +118,16 @@ function unlockAdmin(opts = {}){
     }
   }
   if(opts.view){
-    const btn = document.querySelector(`.node-btn[data-view="${opts.view}"]`);
-    btn?.click();
+    if(typeof navigateToView === 'function') navigateToView(opts.view);
+    else document.querySelector(`.node-btn[data-view="${opts.view}"]`)?.click();
   }
+  if(typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
+}
+
+function refreshLiveViewForAdmin(){
+  if(!isAdmin()) return;
+  if(typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
+  if(typeof HomeCheckIn !== 'undefined') HomeCheckIn.startClock?.();
 }
 
 /* Easter egg: five quick clicks on "Gray Areas" → editing mode + Daily Log */
@@ -1101,6 +1118,8 @@ const STREAM_NODE_META = {
   learn: { label: 'Learned', neon: '#86efac', icon: '?' },
   vibe: { label: 'Vibe', neon: '#e879f9', icon: '◇' },
   memory: { label: 'Memory', neon: '#fda4af', icon: '⌛' },
+  quote: { label: 'Quote', neon: '#fcd34d', icon: '“' },
+  quest: { label: 'Quest', neon: '#4ade80', icon: '★' },
 };
 
 const PULSE_CARD_NEW = '__new__';
@@ -1339,6 +1358,17 @@ const PULSE_TYPE_DEFS = {
   memory: { fields: [
     { id: 'title', label: 'Memory hook', type: 'text' },
     { id: 'body', label: 'Memory', type: 'textarea', rows: 7, required: true },
+  ]},
+  quote: { fields: [
+    { id: 'text', label: 'Quote', type: 'textarea', rows: 4, required: true, placeholder: 'What they said — verbatim if you can' },
+    { id: 'who', label: 'Who said it', type: 'card_pick', entity: 'person', required: true },
+    { id: 'context', label: 'Context', type: 'text', placeholder: 'Where, when, why it was funny…' },
+  ]},
+  quest: { fields: [
+    { id: 'title', label: 'Quest', type: 'text', required: true, placeholder: 'Mission title or hook' },
+    { id: 'from', label: 'From (coder)', type: 'card_pick', entity: 'person' },
+    { id: 'status', label: 'Status', type: 'text', placeholder: 'Sent, accepted, completed…' },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
   ]},
 };
 
@@ -1975,7 +2005,9 @@ function buildPulseSummary(type, data){
     case 'call': return join('Call', data.who, data.duration ? `${data.duration}m` : '');
     case 'message': return join(data.who, (data.body || '').slice(0, 60));
     case 'learn': return data.what;
-    default: return data.body || data.title || data.what || data.name || '';
+    case 'quote': return join('“' + (data.text || '').slice(0, 80) + (data.text?.length > 80 ? '…”' : '”'), data.who);
+    case 'quest': return join('Quest', data.title, data.from, data.status);
+    default: return data.body || data.title || data.what || data.name || data.text || '';
   }
 }
 
@@ -2689,6 +2721,8 @@ const HomeCheckIn = {
     spread.querySelectorAll('[data-pulse-quick]').forEach(btn => {
       btn.addEventListener('click', () => this.openPulseComposer(btn.dataset.pulseQuick));
     });
+    spread.querySelector('#homeOpenQuotePulse')?.addEventListener('click', () => this.openPulseComposer('quote'));
+    spread.querySelector('#homeOpenQuestPulse')?.addEventListener('click', () => this.openPulseComposer('quest'));
     spread.querySelectorAll('[data-live-node-del]').forEach(btn => {
       btn.addEventListener('click', () => this.deleteStreamNode(btn.dataset.liveNodeDel));
     });
@@ -2867,7 +2901,7 @@ const HomeCheckIn = {
     const timeStr = document.getElementById('pulseTime')?.value || nowTimeInputValue();
     const at = composePulseAt(dateStr, timeStr);
     const text = buildPulseSummary(this.pulseType, data);
-    const body = data.body || data.caption || data.message || '';
+    const body = data.body || data.caption || data.message || data.text || '';
     const node = {
       id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       at,
@@ -2905,6 +2939,9 @@ const HomeCheckIn = {
     }
     if(this.pulseType === 'mood' && data.mood) patch.mood = data.mood;
     if(this.pulseType === 'photo' && data.photo) patch.photos = [...entry.photos, data.photo];
+    if(this.pulseType === 'quote' && data.text && data.who){
+      addCoderQuoteByName(data.who, data.text, data.context);
+    }
     if(Object.keys(patch).length) state.entries[metaKey] = { ...state.entries[metaKey], ...patch };
 
     saveState();
@@ -3304,6 +3341,7 @@ const CODER_ACTIVITY_META = {
   community_post: { label: 'Community post', icon: '◎', neon: '#38bdf8' },
   community_reply: { label: 'Reply', icon: '↩', neon: '#a78bfa' },
   inbox_message: { label: 'Private message', icon: '✉', neon: '#c084fc' },
+  birthday_today: { label: 'Birthday today', icon: '🎂', neon: '#fcd34d' },
 };
 
 function openCoderNotify(){
@@ -3458,17 +3496,20 @@ function renderHomeCheckIn(){
 
       ${HomeCheckIn.renderLiveTodos(admin)}
 
+      ${renderLiveQuoteBoard(admin)}
+
       ${admin ? `<section class="live-pulse-board live-pulse-board--edit">
         <div class="live-pulse-head">
           <div>
             <h3 class="live-pulse-title">Drop a pulse</h3>
-            <p class="live-pulse-hint">Person, place, and hobby pulses use your card library — pick existing or create new on the spot.</p>
+            <p class="live-pulse-hint">Person, place, hobby, quote, quest — pick existing cards or create new on the spot.</p>
           </div>
           <button type="button" class="btn primary" id="homeOpenPulse">+ Compose pulse</button>
         </div>
         <div class="live-pulse-quick">
-          ${['note','photo','mood','food','person','place','message','song','vibe','anxiety','win','travel','health'].map(id => {
+          ${['note','photo','mood','food','drink','quote','quest','person','place','message','song','vibe','win','travel','health','book','film','workout','idea','call','anxiety','hobby','event','gratitude'].map(id => {
             const meta = STREAM_NODE_META[id];
+            if(!meta || !PULSE_TYPE_DEFS[id]) return '';
             return `<button type="button" class="pulse-quick-btn" data-pulse-quick="${id}" style="--pq-neon:${meta.neon}" title="${meta.label}"><span>${meta.icon}</span> ${meta.label}</button>`;
           }).join('')}
         </div>
@@ -3772,11 +3813,110 @@ function renderCharacters(){
   if(!deck) return;
   const rankMap = getCoderXpRankMap();
   const chars = getRankedCoderCards();
-  deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i, {
-    xpRank: rankMap.get(c.id),
-    rankNeon: getCoderRankNeon(rankMap.get(c.id)),
-  })).join('');
+  deck.innerHTML = chars.map((c, i) => {
+    const card = buildFlipPlayerCard(c, 'character', i, {
+      xpRank: rankMap.get(c.id),
+      rankNeon: getCoderRankNeon(rankMap.get(c.id)),
+    });
+    const quoteLog = isAdmin() && isCoderDeckCard(c) ? renderCoderQuoteLog(c) : '';
+    return `<div class="char-deck-item">${card}${quoteLog}</div>`;
+  }).join('');
   bindFlipPlayerCards(deck);
+  bindCoderQuoteLogs(deck);
+}
+
+function findCoderCardByName(name){
+  const n = (name || '').trim().toLowerCase();
+  if(!n) return null;
+  return (typeof getCharacters === 'function' ? getCharacters() : []).find(c => (c.name || '').trim().toLowerCase() === n)
+    || (state.viewerCharacters || []).find(c => (c.name || '').trim().toLowerCase() === n)
+    || null;
+}
+
+function addCoderQuoteByName(name, text, context){
+  if(!name || !text?.trim() || !isAdmin()) return;
+  const card = findCoderCardByName(name);
+  if(!card?.id) return;
+  let c = typeof ensureCoderXpRecord === 'function' ? ensureCoderXpRecord(card.id) : null;
+  if(!c) c = (state.viewerCharacters || []).find(x => x.id === card.id);
+  if(!c) return;
+  if(!c.saidQuotes) c.saidQuotes = [];
+  c.saidQuotes.unshift({
+    id: uid('sq'),
+    text: text.trim(),
+    context: (context || '').trim(),
+    at: new Date().toISOString(),
+  });
+  c.saidQuotes = c.saidQuotes.slice(0, 40);
+  saveState();
+  if(typeof postVisitorData === 'function') postVisitorData('updateCharacter', c);
+}
+
+function renderCoderQuoteLog(c){
+  const quotes = c.saidQuotes || [];
+  const rows = quotes.length
+    ? quotes.map(q => `<blockquote class="coder-quote-item"><p>${esc(q.text)}</p>${q.context ? `<cite>${esc(q.context)}</cite>` : ''}</blockquote>`).join('')
+    : '<p class="empty-hint">No quotes logged yet — add one below or drop a Quote pulse on Coming To You Live.</p>';
+  return `<div class="coder-quote-log" data-coder-id="${esc(c.id)}">
+    <h4 class="coder-quote-title">Things they've said</h4>
+    <div class="coder-quote-list">${rows}</div>
+    <form class="coder-quote-add-form">
+      <div class="field"><label>Add quote</label><textarea class="coder-quote-input" rows="2" placeholder="Funny thing they said…"></textarea></div>
+      <button type="submit" class="btn">Add quote</button>
+    </form>
+  </div>`;
+}
+
+function bindCoderQuoteLogs(container){
+  if(!container || !isAdmin()) return;
+  container.querySelectorAll('.coder-quote-add-form').forEach(form => {
+    if(form.dataset.bound) return;
+    form.dataset.bound = '1';
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const wrap = form.closest('.coder-quote-log');
+      const coderId = wrap?.dataset.coderId;
+      const text = form.querySelector('.coder-quote-input')?.value?.trim();
+      if(!coderId || !text) return;
+      const card = (typeof getCharacters === 'function' ? getCharacters() : []).find(x => x.id === coderId);
+      if(card?.name) addCoderQuoteByName(card.name, text, '');
+      renderCharacters();
+    });
+  });
+}
+
+function getStreamQuotes(limit = 10){
+  const all = [];
+  Object.entries(state.entries || {}).forEach(([day, raw]) => {
+    const nodes = raw?.stream?.nodes;
+    if(!Array.isArray(nodes)) return;
+    nodes.filter(n => n.type === 'quote').forEach(n => all.push({ ...n, day }));
+  });
+  return all.sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, limit);
+}
+
+function renderLiveQuoteBoard(admin){
+  const quotes = getStreamQuotes(12);
+  const addBtns = admin
+    ? `<div class="live-quote-actions">
+        <button type="button" class="btn" id="homeOpenQuotePulse">+ Quote</button>
+        <button type="button" class="btn" id="homeOpenQuestPulse">+ Quest</button>
+      </div>`
+    : '';
+  const rows = quotes.length
+    ? quotes.map(q => {
+      const who = q.data?.who || '';
+      const text = q.data?.text || q.body || q.text || '';
+      return `<blockquote class="live-quote-item"><span class="live-quote-who">${esc(who)}</span><p>${esc(text)}</p>${q.data?.context ? `<cite>${esc(q.data.context)}</cite>` : ''}</blockquote>`;
+    }).join('')
+    : `<p class="empty-hint">${admin ? 'Log quotes from the pulse board — funny lines attributed to coders.' : 'No quotes on the wire yet.'}</p>`;
+  return `<section class="live-quote-board sketch-card${admin ? ' live-quote-board--edit' : ''}">
+    <div class="live-quote-head">
+      <h3 class="live-pulse-title">Quote log</h3>
+      ${addBtns}
+    </div>
+    <div class="live-quote-list">${rows}</div>
+  </section>`;
 }
 
 /* ---------- Skills ---------- */
