@@ -171,6 +171,7 @@
         </div>
       </div>
       <div class="log-calendar" id="logCalendar"></div>
+      <div id="ledgerDayPreview" class="ledger-day-preview hidden"></div>
       <div class="log-edit-bar admin-only hidden" id="logEditBar">
         <span class="log-edit-hint" id="logEditHint">Click any day to edit it</span>
         <button type="button" class="btn" id="editTodayBtn">Jump to today</button>
@@ -274,6 +275,13 @@
         </form>
         <div class="pin-wall" id="pinWall"></div>
       </div>
+      <div class="community-console-wrap">
+        <label class="community-console-label" for="communityConsoleInput">// console</label>
+        <div class="community-console-row">
+          <span class="community-console-prompt">&gt;</span>
+          <input type="text" class="community-console-input" id="communityConsoleInput" placeholder="" autocomplete="off" spellcheck="false" aria-label="Community console">
+        </div>
+      </div>
     </section>
 
   </div>
@@ -293,6 +301,9 @@
     <button class="modal-close" id="closeDayModal">×</button>
     <h3 id="dayModalTitle"></h3>
     <div id="dayDetailView"></div>
+    <div class="day-modal-actions admin-only hidden" id="dayModalActions">
+      <button type="button" class="btn admin-delete" id="deleteDayModal">Delete this day</button>
+    </div>
   </div>
 </div>
 
@@ -421,8 +432,30 @@
 <div class="modal-back hidden" id="endDayBack">
   <div class="modal sketch-card end-day-modal">
     <button class="modal-close" id="closeEndDay">×</button>
-    <h3>End day — complete daily log</h3>
-    <p class="field-hint">Your timeline is saved. Fill in anything missing for the calendar.</p>
+    <h3>End day — close the transmission</h3>
+    <p class="field-hint">Answer a few closing questions, then seal today's log. Your neon timeline is already saved.</p>
+
+    <section class="end-day-reflect">
+      <p class="end-day-reflect-kicker">Closing reflections</p>
+      <div class="field field-reflect-main">
+        <label>What was your favourite thing today?</label>
+        <textarea id="endFavoriteThing" rows="3" placeholder="The moment, person, meal, win — whatever glowed brightest."></textarea>
+      </div>
+      <div class="field">
+        <label>What was the hardest moment?</label>
+        <textarea id="endHardestMoment" rows="2" placeholder="Optional — name it honestly."></textarea>
+      </div>
+      <div class="field">
+        <label>One thing you're grateful for</label>
+        <textarea id="endGratefulFor" rows="2" placeholder="Optional — even something small counts."></textarea>
+      </div>
+      <div class="field">
+        <label>What do you want to carry into tomorrow?</label>
+        <textarea id="endTomorrowFocus" rows="2" placeholder="Optional — a feeling, intention, or loose plan."></textarea>
+      </div>
+    </section>
+
+    <p class="end-day-reflect-kicker" style="margin-top:4px;">Day totals</p>
     <div class="day-form-grid">
       <div class="field field-mood"><label>Current mood</label><div id="endMoodPicker"></div></div>
       <div class="field"><label>Steps</label><input type="number" id="endSteps" value="0"></div>
@@ -432,10 +465,10 @@
     </div>
     <div class="field"><label>People met</label><input type="text" id="endPeople" placeholder="comma-separated"></div>
     <div class="field"><label>Places discovered</label><input type="text" id="endPlaces" placeholder="comma-separated"></div>
-    <div class="field"><label>Diary entry</label><textarea id="endDiary" rows="5" placeholder="how the day actually felt"></textarea></div>
+    <div class="field"><label>Diary entry</label><textarea id="endDiary" rows="5" placeholder="how the day actually felt — auto-filled from your pulses"></textarea></div>
     <div class="modal-actions">
       <button class="btn" id="cancelEndDay" type="button">Cancel</button>
-      <button class="btn primary" id="saveEndDay" type="button">Save &amp; close day</button>
+      <button class="btn primary" id="saveEndDay" type="button">Seal day &amp; open log</button>
     </div>
   </div>
 </div>

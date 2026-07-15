@@ -673,6 +673,19 @@ const DailyLog = {
     this.renderPhotoPreview();
     document.getElementById('dailyLogEditor')?.classList.remove('hidden');
     document.getElementById('logEditHint').textContent = `Editing ${fmtDateLong(key)}`;
+
+    const preview = document.getElementById('ledgerDayPreview');
+    const stream = getDayStream(key);
+    if(preview){
+      if(stream.endedAt){
+        preview.classList.remove('hidden');
+        preview.innerHTML = buildDayDetailHTML(key, e);
+      } else {
+        preview.classList.add('hidden');
+        preview.innerHTML = '';
+      }
+    }
+
     renderLogCalendar();
   },
 
@@ -698,6 +711,7 @@ const DailyLog = {
     const hobby = document.getElementById('logHobbySelect').value;
     const hobbyHours = document.getElementById('logHobbyHours').value;
     state.entries[key] = {
+      ...existing,
       currentMood: dayMood,
       mood: dayMood,
       steps: document.getElementById('logSteps').value,
@@ -709,6 +723,9 @@ const DailyLog = {
       diary: document.getElementById('logDiary').value,
       photos: pendingDayPhotos,
       stream: existing.stream || null,
+      dayReflection: existing.dayReflection || null,
+      daySummary: existing.daySummary || null,
+      dayStartSnapshot: existing.dayStartSnapshot || null,
     };
 
     places.forEach(z => { if(!state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
@@ -721,34 +738,15 @@ const DailyLog = {
 
   deleteDay(){
     const key = this.currentKey();
-    if(!key || !confirm(`Delete the log for ${fmtDateLong(key)}?`)) return;
-    delete state.entries[key];
-    saveState();
-    pendingDayPhotos = [];
-    this.activeKey = key;
-    document.getElementById('logDateKey').value = key;
-    mountMoodPicker('logMoodPicker', getCurrentMood(), { name: 'logMood', compact: true });
-    document.getElementById('logSteps').value = 0;
-    document.getElementById('logWork').value = 0;
-    document.getElementById('logMandarin').value = 0;
-    document.getElementById('logPeople').value = '';
-    document.getElementById('logPlaces').value = '';
-    document.getElementById('logDiary').value = '';
-    document.getElementById('logHobbySelect').value = '';
-    document.getElementById('logHobbyHours').value = 0;
-    document.getElementById('logZone').value = '';
-    this.renderPhotoPreview();
-    document.getElementById('logEditHint').textContent = `Deleted ${fmtDateLong(key)}`;
-    document.getElementById('logEditorTitle').textContent = fmtDateLong(key);
-    renderLogCalendar();
-    renderHomeCheckIn();
-    safeRender(renderAbout);
+    deleteLogDay(key, { keepEditorOpen: true });
   },
 
   clearSelection(){
     this.activeKey = null;
     document.getElementById('logDateKey').value = '';
     document.getElementById('logEditHint').textContent = 'Click any day to edit it';
+    const preview = document.getElementById('ledgerDayPreview');
+    if(preview){ preview.classList.add('hidden'); preview.innerHTML = ''; }
     renderLogCalendar();
   },
 
@@ -833,6 +831,9 @@ function normalizeEntry(e){
     diary: e.diary || e.note || e.thoughts || '',
     photos: e.photos || [],
     stream: e.stream || null,
+    dayReflection: e.dayReflection || null,
+    daySummary: e.daySummary || null,
+    dayStartSnapshot: e.dayStartSnapshot || null,
   };
 }
 
@@ -886,6 +887,7 @@ const STREAM_NODE_META = {
   anxiety: { label: 'Anxiety', neon: '#f87171', icon: '!' },
   win: { label: 'Win', neon: '#4ade80', icon: '★' },
   gratitude: { label: 'Gratitude', neon: '#f9a8d4', icon: '♥' },
+  reflection: { label: 'Reflection', neon: '#fcd34d', icon: '✦' },
   mandarin: { label: 'Mandarin', neon: '#dc2626', icon: '文' },
   hobby: { label: 'Hobby', neon: '#e879f9', icon: '✦' },
   nap: { label: 'Rest', neon: '#64748b', icon: '⋯' },
@@ -1554,6 +1556,7 @@ function bootApp(){
   try{ if(typeof OverloadLog !== 'undefined') OverloadLog.init(); }catch(err){ console.error('Overload log init failed:', err); }
   try{ if(typeof GoogleSteps !== 'undefined') GoogleSteps.init(); }catch(err){ console.error('Google steps init failed:', err); }
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
+  try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
@@ -1741,13 +1744,6 @@ function renderAbout(){
           ${isAdmin() ? `<div id="profileMoodPicker" class="profile-mood-edit"></div>` : ''}
         </div>`}
         ${isAdmin() ? `<div class="about-arrival-edit field"><label>Arrival date</label><input type="date" id="arrivalDateInput" value="${esc(getArrivalDate())}"><button type="button" class="btn" id="saveArrivalBtn">Save</button></div>` : ''}
-        ${`<div class="profile-console-wrap">
-          <label class="profile-console-label" for="profileConsoleInput">// console</label>
-          <div class="profile-console-row">
-            <span class="profile-console-prompt">&gt;</span>
-            <input type="text" class="profile-console-input" id="profileConsoleInput" placeholder=":)" autocomplete="off" spellcheck="false" aria-label="Profile console">
-          </div>
-        </div>`}
         ${`<button class="btn primary about-edit-btn edit-when-editing" id="editAboutBtn">Edit player card</button>`}
       </div>
     </div>
@@ -1818,11 +1814,18 @@ function renderAbout(){
     el.addEventListener('click', () => document.querySelector(`.node-btn[data-view="${el.dataset.goto}"]`)?.click());
   });
   bindFlipPlayerCards(spread);
-  spread.querySelector('#profileConsoleInput')?.addEventListener('keydown', e => {
+  if(isAdmin()) mountMoodPicker('profileMoodPicker', getCurrentMood(), { name: 'profileMood', compact: true, onChange: id => { setCurrentMood(id); renderAbout(); renderHomeCheckIn(); } });
+}
+
+function bindCommunityConsole(){
+  const input = document.getElementById('communityConsoleInput');
+  if(!input || input.dataset.bound) return;
+  input.dataset.bound = '1';
+  input.addEventListener('keydown', e => {
     if(e.key !== 'Enter') return;
     const v = e.target.value.trim();
     e.target.value = '';
-    if(v === ':)'){
+    if(v === '<3'){
       unlockAdmin({ toast: true });
       return;
     }
@@ -1836,7 +1839,6 @@ function renderAbout(){
       }
     }
   });
-  if(isAdmin()) mountMoodPicker('profileMoodPicker', getCurrentMood(), { name: 'profileMood', compact: true, onChange: id => { setCurrentMood(id); renderAbout(); renderHomeCheckIn(); } });
 }
 
 /* ---------- Home Check-In — live day stream ---------- */
@@ -2106,11 +2108,14 @@ const HomeCheckIn = {
       if(!confirm('Start a fresh day session? This clears today\'s ended status.')) return;
       stream.nodes = stream.nodes.filter(n => n.type !== 'wake' && n.type !== 'sleep');
       stream.endedAt = null;
+      delete state.entries[key].dayReflection;
+      delete state.entries[key].daySummary;
     }
     const now = new Date().toISOString();
     stream.startedAt = now;
     stream.nodes.push({ id: 'n-wake-' + Date.now(), at: now, type: 'wake', text: 'Day started' });
     state.entries[key].stream = stream;
+    captureDayStartSnapshot(key);
     saveState();
     renderHomeCheckIn();
   },
@@ -2139,6 +2144,11 @@ const HomeCheckIn = {
     document.getElementById('endPlaces').value = (n.places || []).filter(p => !CONTENT.zones.includes(p)).join(', ');
     const draft = streamDiaryDraft(stream.nodes);
     document.getElementById('endDiary').value = n.diary || draft;
+    const ref = state.entries[key]?.dayReflection || {};
+    document.getElementById('endFavoriteThing').value = ref.favoriteThing || '';
+    document.getElementById('endHardestMoment').value = ref.hardestMoment || '';
+    document.getElementById('endGratefulFor').value = ref.gratefulFor || '';
+    document.getElementById('endTomorrowFocus').value = ref.tomorrowFocus || '';
     document.getElementById('endDayBack')?.classList.remove('hidden');
   },
 
@@ -2150,15 +2160,41 @@ const HomeCheckIn = {
     if(!isAdmin()) return;
     const key = todayKey();
     const stream = getDayStream(key);
+    const favoriteThing = document.getElementById('endFavoriteThing')?.value?.trim() || '';
+    if(!favoriteThing){
+      alert('Answer the favourite-thing question before sealing the day.');
+      document.getElementById('endFavoriteThing')?.focus();
+      return;
+    }
+    const reflection = {
+      favoriteThing,
+      hardestMoment: document.getElementById('endHardestMoment')?.value?.trim() || '',
+      gratefulFor: document.getElementById('endGratefulFor')?.value?.trim() || '',
+      tomorrowFocus: document.getElementById('endTomorrowFocus')?.value?.trim() || '',
+    };
     const now = new Date().toISOString();
     stream.endedAt = now;
-    stream.nodes.push({ id: 'n-sleep-' + Date.now(), at: now, type: 'sleep', text: 'Day ended' });
+    stream.nodes.push({
+      id: 'n-reflect-' + Date.now(),
+      at: now,
+      type: 'reflection',
+      text: reflection.favoriteThing,
+      body: [
+        reflection.hardestMoment && `Hardest: ${reflection.hardestMoment}`,
+        reflection.gratefulFor && `Grateful: ${reflection.gratefulFor}`,
+        reflection.tomorrowFocus && `Tomorrow: ${reflection.tomorrowFocus}`,
+      ].filter(Boolean).join('\n'),
+      reflection,
+    });
+    stream.nodes.push({ id: 'n-sleep-' + Date.now(), at: now, type: 'sleep', text: 'Day sealed' });
     const dayMood = readMoodPickerValue(document.getElementById('endMoodPicker'), 'endMood');
     if(dayMood) setCurrentMood(dayMood);
     const people = document.getElementById('endPeople').value.split(',').map(s => s.trim()).filter(Boolean);
     const places = document.getElementById('endPlaces').value.split(',').map(s => s.trim()).filter(Boolean);
     const existing = state.entries[key] || {};
+    const durationMs = stream.startedAt ? new Date(now) - new Date(stream.startedAt) : 0;
     state.entries[key] = {
+      ...existing,
       currentMood: dayMood,
       mood: dayMood,
       steps: document.getElementById('endSteps').value,
@@ -2170,6 +2206,13 @@ const HomeCheckIn = {
       diary: document.getElementById('endDiary').value,
       photos: existing.photos || [],
       stream,
+      dayReflection: reflection,
+      dayStartSnapshot: existing.dayStartSnapshot || null,
+    };
+    state.entries[key].daySummary = {
+      sealedAt: now,
+      durationMs,
+      deltas: computeDayScoreDeltas(key),
     };
     places.forEach(z => { if(z && !state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
     saveState();
@@ -2178,6 +2221,8 @@ const HomeCheckIn = {
     renderLogCalendar();
     safeRender(renderAbout);
     document.querySelector('.node-btn[data-view="ledger"]')?.click();
+    DailyLog.selectDay(key);
+    openDayModal(key);
   },
 
   renderTimeline(stream, refDayKey){
@@ -2314,41 +2359,172 @@ function dayKeyFromParts(y, m, d){
   return `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
+function captureDayStartSnapshot(key){
+  if(!state.entries[key]) state.entries[key] = {};
+  const n = normalizeEntry(state.entries[key]);
+  state.entries[key].dayStartSnapshot = {
+    at: new Date().toISOString(),
+    steps: Number(n.steps) || 0,
+    workHours: Number(n.workHours) || 0,
+    hobbyHours: Number(n.hobbyHours) || 0,
+    skillHours: Object.fromEntries(getSkills().map(s => [s.id, getTotalSkillHours(s.id)])),
+  };
+}
+
+function fmtDayDuration(stream){
+  if(!stream?.startedAt || !stream?.endedAt) return '';
+  const ms = new Date(stream.endedAt) - new Date(stream.startedAt);
+  if(ms < 0) return '';
+  const hrs = Math.floor(ms / 3600000);
+  const mins = Math.round((ms % 3600000) / 60000);
+  return hrs ? `${hrs}h ${mins}m` : `${mins}m`;
+}
+
+function fmtDurationMs(ms){
+  if(!ms || ms < 0) return '';
+  const hrs = Math.floor(ms / 3600000);
+  const mins = Math.round((ms % 3600000) / 60000);
+  return hrs ? `${hrs}h ${mins}m` : `${mins}m`;
+}
+
+function formatDayDelta(d){
+  if(d.count) return `+${d.delta}`;
+  if(d.fmt === 'number') return (d.delta >= 0 ? '+' : '') + Number(d.delta).toLocaleString();
+  return `+${d.delta}${d.suffix || ''}`;
+}
+
+function computeDayScoreDeltas(key){
+  const raw = state.entries[key];
+  if(!raw) return [];
+  const snap = raw.dayStartSnapshot || {};
+  const hasSnap = !!snap.at;
+  const n = normalizeEntry(raw);
+  const stream = getDayStream(key);
+  const deltas = [];
+
+  const push = (item) => {
+    const delta = hasSnap ? Math.max(0, item.rawDelta) : item.rawDelta;
+    if(delta > 0 || (!hasSnap && item.value > 0)) deltas.push({ ...item, delta, hasSnap });
+  };
+
+  const steps = Number(n.steps) || 0;
+  if(steps) push({ id: 'steps', label: 'Steps', value: steps, rawDelta: steps - (snap.steps || 0), neon: '#3ad6e0', fmt: 'number' });
+
+  const work = Number(n.workHours) || 0;
+  if(work) push({ id: 'work', label: 'Work', value: work, rawDelta: work - (snap.workHours || 0), neon: '#60a5fa', suffix: 'h' });
+
+  const mandarin = mandarinHoursFromEntry(n);
+  if(mandarin) push({ id: 'mandarin', label: 'Mandarin', value: mandarin, rawDelta: mandarin, neon: '#dc2626', suffix: 'h' });
+
+  if(n.hobby){
+    const hobbyH = Number(n.hobbyHours) || 0;
+    if(hobbyH) push({ id: 'hobby', label: n.hobby, value: hobbyH, rawDelta: hobbyH - (snap.hobbyHours || 0), neon: '#e879f9', suffix: 'h' });
+  }
+
+  if(snap.skillHours){
+    getSkills().forEach(skill => {
+      const nowH = getTotalSkillHours(skill.id);
+      const was = snap.skillHours[skill.id] || 0;
+      const d = Math.round((nowH - was) * 10) / 10;
+      if(d > 0) push({ id: skill.id, label: skill.name, value: nowH, rawDelta: d, neon: skill.color || '#7c4dff', suffix: 'h', cumulative: true });
+    });
+  }
+
+  const pulseCount = stream.nodes.filter(nd => nd.type !== 'wake' && nd.type !== 'sleep').length;
+  if(pulseCount) push({ id: 'pulses', label: 'Pulses logged', value: pulseCount, rawDelta: pulseCount, neon: '#7c4dff', count: true });
+
+  if(n.people.length) push({ id: 'people', label: 'People met', value: n.people.length, rawDelta: n.people.length, neon: '#a78bfa', count: true });
+  if(n.places.length) push({ id: 'places', label: 'Places visited', value: n.places.length, rawDelta: n.places.length, neon: '#4ade80', count: true });
+
+  return deltas;
+}
+
+function renderDayScoreChips(deltas){
+  if(!deltas?.length) return '';
+  return `<section class="day-ledger-scores">
+    <h4 class="day-ledger-kicker">Today's gains</h4>
+    <div class="day-score-grid">
+      ${deltas.map(d => `<div class="day-score-chip" style="--dsc-neon:${d.neon}">
+        <span class="dsc-delta"><span class="dsc-arrow">↑</span>${formatDayDelta(d)}</span>
+        <span class="dsc-label">${esc(d.label)}</span>
+        ${d.cumulative ? `<span class="dsc-total">${d.value}${d.suffix || ''} total</span>` : ''}
+      </div>`).join('')}
+    </div>
+  </section>`;
+}
+
+function renderDayReflectionHTML(reflection){
+  if(!reflection?.favoriteThing) return '';
+  const items = [
+    { q: 'Favourite thing', a: reflection.favoriteThing, neon: '#fcd34d' },
+    { q: 'Hardest moment', a: reflection.hardestMoment, neon: '#f87171' },
+    { q: 'Grateful for', a: reflection.gratefulFor, neon: '#f9a8d4' },
+    { q: 'Carry into tomorrow', a: reflection.tomorrowFocus, neon: '#7dd3fc' },
+  ].filter(x => x.a);
+  return `<section class="day-ledger-reflect">
+    <h4 class="day-ledger-kicker">Closing reflections</h4>
+    ${items.map(it => `<div class="day-reflect-card" style="--drc-neon:${it.neon}">
+      <p class="day-reflect-q">${esc(it.q)}</p>
+      <p class="day-reflect-a">${esc(it.a)}</p>
+    </div>`).join('')}
+  </section>`;
+}
+
 function buildDayDetailHTML(key, e){
   const n = normalizeEntry(e);
-  if(!Object.keys(n).some(k => n[k] && (Array.isArray(n[k])?n[k].length:n[k]))){
-    return '<p class="empty-day">No entry yet — log mood, steps, diary, and more.</p>';
+  const stream = getDayStream(key);
+  const hasContent = !!(resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length || n.dayReflection?.favoriteThing);
+  if(!hasContent){
+    return '<p class="empty-day">No entry yet — start a day, drop pulses, then seal it in the log.</p>';
   }
   const moodId = resolveEntryMood(n);
+  const completed = !!stream.endedAt;
+  const duration = fmtDayDuration(stream) || fmtDurationMs(n.daySummary?.durationMs);
+  const nodeCount = stream.nodes.length;
+  const deltas = n.daySummary?.deltas?.length ? n.daySummary.deltas : computeDayScoreDeltas(key);
   const hobbyLine = n.hobby ? `${esc(n.hobby)}${n.hobbyHours ? ` · ${n.hobbyHours}h` : ''}` : '';
-  let html = `<div class="day-detail-header" style="--mc:${moodColor(moodId)}">
-    <span class="day-detail-date">${fmtDateLong(key)}</span>
-    ${moodId ? `<span class="day-detail-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
-  </div>
-  <div class="day-log-template">
-    ${moodId ? `<div class="dlt-row"><span>Current mood</span><span>${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span></div>`:''}
-    ${n.steps ? `<div class="dlt-row"><span>Steps</span><span>${Number(n.steps).toLocaleString()}</span></div>`:''}
-    ${n.workHours ? `<div class="dlt-row"><span>Work (hours)</span><span>${n.workHours}h</span></div>`:''}
-    ${mandarinHoursFromEntry(n) ? `<div class="dlt-row"><span>Mandarin (hobby+skill)</span><span>${mandarinHoursFromEntry(n)}h</span></div>`:''}
-    ${hobbyLine ? `<div class="dlt-row"><span>Hobby</span><span>${hobbyLine}</span></div>`:''}
-    ${n.people.length ? `<div class="dlt-row"><span>People met</span><span>${esc(n.people.join(', '))}</span></div>`:''}
-    ${n.places.length ? `<div class="dlt-row"><span>Places visited</span><span>${esc(n.places.join(', '))}</span></div>`:''}
-  </div>`;
-  if(n.diary) html += `<div class="day-detail-section"><h4>Diary entry</h4><p class="day-diary">${esc(n.diary)}</p></div>`;
-  const stream = e.stream || n.stream;
-  if(stream?.nodes?.length){
-    html += `<div class="day-detail-section"><h4>Day stream</h4><div class="day-stream-mini">`;
-    [...stream.nodes].sort((a,b) => (a.at||'').localeCompare(b.at||'')).forEach(node => {
-      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
-      const extra = node.body && node.body !== node.text ? ` — ${(node.body || '').slice(0, 140)}` : '';
-      html += `<div class="dsm-row" style="--dsm-neon:${meta.neon}"><span>${fmtNodeStamp(node.at, null)}</span><span>${meta.icon} ${meta.label}</span><span>${esc((node.text || '') + extra)}</span></div>`;
-    });
-    html += `</div></div>`;
-  }
+
+  let html = `<div class="day-ledger">
+    <header class="day-ledger-hero" style="--mc:${moodColor(moodId)}">
+      <span class="day-ledger-status${completed ? ' is-sealed' : ''}">${completed ? '◉ Day sealed' : '◎ In progress'}</span>
+      <span class="day-detail-date">${fmtDateLong(key)}</span>
+      ${moodId ? `<span class="day-detail-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
+      ${stream.startedAt ? `<span class="day-ledger-span">Wake ${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → Sleep ${fmtNodeStamp(stream.endedAt, key)}` : ''}</span>` : ''}
+      ${duration ? `<span class="day-ledger-duration">${duration} awake</span>` : ''}
+    </header>
+
+    ${renderDayScoreChips(deltas)}
+    ${renderDayReflectionHTML(n.dayReflection)}
+
+    ${stream.nodes.length ? `<section class="day-ledger-timeline">
+      <div class="day-rail-wrap">
+        <div class="day-rail-head">
+          <span class="live-rail-label">Neon transmission</span>
+          <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}</span>
+        </div>
+        <div class="day-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
+      </div>
+    </section>` : ''}
+
+    <section class="day-detail-section">
+      <h4>Day totals</h4>
+      <div class="day-log-template">
+        ${moodId ? `<div class="dlt-row"><span>Current mood</span><span>${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span></div>`:''}
+        ${n.steps ? `<div class="dlt-row"><span>Steps</span><span>${Number(n.steps).toLocaleString()}</span></div>`:''}
+        ${n.workHours ? `<div class="dlt-row"><span>Work (hours)</span><span>${n.workHours}h</span></div>`:''}
+        ${mandarinHoursFromEntry(n) ? `<div class="dlt-row"><span>Mandarin (hobby+skill)</span><span>${mandarinHoursFromEntry(n)}h</span></div>`:''}
+        ${hobbyLine ? `<div class="dlt-row"><span>Hobby</span><span>${hobbyLine}</span></div>`:''}
+        ${n.people.length ? `<div class="dlt-row"><span>People met</span><span>${esc(n.people.join(', '))}</span></div>`:''}
+        ${n.places.length ? `<div class="dlt-row"><span>Places visited</span><span>${esc(n.places.join(', '))}</span></div>`:''}
+      </div>
+    </section>`;
+
+  if(n.diary) html += `<section class="day-detail-section"><h4>Diary entry</h4><p class="day-diary">${esc(n.diary)}</p></section>`;
   if(n.photos?.length){
-    html += `<div class="day-detail-section"><h4>Photos</h4><div class="day-photo-grid">${n.photos.map(p=>
-      `<img src="${esc(typeof p==='string'?p:p.src)}" alt="">`).join('')}</div></div>`;
+    html += `<section class="day-detail-section"><h4>Photos</h4><div class="day-photo-grid">${n.photos.map(p=>
+      `<img src="${esc(typeof p==='string'?p:p.src)}" alt="">`).join('')}</div></section>`;
   }
+  html += `</div>`;
   return html;
 }
 
@@ -2376,12 +2552,14 @@ function renderLogCalendar(){
     const key = dayKeyFromParts(year, month, d);
     const e = state.entries[key];
     const n = normalizeEntry(e);
-    const hasEntry = !!(e && (resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length));
+    const stream = getDayStream(key);
+    const isComplete = !!stream.endedAt;
+    const hasEntry = !!(e && (isComplete || resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length));
     const moodId = resolveEntryMood(n);
     const neon = stableNeon(key, d);
     const isToday = key === tk;
     const isEditing = isAdmin() && key === DailyLog.activeKey;
-    html += `<button type="button" class="cal-cell cal-day${hasEntry ? ' has-entry' : ''}${isToday ? ' is-today' : ''}${isEditing ? ' is-editing-day' : ''}"
+    html += `<button type="button" class="cal-cell cal-day${hasEntry ? ' has-entry' : ''}${isComplete ? ' is-complete' : ''}${isToday ? ' is-today' : ''}${isEditing ? ' is-editing-day' : ''}"
       style="--cal-neon:${neon}" data-log-day="${key}">
       <span class="cal-day-num">${d}</span>
       ${hasEntry && moodId ? `<span class="cal-mood">${moodIcon(moodId)}</span>` : ''}
@@ -2396,16 +2574,59 @@ function renderLedger(){
   renderLogCalendar();
 }
 
+function deleteLogDay(key, opts = {}){
+  if(!isAdmin()) return false;
+  if(!key || !confirm(`Delete the log for ${fmtDateLong(key)}? This cannot be undone.`)) return false;
+  delete state.entries[key];
+  saveState();
+  pendingDayPhotos = [];
+  document.getElementById('dayModalBack')?.classList.add('hidden');
+  const preview = document.getElementById('ledgerDayPreview');
+  if(preview){ preview.classList.add('hidden'); preview.innerHTML = ''; }
+  if(opts.keepEditorOpen && typeof DailyLog !== 'undefined'){
+    DailyLog.activeKey = key;
+    document.getElementById('logDateKey').value = key;
+    mountMoodPicker('logMoodPicker', getCurrentMood(), { name: 'logMood', compact: true });
+    document.getElementById('logSteps').value = 0;
+    document.getElementById('logWork').value = 0;
+    document.getElementById('logMandarin').value = 0;
+    document.getElementById('logPeople').value = '';
+    document.getElementById('logPlaces').value = '';
+    document.getElementById('logDiary').value = '';
+    document.getElementById('logHobbySelect').value = '';
+    document.getElementById('logHobbyHours').value = 0;
+    document.getElementById('logZone').value = '';
+    DailyLog.renderPhotoPreview();
+    document.getElementById('logEditHint').textContent = `Deleted ${fmtDateLong(key)}`;
+    document.getElementById('logEditorTitle').textContent = fmtDateLong(key);
+  }
+  renderLogCalendar();
+  renderHomeCheckIn();
+  safeRender(renderAbout);
+  return true;
+}
+
 function openDayModal(key){
   const e = state.entries[key];
   document.getElementById('dayModalTitle').textContent = fmtDateLong(key);
   const detailEl = document.getElementById('dayDetailView');
   detailEl.classList.remove('hidden');
   detailEl.innerHTML = buildDayDetailHTML(key, e);
+  const actions = document.getElementById('dayModalActions');
+  const delBtn = document.getElementById('deleteDayModal');
+  if(actions && delBtn){
+    const canDelete = isAdmin() && !!e;
+    actions.classList.toggle('hidden', !canDelete);
+    delBtn.dataset.dayKey = key;
+  }
   document.getElementById('dayModalBack').classList.remove('hidden');
 }
 
 document.getElementById('closeDayModal')?.addEventListener('click', () => document.getElementById('dayModalBack').classList.add('hidden'));
+document.getElementById('deleteDayModal')?.addEventListener('click', () => {
+  const key = document.getElementById('deleteDayModal')?.dataset.dayKey;
+  if(key) deleteLogDay(key);
+});
 
 /* ---------- Cards ---------- */
 function renderPlaces(){
@@ -3235,6 +3456,7 @@ function fmtPinDateTime(iso){
 function renderPinboard(){
   const wall = document.getElementById('pinWall');
   if(!wall) return;
+  bindCommunityConsole();
   const posts = (state.pinboard || []).map(normalizePinPost);
   if(!posts.length){ wall.innerHTML = '<p class="empty-hint pin-empty">Be the first to leave a note on the board.</p>'; return; }
 

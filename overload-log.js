@@ -250,43 +250,98 @@ const RantLogicEngine = {
     };
   },
 
-  narrativeFor(problem, meta){
+  buildProblemTags(problem, meta){
+    const TYPE_LABELS = {
+      body: 'body strain',
+      hosting_health: 'hosting while unwell',
+      planning: 'event planning',
+      guest_anxiety: 'guest worries',
+      habit: 'stress eating',
+      body_image: 'body pressure',
+      guilt: 'guilt',
+      external: 'others in control',
+    };
+    const tags = [];
+    if(TYPE_LABELS[problem.type]) tags.push(TYPE_LABELS[problem.type]);
+    else if(problem.type && problem.type !== 'general') tags.push(problem.type.replace(/_/g, ' '));
+    if(meta.control === 'CONTROLLABLE') tags.push('you can shift this');
+    else if(meta.control === 'UNCONTROLLABLE') tags.push('worth parking');
+    else tags.push('partly in your hands');
+    if(meta.severity === 'HIGH') tags.push('needs care today');
+    else if(meta.severity === 'MEDIUM') tags.push('worth a plan');
+    else tags.push('lower urgency');
+    return tags.slice(0, 3);
+  },
+
+  friendlyCommand(cmd){
+    return (cmd || '').replace(/^EXECUTE:\s*/i, '').trim() || 'one small kind step in the next half hour';
+  },
+
+  friendlySuggestions(problem, meta){
     const ctrl = meta.control;
-    const lines = [];
-    lines.push({ kind: 'class', text: `${ctrl} · severity ${meta.severity} — ${meta.reason}` });
-    lines.push({ kind: 'think', text: `THINK OF IT LIKE THIS: ${meta.logic}` });
     if(problem.type === 'body' || problem.type === 'hosting_health'){
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Rest blocks, fluids, food, pacing, and how much you commit to before the event.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: You white-knuckle through, crash when guests arrive, and feel worse after.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One recovery block today makes the social thread survivable — not perfect, but present.' });
-      lines.push({ kind: 'action', text: 'FIX: 20min rest + water + one meal now. Reassess energy before any host prep.' });
-    } else if(problem.type === 'planning' || problem.type === 'guest_anxiety'){
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Guest list clarity, one confirmation message, food/space basics, and a sleep buffer.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: Spiral on imaginary headcounts instead of sending one clarifying text.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: A five-line checklist + one RSVP ping calms most of the noise.' });
-      lines.push({ kind: 'action', text: 'FIX: Write checklist (food, space, timing, sleep, backup). Send one low-stakes headcount message.' });
-    } else if(problem.type === 'habit'){
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Next meal choice, removing binge triggers for 2h, and naming the stress underneath.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: Shame spiral → more binge → less energy for everything else.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One planned meal + short walk interrupts the loop enough to think clearly.' });
-      lines.push({ kind: 'action', text: 'FIX: Eat one intentional meal within 90min. No restriction talk — just stabilise blood sugar.' });
-    } else if(problem.type === 'body_image'){
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Whether today is a maintenance day vs a punishment day.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: Restrictive panic on top of stress and illness.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Framing today as recovery — not weight loss — keeps energy for what matters.' });
-      lines.push({ kind: 'action', text: 'FIX: Park the body-image thread until after the event. Today: stabilise body only.' });
-    } else if(ctrl === 'UNCONTROLLABLE'){
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Attention budget — park this thread.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: All-day simulation of someone else\'s choices.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Redirecting frees energy for rest or host prep.' });
-      lines.push({ kind: 'redirect', text: 'DO THIS INSTEAD: Acknowledge once, mark [PARK], move to a controllable thread.' });
-      lines.push({ kind: 'checkin', text: `CHECK IN AGAIN: ${this.checkInFor({ class: ctrl })}` });
-    } else {
-      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: One concrete next move in the next 30 minutes.' });
-      lines.push({ kind: 'worst', text: 'WORST CASE: Analysis replaces action.' });
-      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One small step reduces load noticeably.' });
-      lines.push({ kind: 'action', text: 'FIX: One ≤15min action — execute before judging it.' });
+      return {
+        main: 'treating today as recovery, not performance — rest, water, and one real meal before any host prep.',
+        worst: 'you push through exhausted and arrive at the event already empty.',
+        likely: 'one recovery block today makes showing up for people actually possible.',
+        step: 'twenty minutes rest, water, and one meal — then reassess before you prep anything.',
+      };
     }
+    if(problem.type === 'planning' || problem.type === 'guest_anxiety'){
+      return {
+        main: 'shrinking the noise into a short checklist and one low-stakes headcount message.',
+        worst: 'you spiral on imaginary guest numbers instead of sending one clarifying text.',
+        likely: 'five lines on paper plus one RSVP ping calms most of the anxiety.',
+        step: 'write food, space, timing, sleep buffer, and one backup plan — then send one headcount message.',
+      };
+    }
+    if(problem.type === 'habit'){
+      return {
+        main: 'stabilising your body first instead of fighting the binge loop with shame.',
+        worst: 'shame feeds the loop and leaves you with less energy for everything else.',
+        likely: 'one intentional meal and a short walk interrupts the cycle enough to think clearly.',
+        step: 'eat one planned meal within ninety minutes — no restriction talk, just steady blood sugar.',
+      };
+    }
+    if(problem.type === 'body_image'){
+      return {
+        main: 'parking the body-image thread until after the stressful event — today is maintenance, not punishment.',
+        worst: 'restrictive panic on top of stress and illness.',
+        likely: 'calling today a recovery day keeps your energy for what actually matters.',
+        step: 'pause weight thoughts until after the event; stabilise sleep, food, and fluids only.',
+      };
+    }
+    if(ctrl === 'UNCONTROLLABLE'){
+      return {
+        main: 'giving this thread very little RAM — acknowledge it once, then redirect.',
+        worst: 'you spend the day rehearsing someone else\'s choices.',
+        likely: 'parking this frees energy for rest or the things you can still steer.',
+        park: 'Say it once, mark it parked, and move to something inside your control.',
+        checkin: this.checkInFor({ class: ctrl }),
+      };
+    }
+    return {
+      main: 'one concrete, time-boxed step in the next thirty minutes — no grading yourself mid-action.',
+      worst: 'analysis replaces action and nothing shifts before sleep.',
+      likely: 'one small completed step noticeably lowers the emotional load.',
+      step: 'pick one action that takes fifteen minutes or less and do it before judging whether it helped.',
+      checkin: this.checkInFor({ class: ctrl }),
+    };
+  },
+
+  narrativeFor(problem, meta){
+    const tags = this.buildProblemTags(problem, meta);
+    const tagPhrase = tags.map(t => `「${t}」`).join(' ');
+    const s = this.friendlySuggestions(problem, meta);
+    const lines = [];
+    lines.push({ kind: 'friend_identify', text: `I've identified your problem as ${tagPhrase}.` });
+    lines.push({ kind: 'friend_think', text: `Here's how I'm reading it: ${meta.logic}` });
+    lines.push({ kind: 'friend_solution', text: `As for solutions, I suggest ${s.main}` });
+    if(s.worst) lines.push({ kind: 'friend_worst', text: `If you ignore it: ${s.worst}` });
+    if(s.likely) lines.push({ kind: 'friend_likely', text: `More likely: ${s.likely}` });
+    if(s.step) lines.push({ kind: 'friend_action', text: `Try this first: ${s.step}` });
+    if(s.park) lines.push({ kind: 'friend_park', text: s.park });
+    if(s.checkin) lines.push({ kind: 'friend_checkin', text: `Check in again ${s.checkin}.` });
     return lines;
   },
 
@@ -674,9 +729,9 @@ const OverloadLog = {
     const n = this.parseProblems.length;
     const flags = (this.sessionDraft?.emotions || []).map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(' · ');
     this.enqueueLines([
-      { kind: 'intro', text: 'logic_core online — one thread at a time' },
-      { kind: 'intro', text: flags ? `context: ${flags} (background only, not separate problems)` : 'no emotion flags — parsing text only' },
-      { kind: 'intro', text: `found ${n} thread${n === 1 ? '' : 's'} in rant buffer` },
+      { kind: 'intro', text: 'Okay — I\'m going to take this one thread at a time, not dump everything at once.' },
+      { kind: 'intro', text: flags ? `I can feel ${flags} in the background — I\'ll keep that in mind.` : 'No flags ticked — I\'ll read from your words alone.' },
+      { kind: 'intro', text: `I found ${n} separate thing${n === 1 ? '' : 's'} in what you wrote.` },
       { kind: 'divider', text: '—' },
     ]);
   },
@@ -695,9 +750,9 @@ const OverloadLog = {
     if(!p) return;
     const total = this.parseProblems.length;
     this.enqueueLines([
-      { kind: 'problem', text: `THREAD ${p.index} / ${total}` },
-      { kind: 'intro', text: `raw: "${p.raw.length > 90 ? p.raw.slice(0, 88) + '…' : p.raw}"` },
-      { kind: 'rephrase', text: `distilled: ${p.rephrase}` },
+      { kind: 'intro', text: `Let me sit with thread ${p.index} of ${total}…` },
+      { kind: 'friend_think', text: `You said: "${p.raw.length > 90 ? p.raw.slice(0, 88) + '…' : p.raw}"` },
+      { kind: 'rephrase', text: `I hear it as: ${p.rephrase}` },
       { kind: 'pause_classify', text: '' },
     ]);
   },
@@ -707,9 +762,11 @@ const OverloadLog = {
     const panel = document.getElementById('olClassifyPanel');
     if(!p || !panel) return;
     const s = p.suggested;
+    const controlLabel = s.control === 'CONTROLLABLE' ? 'something you can steer'
+      : s.control === 'UNCONTROLLABLE' ? 'worth parking for now' : 'partly in your hands';
     panel.innerHTML = `
-      <p class="ol-classify-kicker">How should we classify this thread?</p>
-      <p class="ol-classify-suggest">Suggested: <strong>${esc(s.control)}</strong> · severity <strong>${esc(s.severity)}</strong></p>
+      <p class="ol-classify-kicker">Does this feel right to you?</p>
+      <p class="ol-classify-suggest">I'd read it as <strong>${esc(controlLabel)}</strong> · <strong>${esc(s.severity.toLowerCase())} priority</strong></p>
       <p class="ol-classify-why">${esc(s.logic)}</p>
       <div class="ol-classify-controls">
         <span class="ol-classify-label">Control</span>
@@ -723,7 +780,7 @@ const OverloadLog = {
         <button type="button" class="btn ol-classify-btn" data-ol-sev="MEDIUM">Medium</button>
         <button type="button" class="btn ol-classify-btn" data-ol-sev="HIGH">High</button>
       </div>
-      <button type="button" class="btn primary ol-classify-accept" data-ol-accept="1">Accept suggestion → analyse</button>`;
+      <button type="button" class="btn primary ol-classify-accept" data-ol-accept="1">Yes — show me solutions</button>`;
     panel.classList.remove('hidden');
     panel.querySelector('[data-ol-accept]')?.addEventListener('click', () => this.confirmClassification(s.control, s.severity));
     panel.querySelectorAll('[data-ol-class]').forEach(btn => {
@@ -739,7 +796,7 @@ const OverloadLog = {
       });
     });
     const status = document.getElementById('olParseStatus');
-    if(status) status.textContent = 'waiting — classify this thread';
+    if(status) status.textContent = 'waiting — does this feel right?';
   },
 
   confirmClassification(control, severity){
@@ -752,7 +809,7 @@ const OverloadLog = {
     panel?.classList.add('hidden');
     this.parseAwaitingClassify = false;
     const narrative = RantLogicEngine.narrativeFor(p, p.finalMeta);
-    const actionLine = narrative.find(n => n.kind === 'action' || n.kind === 'redirect')?.text || '';
+    const actionLine = narrative.find(n => n.kind === 'friend_action' || n.kind === 'friend_park')?.text || '';
     this.sessionDraft.solutions.push({
       problem: p.rephrase,
       raw: p.raw,
@@ -765,12 +822,12 @@ const OverloadLog = {
     if(this.parseProblemIndex < this.parseProblems.length - 1){
       this.enqueueLines([
         { kind: 'divider', text: '—' },
-        { kind: 'intro', text: 'next thread →' },
+        { kind: 'intro', text: 'Next thread…' },
         { kind: 'divider', text: '—' },
       ]);
     }
     const status = document.getElementById('olParseStatus');
-    if(status) status.textContent = 'typing analysis…';
+    if(status) status.textContent = 'thinking with you…';
     this.startParseTypewriter();
   },
 
@@ -786,8 +843,8 @@ const OverloadLog = {
     this.parseStep = 'done';
     this.enqueueLines([
       { kind: 'divider', text: '—' },
-      { kind: 'summary', text: `All threads parsed — ${controllable} controllable · ${uncontrollable} parked · ${partial} partial` },
-      { kind: 'command', text: `Suggested command: ${suggestedCommand}` },
+      { kind: 'friend_summary', text: `That's everything I found — ${controllable} thread${controllable === 1 ? '' : 's'} you can move, ${uncontrollable} worth parking, ${partial} in-between.` },
+      { kind: 'friend_command', text: `My top suggestion: ${RantLogicEngine.friendlyCommand(suggestedCommand)}.` },
     ]);
     this.startParseTypewriter();
   },
@@ -811,6 +868,17 @@ const OverloadLog = {
       checkin: 'ol-line-checkin',
       summary: 'ol-line-summary',
       command: 'ol-line-command',
+      friend_identify: 'ol-line-friend-id',
+      friend_think: 'ol-line-friend-think',
+      friend_solution: 'ol-line-friend-solution',
+      friend_worst: 'ol-line-friend-worst',
+      friend_likely: 'ol-line-friend-likely',
+      friend_action: 'ol-line-friend-action',
+      friend_park: 'ol-line-friend-park',
+      friend_checkin: 'ol-line-friend-checkin',
+      friend_summary: 'ol-line-friend-summary',
+      friend_command: 'ol-line-friend-command',
+      friend_detail: 'ol-line-body',
       intro: 'ol-line-intro',
       divider: 'ol-line-divider',
     };
@@ -885,7 +953,7 @@ const OverloadLog = {
     if(!this.parseCurrentLineEl || this.parseCharIndex === 0){
       const row = document.createElement('div');
       row.className = `ol-term-line system ${this.lineKindClass(item.kind)}`;
-      row.innerHTML = `<span class="ol-term-tag">SYS</span><p></p>`;
+      row.innerHTML = `<span class="ol-term-tag ol-term-friend">♥</span><p></p>`;
       log.appendChild(row);
       this.parseCurrentLineEl = row.querySelector('p');
     }
@@ -1077,8 +1145,8 @@ const OverloadLog = {
         </div>
         <section class="ol-terminal sys-panel">
           <header class="ol-terminal-head">
-            <span>LOGIC_CORE — reading your rant</span>
-            <span class="sys-flicker" id="olParseStatus">${pending ? 'typing analysis…' : 'parse complete — review below'}</span>
+            <span>Thinking with you</span>
+            <span class="sys-flicker" id="olParseStatus">${pending ? 'reading your words…' : 'all threads reviewed'}</span>
           </header>
           <div class="ol-parse-summary ${pending ? 'ol-parse-pending' : ''}" id="olParseStats">
             <div class="ol-parse-stat" data-stat="ctrl"><strong>${pending ? '…' : (diag.controllable ?? 0)}</strong><span>controllable</span></div>
