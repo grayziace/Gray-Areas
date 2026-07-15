@@ -369,6 +369,29 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="endDayBack">
+  <div class="modal sketch-card end-day-modal">
+    <button class="modal-close" id="closeEndDay">×</button>
+    <h3>End day — complete daily log</h3>
+    <p class="field-hint">Your timeline is saved. Fill in anything missing for the calendar.</p>
+    <div class="day-form-grid">
+      <div class="field"><label>Mood (1–10)</label><input type="range" id="endMood" min="1" max="10" value="7"><span class="range-val" id="endMoodVal">7</span></div>
+      <div class="field"><label>Steps</label><input type="number" id="endSteps" value="0"></div>
+      <div class="field"><label>Work hours</label><input type="number" id="endWork" min="0" step="0.5" value="0"></div>
+      <div class="field"><label>Mandarin (hrs)</label><input type="number" id="endMandarin" min="0" step="0.5" value="0"></div>
+      <div class="field"><label>Hobby</label><select id="endHobbySelect"><option value="">—</option></select></div>
+      <div class="field"><label>Hobby hours</label><input type="number" id="endHobbyHours" min="0" step="0.5" value="0"></div>
+    </div>
+    <div class="field"><label>People met</label><input type="text" id="endPeople" placeholder="comma-separated"></div>
+    <div class="field"><label>Places discovered</label><input type="text" id="endPlaces" placeholder="comma-separated"></div>
+    <div class="field"><label>Diary entry</label><textarea id="endDiary" rows="5" placeholder="how the day actually felt"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelEndDay" type="button">Cancel</button>
+      <button class="btn primary" id="saveEndDay" type="button">Save &amp; close day</button>
+    </div>
+  </div>
+</div>
+
 <div id="editToast" class="edit-toast hidden" aria-live="polite">Editing.</div>
 
 <div class="modal-back hidden" id="adminModalBack">

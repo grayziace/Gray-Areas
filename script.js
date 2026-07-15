@@ -687,6 +687,7 @@ const DailyLog = {
     const places = [...new Set([...extraPlaces, ...(zone ? [zone] : [])])];
     const people = document.getElementById('logPeople').value.split(',').map(s => s.trim()).filter(Boolean);
 
+    const existing = state.entries[key] || {};
     state.entries[key] = {
       mood: document.getElementById('logMood').value,
       steps: document.getElementById('logSteps').value,
@@ -698,6 +699,7 @@ const DailyLog = {
       places,
       diary: document.getElementById('logDiary').value,
       photos: pendingDayPhotos,
+      stream: existing.stream || null,
     };
 
     places.forEach(z => { if(!state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
@@ -808,7 +810,52 @@ function normalizeEntry(e){
     places,
     diary: e.diary || e.note || e.thoughts || '',
     photos: e.photos || [],
+    stream: e.stream || null,
   };
+}
+
+function getDayStream(key){
+  const raw = state.entries[key];
+  const stream = raw?.stream || {};
+  return {
+    startedAt: stream.startedAt || null,
+    endedAt: stream.endedAt || null,
+    nodes: Array.isArray(stream.nodes) ? [...stream.nodes] : [],
+  };
+}
+
+function ensureTodayStream(){
+  const key = todayKey();
+  if(!state.entries[key]) state.entries[key] = {};
+  if(!state.entries[key].stream) state.entries[key].stream = { nodes: [] };
+  return key;
+}
+
+const STREAM_NODE_META = {
+  wake: { label: 'Wake', neon: '#6ee7a0', icon: '◉' },
+  sleep: { label: 'Sleep', neon: '#71717a', icon: '◎' },
+  song: { label: 'Song', neon: '#f472b6', icon: '♫' },
+  book: { label: 'Book', neon: '#a78bfa', icon: '▣' },
+  film: { label: 'Film', neon: '#f43f8e', icon: '▶' },
+  note: { label: 'Note', neon: '#3ad6e0', icon: '◆' },
+};
+
+function fmtClockTime(tz){
+  return new Date().toLocaleTimeString('en-GB', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+}
+
+function fmtNodeTime(iso){
+  if(!iso) return '—';
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function streamDiaryDraft(nodes){
+  return nodes
+    .filter(n => n.type !== 'wake' && n.type !== 'sleep')
+    .map(n => `[${fmtNodeTime(n.at)}] ${STREAM_NODE_META[n.type]?.label || n.type}: ${n.text}`)
+    .join('\n');
 }
 
 function last7Entries(){
@@ -1068,6 +1115,7 @@ function bootApp(){
   try{ applyAdminUI(); }catch(err){ console.error('Admin UI failed:', err); }
   try{ renderAll(); }catch(err){ console.error('Render failed:', err); }
   try{ if(typeof OverloadLog !== 'undefined') OverloadLog.init(); }catch(err){ console.error('Overload log init failed:', err); }
+  try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
@@ -1319,55 +1367,259 @@ function renderAbout(){
     el.addEventListener('click', () => document.querySelector(`.node-btn[data-view="${el.dataset.goto}"]`)?.click());
   });
   bindFlipPlayerCards(spread);
-  if(typeof OverloadLog !== 'undefined') OverloadLog.bindProfileCardEgg(spread);
 }
 
-/* ---------- Home Check-In ---------- */
+/* ---------- Home Check-In — live day stream ---------- */
+const HomeCheckIn = {
+  clockTimer: null,
+  inited: false,
+
+  init(){
+    if(this.inited) return;
+    this.inited = true;
+    document.getElementById('closeEndDay')?.addEventListener('click', () => this.closeEndDay());
+    document.getElementById('cancelEndDay')?.addEventListener('click', () => this.closeEndDay());
+    document.getElementById('saveEndDay')?.addEventListener('click', () => this.saveEndDay());
+    document.getElementById('endMood')?.addEventListener('input', e => {
+      document.getElementById('endMoodVal').textContent = e.target.value;
+    });
+    document.getElementById('endDayBack')?.addEventListener('click', e => {
+      if(e.target.id === 'endDayBack') this.closeEndDay();
+    });
+    this.startClock();
+  },
+
+  bindSpread(spread){
+    spread.querySelector('#homeStartDay')?.addEventListener('click', () => this.startDay());
+    spread.querySelector('#homeEndDay')?.addEventListener('click', () => this.openEndDay());
+    spread.querySelector('#homeAddSong')?.addEventListener('click', () => this.addPulse('song', 'homeSongInput'));
+    spread.querySelector('#homeAddBook')?.addEventListener('click', () => this.addPulse('book', 'homeBookInput'));
+    spread.querySelector('#homeAddFilm')?.addEventListener('click', () => this.addPulse('film', 'homeFilmInput'));
+    spread.querySelector('#homeAddNote')?.addEventListener('click', () => this.addPulse('note', 'homeNoteInput'));
+    ['homeSongInput', 'homeBookInput', 'homeFilmInput', 'homeNoteInput'].forEach(id => {
+      spread.querySelector('#' + id)?.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){
+          const map = { homeSongInput: 'song', homeBookInput: 'book', homeFilmInput: 'film', homeNoteInput: 'note' };
+          this.addPulse(map[id], id);
+        }
+      });
+    });
+  },
+
+  startClock(){
+    clearInterval(this.clockTimer);
+    const tick = () => {
+      const sz = document.getElementById('clockShenzhen');
+      const uk = document.getElementById('clockUk');
+      if(sz) sz.textContent = fmtClockTime('Asia/Shanghai');
+      if(uk) uk.textContent = fmtClockTime('Europe/London');
+    };
+    tick();
+    this.clockTimer = setInterval(tick, 1000);
+  },
+
+  addNode(type, text){
+    const key = ensureTodayStream();
+    const stream = getDayStream(key);
+    stream.nodes.push({
+      id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      at: new Date().toISOString(),
+      type,
+      text: text.trim(),
+    });
+    state.entries[key].stream = stream;
+    saveState();
+    renderHomeCheckIn();
+    renderLogCalendar();
+  },
+
+  addPulse(type, inputId){
+    if(!isAdmin()) return;
+    const input = document.getElementById(inputId);
+    const text = input?.value?.trim();
+    if(!text) return;
+    const stream = getDayStream(todayKey());
+    if(!stream.startedAt){
+      alert('Tap Start day first.');
+      return;
+    }
+    if(stream.endedAt){
+      alert('Day already ended. Start a new day tomorrow.');
+      return;
+    }
+    this.addNode(type, text);
+    if(input) input.value = '';
+  },
+
+  startDay(){
+    if(!isAdmin()) return;
+    const key = ensureTodayStream();
+    const stream = getDayStream(key);
+    if(stream.startedAt && !stream.endedAt){
+      alert('Day already in progress.');
+      return;
+    }
+    if(stream.endedAt && stream.startedAt){
+      if(!confirm('Start a fresh day session? This clears today\'s ended status.')) return;
+      stream.nodes = stream.nodes.filter(n => n.type !== 'wake' && n.type !== 'sleep');
+      stream.endedAt = null;
+    }
+    const now = new Date().toISOString();
+    stream.startedAt = now;
+    stream.nodes.push({ id: 'n-wake-' + Date.now(), at: now, type: 'wake', text: 'Day started' });
+    state.entries[key].stream = stream;
+    saveState();
+    renderHomeCheckIn();
+  },
+
+  openEndDay(){
+    if(!isAdmin()) return;
+    const key = todayKey();
+    const stream = getDayStream(key);
+    if(!stream.startedAt){
+      alert('Start your day first.');
+      return;
+    }
+    if(stream.endedAt){
+      alert('Day already closed. Check the Daily Log calendar.');
+      return;
+    }
+    const n = normalizeEntry(state.entries[key]);
+    document.getElementById('endMood').value = n.mood || 7;
+    document.getElementById('endMoodVal').textContent = n.mood || 7;
+    document.getElementById('endSteps').value = n.steps || 0;
+    document.getElementById('endWork').value = n.workHours || 0;
+    document.getElementById('endMandarin').value = n.mandarinHours || 0;
+    const hobbySel = document.getElementById('endHobbySelect');
+    hobbySel.innerHTML = '<option value="">—</option>' + getHobbyOptions().map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+    hobbySel.value = n.hobby || '';
+    document.getElementById('endHobbyHours').value = n.hobbyHours || 0;
+    document.getElementById('endPeople').value = (n.people || []).join(', ');
+    document.getElementById('endPlaces').value = (n.places || []).filter(p => !CONTENT.zones.includes(p)).join(', ');
+    const draft = streamDiaryDraft(stream.nodes);
+    document.getElementById('endDiary').value = n.diary || draft;
+    document.getElementById('endDayBack')?.classList.remove('hidden');
+  },
+
+  closeEndDay(){
+    document.getElementById('endDayBack')?.classList.add('hidden');
+  },
+
+  saveEndDay(){
+    if(!isAdmin()) return;
+    const key = todayKey();
+    const stream = getDayStream(key);
+    const now = new Date().toISOString();
+    stream.endedAt = now;
+    stream.nodes.push({ id: 'n-sleep-' + Date.now(), at: now, type: 'sleep', text: 'Day ended' });
+    const people = document.getElementById('endPeople').value.split(',').map(s => s.trim()).filter(Boolean);
+    const places = document.getElementById('endPlaces').value.split(',').map(s => s.trim()).filter(Boolean);
+    const existing = state.entries[key] || {};
+    state.entries[key] = {
+      mood: document.getElementById('endMood').value,
+      steps: document.getElementById('endSteps').value,
+      workHours: document.getElementById('endWork').value,
+      mandarinHours: document.getElementById('endMandarin').value,
+      hobby: document.getElementById('endHobbySelect').value,
+      hobbyHours: document.getElementById('endHobbyHours').value,
+      people,
+      places,
+      diary: document.getElementById('endDiary').value,
+      photos: existing.photos || [],
+      stream,
+    };
+    places.forEach(z => { if(z && !state.unlockedZones.includes(z)) state.unlockedZones.push(z); });
+    saveState();
+    this.closeEndDay();
+    renderHomeCheckIn();
+    renderLogCalendar();
+    safeRender(renderAbout);
+    document.querySelector('.node-btn[data-view="ledger"]')?.click();
+  },
+
+  renderTimeline(stream){
+    if(!stream.nodes.length){
+      return '<p class="home-timeline-empty">No pulses yet. Start your day and drop song, book, film, or note updates.</p>';
+    }
+    const sorted = [...stream.nodes].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+    return `<div class="home-timeline">${sorted.map((node, i) => {
+      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
+      const next = sorted[i + 1];
+      const gap = next && node.at && next.at
+        ? Math.round((new Date(next.at) - new Date(node.at)) / 60000) + 'm'
+        : '';
+      return `<div class="home-node" style="--hn-neon:${meta.neon}">
+        <div class="home-node-rail"><span class="home-node-dot"></span><span class="home-node-line"></span></div>
+        <div class="home-node-body">
+          <div class="home-node-meta">
+            <span class="home-node-time">${fmtNodeTime(node.at)}</span>
+            <span class="home-node-type">${meta.icon} ${meta.label}</span>
+            ${gap ? `<span class="home-node-gap">+${gap}</span>` : ''}
+          </div>
+          <p class="home-node-text">${esc(node.text || '')}</p>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  },
+
+  dayStatus(stream){
+    if(stream.endedAt) return `Day closed · sleep ${fmtNodeTime(stream.endedAt)}`;
+    if(stream.startedAt) return `Day active · wake ${fmtNodeTime(stream.startedAt)}`;
+    return 'Day not started';
+  },
+};
+
 function renderHomeCheckIn(){
   const spread = document.getElementById('homeSpread');
   if(!spread) return;
 
+  const key = todayKey();
+  const stream = getDayStream(key);
+  const today = normalizeEntry(state.entries[key]);
+  const admin = isAdmin();
   const last7 = last7Entries();
   const totalSteps = last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).steps)||0), 0);
   const avgMood = last7.length ? Math.round(last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).mood)||0), 0) / last7.length) : null;
-  const mandarinWeek = last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).mandarinHours)||0), 0);
-  const workWeek = last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).workHours)||0), 0);
-  const today = normalizeEntry(state.entries[todayKey()]);
-  const watching = allDramas().filter(d => d.status === 'watching');
-
-  const recentBits = Object.entries(state.entries).sort((a,b) => b[0].localeCompare(a[0])).slice(0,5).map(([key,e]) => {
-    const n = normalizeEntry(e);
-    const bits = [...n.places, ...n.people.map(p=>'+'+p)].slice(0,3);
-    return `<div class="home-scrap" style="--sr:${(Math.random()*4-2).toFixed(1)}deg"><span class="home-scrap-date">${fmtDate(key)}</span><span class="home-scrap-text">${esc(bits.join(' · ') || n.diary?.slice(0,40) || '—')}</span></div>`;
-  }).join('');
 
   spread.innerHTML = `
+    <article class="manga-panel home-clock-panel" style="--panel-neon:#3ad6e0">
+      <div class="manga-section">Now</div>
+      <div class="home-clocks">
+        <div class="home-clock"><span class="home-clock-lbl">Shenzhen</span><span class="home-clock-val" id="clockShenzhen">--:--:--</span></div>
+        <div class="home-clock"><span class="home-clock-lbl">UK</span><span class="home-clock-val" id="clockUk">--:--:--</span></div>
+      </div>
+      <p class="home-day-status">${esc(HomeCheckIn.dayStatus(stream))}</p>
+      ${admin ? `<div class="home-day-actions">
+        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>Start day</button>
+        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>End day</button>
+      </div>` : ''}
+    </article>
+
+    ${admin ? `<article class="manga-panel home-pulse-panel admin-only" style="--panel-neon:#f472b6">
+      <div class="manga-section">Quick pulse</div>
+      <div class="home-pulse-grid">
+        <div class="home-pulse-row"><label>♫ Song</label><input type="text" id="homeSongInput" placeholder="track · artist"><button type="button" class="btn" id="homeAddSong">+</button></div>
+        <div class="home-pulse-row"><label>▣ Book</label><input type="text" id="homeBookInput" placeholder="title · progress"><button type="button" class="btn" id="homeAddBook">+</button></div>
+        <div class="home-pulse-row"><label>▶ Film</label><input type="text" id="homeFilmInput" placeholder="title · ep/scene"><button type="button" class="btn" id="homeAddFilm">+</button></div>
+        <div class="home-pulse-row"><label>◆ Note</label><input type="text" id="homeNoteInput" placeholder="quick thought"><button type="button" class="btn" id="homeAddNote">+</button></div>
+      </div>
+    </article>` : ''}
+
+    <article class="manga-panel home-timeline-panel wide" style="--panel-neon:#9b5cff">
+      <div class="manga-section">Today's stream</div>
+      ${HomeCheckIn.renderTimeline(stream)}
+    </article>
+
     <article class="manga-panel hero home-hero" style="--panel-neon:${stableNeon('home-hero', 0)}">
       <div class="manga-section">This week</div>
       <h3 class="manga-headline">${avgMood ? moodWord(avgMood) : 'Quiet start'}</h3>
       <div class="home-stat-row">
         <div class="home-stat"><span class="hs-num">${totalSteps.toLocaleString()}</span><span class="hs-lbl">steps</span></div>
-        <div class="home-stat"><span class="hs-num">${mandarinWeek.toFixed(1)}</span><span class="hs-lbl">hrs 中文</span></div>
-        <div class="home-stat"><span class="hs-num">${workWeek.toFixed(1)}</span><span class="hs-lbl">hrs work</span></div>
+        <div class="home-stat"><span class="hs-num">${today.mood || '—'}</span><span class="hs-lbl">mood today</span></div>
       </div>
-    </article>
-    <article class="manga-panel note home-note" style="--panel-neon:${stableNeon('home-note', 1)}">
-      <div class="manga-section">Today</div>
-      <p class="manga-excerpt home-note-text">${today.diary ? esc(today.diary.slice(0,120)) : (Object.keys(state.entries).includes(todayKey()) ? 'Logged.' : 'Nothing yet.')}</p>
-    </article>
-    <article class="manga-panel tall" style="--panel-neon:${stableNeon('home-media', 2)}">
-      <div class="manga-section">Media</div>
-      ${watching.length ? watching.map(d => {
-        const pct = Math.round((d.currentEpisode/d.totalEpisodes)*100);
-        const mt = getMediaType(d.mediaType);
-        const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
-        return `<div class="home-drama-row"><span class="home-drama-title">${esc(d.title)}</span><span class="home-drama-type">${esc(mt.label)}</span><span class="home-drama-ep">${mt.unit} ${d.currentEpisode}/${d.totalEpisodes}${ratingDots ? ` · ${ratingDots}` : ''}</span><div class="home-drama-bar"><div style="width:${pct}%"></div></div></div>`;
-      }).join('') : '<p class="manga-excerpt">Nothing in progress.</p>'}
-    </article>
-    <article class="manga-panel wide home-scrap-panel" style="--panel-neon:${stableNeon('home-scrap', 3)}">
-      <div class="manga-section">Recent</div>
-      <div class="home-scrap-wrap">${recentBits || '<p class="manga-excerpt">—</p>'}</div>
     </article>`;
+
+  HomeCheckIn.bindSpread(spread);
 }
 
 /* ---------- Daily Log — calendar ---------- */
@@ -1396,6 +1648,15 @@ function buildDayDetailHTML(key, e){
     ${n.places.length ? `<div class="dlt-row"><span>Places visited</span><span>${esc(n.places.join(', '))}</span></div>`:''}
   </div>`;
   if(n.diary) html += `<div class="day-detail-section"><h4>Diary entry</h4><p class="day-diary">${esc(n.diary)}</p></div>`;
+  const stream = e.stream || n.stream;
+  if(stream?.nodes?.length){
+    html += `<div class="day-detail-section"><h4>Day stream</h4><div class="day-stream-mini">`;
+    [...stream.nodes].sort((a,b) => (a.at||'').localeCompare(b.at||'')).forEach(node => {
+      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0' };
+      html += `<div class="dsm-row" style="--dsm-neon:${meta.neon}"><span>${fmtNodeTime(node.at)}</span><span>${meta.label}</span><span>${esc(node.text||'')}</span></div>`;
+    });
+    html += `</div></div>`;
+  }
   if(n.photos?.length){
     html += `<div class="day-detail-section"><h4>Photos</h4><div class="day-photo-grid">${n.photos.map(p=>
       `<img src="${esc(typeof p==='string'?p:p.src)}" alt="">`).join('')}</div></div>`;

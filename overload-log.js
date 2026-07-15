@@ -28,6 +28,21 @@ const OverloadLog = {
   cardFlips: 0,
   cardFlipTimer: null,
 
+  passcode(){
+    return typeof OVERLOAD_KEY !== 'undefined' ? OVERLOAD_KEY : 'systemfailure';
+  },
+
+  onHeroCardFlip(){
+    this.cardFlips++;
+    clearTimeout(this.cardFlipTimer);
+    if(this.cardFlips >= 5){
+      this.cardFlips = 0;
+      this.requestAccess();
+      return;
+    }
+    this.cardFlipTimer = setTimeout(() => { this.cardFlips = 0; }, 10000);
+  },
+
   isUnlocked(){
     return sessionStorage.getItem('ga-overload') === '1';
   },
@@ -38,7 +53,7 @@ const OverloadLog = {
 
   checkUrl(){
     const key = new URLSearchParams(location.search).get('overload');
-    if(key && key === OVERLOAD_KEY){
+    if(key && key === this.passcode()){
       this.unlock();
       history.replaceState({}, '', location.pathname);
       queueMicrotask(() => this.open());
@@ -62,7 +77,7 @@ const OverloadLog = {
 
   tryUnlock(){
     const input = document.getElementById('overloadKeyInput');
-    if(input?.value === OVERLOAD_KEY){
+    if(input?.value === this.passcode()){
       this.unlock();
       document.getElementById('overloadAuthBack')?.classList.add('hidden');
       input.value = '';
@@ -334,24 +349,6 @@ const OverloadLog = {
       const selected = [...root.querySelectorAll('.ol-emotion-check:checked')].map(el => el.value);
       const fields = root.querySelector('#olPromptFields');
       if(fields) fields.innerHTML = this.renderPromptFields(selected);
-    });
-  },
-
-  bindProfileCardEgg(container){
-    if(!container || container._olCardEgg) return;
-    container._olCardEgg = true;
-    container.addEventListener('click', e => {
-      if(e.target.closest('.flip-edit-btn, .card-edit-front, .flip-del-btn')) return;
-      const fig = e.target.closest('.player-card-hero.poke-flip');
-      if(!fig || !container.contains(fig)) return;
-      this.cardFlips++;
-      clearTimeout(this.cardFlipTimer);
-      if(this.cardFlips >= 5){
-        this.cardFlips = 0;
-        this.requestAccess();
-        return;
-      }
-      this.cardFlipTimer = setTimeout(() => { this.cardFlips = 0; }, 2000);
     });
   },
 

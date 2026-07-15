@@ -401,6 +401,9 @@ function bindFlipPlayerCards(container){
     const was = fig.classList.contains('is-flipped');
     container.querySelectorAll('.poke-flip.is-flipped').forEach(f => f.classList.remove('is-flipped'));
     if(!was) fig.classList.add('is-flipped');
+    if(typeof OverloadLog !== 'undefined' && fig.classList.contains('player-card-hero') && fig.dataset.cardType === 'player'){
+      OverloadLog.onHeroCardFlip();
+    }
   };
   container.addEventListener('click', container._flipHandler);
 }
