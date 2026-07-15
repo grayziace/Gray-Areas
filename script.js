@@ -1319,7 +1319,7 @@ function renderAbout(){
     el.addEventListener('click', () => document.querySelector(`.node-btn[data-view="${el.dataset.goto}"]`)?.click());
   });
   bindFlipPlayerCards(spread);
-  if(typeof OverloadLog !== 'undefined') OverloadLog.bindProfileEgg();
+  if(typeof OverloadLog !== 'undefined') OverloadLog.bindProfileCardEgg(spread);
 }
 
 /* ---------- Home Check-In ---------- */

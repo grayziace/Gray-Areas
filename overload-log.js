@@ -25,8 +25,8 @@ const OVERLOAD_PROMPTS = {
 const OverloadLog = {
   view: 'list',
   editingId: null,
-  profileClicks: 0,
-  profileTimer: null,
+  cardFlips: 0,
+  cardFlipTimer: null,
 
   isUnlocked(){
     return sessionStorage.getItem('ga-overload') === '1';
@@ -337,20 +337,21 @@ const OverloadLog = {
     });
   },
 
-  bindProfileEgg(){
-    const title = document.getElementById('profileTitle');
-    if(!title || title.dataset.olEgg) return;
-    title.dataset.olEgg = '1';
-    title.style.cursor = 'default';
-    title.addEventListener('click', () => {
-      this.profileClicks++;
-      clearTimeout(this.profileTimer);
-      if(this.profileClicks >= 5){
-        this.profileClicks = 0;
+  bindProfileCardEgg(container){
+    if(!container || container._olCardEgg) return;
+    container._olCardEgg = true;
+    container.addEventListener('click', e => {
+      if(e.target.closest('.flip-edit-btn, .card-edit-front, .flip-del-btn')) return;
+      const fig = e.target.closest('.player-card-hero.poke-flip');
+      if(!fig || !container.contains(fig)) return;
+      this.cardFlips++;
+      clearTimeout(this.cardFlipTimer);
+      if(this.cardFlips >= 5){
+        this.cardFlips = 0;
         this.requestAccess();
         return;
       }
-      this.profileTimer = setTimeout(() => { this.profileClicks = 0; }, 2000);
+      this.cardFlipTimer = setTimeout(() => { this.cardFlips = 0; }, 2000);
     });
   },
 
@@ -371,7 +372,5 @@ const OverloadLog = {
     document.getElementById('overloadBack')?.addEventListener('click', e => {
       if(e.target.id === 'overloadBack') this.close();
     });
-
-    this.bindProfileEgg();
   },
 };
