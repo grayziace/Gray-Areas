@@ -132,185 +132,282 @@ const GLITCH_ERRORS = [
 const DIAGNOSTIC_CORE = [];
 
 const RantLogicEngine = {
-  emotionProblem(id){
-    const map = {
-      sick: 'Physical subsystem degraded — maintenance protocol required',
-      guilty: 'Moral checksum mismatch — rule violation signal active',
-      ashamed: 'Social status simulation running — audience may be internal only',
-      anxious: 'Threat model active — probability assessment incomplete',
-      overwhelmed: 'Thread count exceeds processing capacity',
-      exhausted: 'Recovery debt exceeds available rest bandwidth',
-      lonely: 'Connection channel open — no active peer detected',
-      hopeless: 'Future projection module returning null outcomes',
-      angry: 'Boundary violation or blocked objective detected',
-      sad: 'Loss signal — object, state, or expectation removed',
-      numb: 'Affect output suppressed — possible overload shutdown',
-      stagnant: 'No state change detected across time window',
-      panicked: 'Acute threat response — logic tree collapsed',
-      heartbroken: 'Attachment severed — reroute dependency required',
-      burnt_out: 'Output exceeded recovery for extended period',
-      powerless: 'Agency signal low — control variables unclear',
-      stuck: 'Decision tree blocked — exit vector not selected',
-    };
-    return map[id] || (OVERLOAD_PROMPTS[id] ? OVERLOAD_PROMPTS[id].replace(/\.$/, '') : 'Active emotional flag — decomposition required');
+  capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   },
 
   extractSentences(rant){
     return rant.split(/[\n.!?]+/).map(s => s.trim()).filter(s => s.length > 6);
   },
 
-  summarizeRant(rant){
-    const s = rant.trim().replace(/\s+/g, ' ');
-    return s.length > 160 ? s.slice(0, 160) + '…' : s;
-  },
-
-  identifyProblems(sentences, emotions){
-    const patterns = [
-      /i (can'?t|cannot|couldn'?t|won'?t|shouldn'?t)/i,
-      /i (feel|am|\'m) /i,
-      /i (hate|need|want|wish|miss|regret)/i,
-      /why (do|does|did|is|am|can)/i,
-      /(always|never|every time|no one|nobody)/i,
-      /(sick|ill|pain|hurt|tired|exhausted|guilty|ashamed|lonely|scared|anxious)/i,
-      /(they|he|she|people) (won'?t|don'?t|didn'?t|can'?t)/i,
-    ];
-    const found = [];
-    sentences.forEach(s => {
-      if(patterns.some(p => p.test(s)) || s.length > 35){
-        found.push({ text: s.charAt(0).toUpperCase() + s.slice(1), category: 'rant_extract' });
-      }
-    });
-    if(!found.length && sentences.length){
-      found.push({ text: sentences[0].charAt(0).toUpperCase() + sentences[0].slice(1), category: 'primary' });
+  decomposeProblems(rant){
+    const text = rant.trim().replace(/\s+/g, ' ');
+    const problems = [];
+    const used = new Set();
+    const add = (raw, type) => {
+      const t = this.capitalize(raw.trim().replace(/^[,;]\s*/, ''));
+      if(t.length < 8) return;
+      const key = t.toLowerCase().slice(0, 48);
+      if(used.has(key)) return;
+      used.add(key);
+      problems.push({ text: t, type });
+    };
+    const body = text.match(/\bi'?m\s+(?:feeling\s+)?(?:sick|ill|unwell|tired|exhausted|worn\s+out|not\s+well)(?:\s+and\s+(?:tired|sick|exhausted|worn\s+out))?/i);
+    if(body) add(body[0], 'body');
+    const worry = text.match(/\bi'?m\s+worried\s+about\s+([^.!?]+)/i);
+    if(worry) add(`Worried about ${worry[1].trim()}`, 'planning');
+    else {
+      const host = text.match(/(?:next\s+)?(?:weekend|saturday|sunday)[^.!?]*(?:host|hosting|guest|logistic)[^.!?]*/i)
+        || text.match(/hosting\s+[^.!?]+/i);
+      if(host) add(host[0], 'planning');
     }
-    emotions.forEach(id => {
-      const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
-      if(em) found.push({ text: `Active ${em.label.toLowerCase()} state flagged by user`, category: 'emotion', emotionId: id });
-    });
-    const seen = new Set();
-    return found.filter(p => {
-      const k = p.text.toLowerCase().slice(0, 40);
-      if(seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    }).slice(0, 10);
+    const guilt = text.match(/\bi\s+(?:feel\s+)?guilty\s+(?:about|for|that)\s+([^.!?]+)/i);
+    if(guilt) add(`Feeling guilty about ${guilt[1].trim()}`, 'guilt');
+    const form = text.match(/(?:sick|ill|tired|unwell)[^.!?]*(?:friend|guest|host|weekend)[^.!?]*/i)
+      || text.match(/(?:friend|guest)[^.!?]*(?:weekend|coming)[^.!?]*(?:sick|tired|best form)[^.!?]*/i)
+      || text.match(/worried?\s+(?:i\s+)?won'?t\s+be\s+(?:on\s+)?(?:my\s+)?best\s+form[^.!?]*/i);
+    if(form) add(form[0], 'hosting_health');
+    const binge = text.match(/(?:binge\s*eating|binge\s*eat|keep\s+binge)[^.!?]*/i);
+    if(binge) add(this.capitalize(binge[0]), 'habit');
+    const guestCount = text.match(/worried?\s+(?:that\s+)?(?:no\s*one|nobody)\s+will\s+come[^.!?]*/i);
+    if(guestCount) add(this.capitalize(guestCount[0]), 'guest_anxiety');
+    const tooMany = text.match(/worried?\s+(?:that\s+)?too\s+many\s+will\s+come[^.!?]*/i);
+    if(tooMany) add(this.capitalize(tooMany[0]), 'guest_anxiety');
+    const bodyImage = text.match(/(?:skinny\s+legend|lose\s+weight|need\s+to\s+be\s+thin)[^.!?]*/i);
+    if(bodyImage) add(this.capitalize(bodyImage[0]), 'body_image');
+    const external = text.match(/\b(?:they|he|she|people)\s+(?:won'?t|don't|didn'?t|can'?t|refuse)[^.!?]*/i);
+    if(external) add(this.capitalize(external[0]), 'external');
+    if(!problems.length) this.extractSentences(text).forEach(s => add(s, 'general'));
+    if(!problems.length && text) add(text.length > 180 ? text.slice(0, 180) + '…' : text, 'general');
+    return problems.slice(0, 6);
   },
 
-  classifyControl(text){
+  classifyControl(text, type){
     const t = text.toLowerCase();
-    const unctrl = [
-      /\b(they|them|their|he |she |people|others?|someone else)\b/,
-      /\b(past|already happened|can't change|cannot change|too late)\b/,
-      /\b(weather|economy|government|pandemic)\b/,
-      /\b(died|death|passed away)\b/,
-      /\bwhat (will|would) (they|he|she)\b/,
-      /\bif (they|he|she) (don't|doesn't|won't)\b/,
-    ];
-    const ctrl = [
-      /\b(i can|i will|i should|i need to|i could|my |myself)\b/,
-      /\b(sleep|eat|rest|walk|drink|call|text|ask|leave|start|stop|take|go)\b/,
-      /\b(hour|minute|today|tonight|tomorrow)\b/,
-    ];
-    if(unctrl.some(p => p.test(t))){
-      return { class: 'UNCONTROLLABLE', reason: 'External agent or closed timeline. Not assignable to user runtime.' };
+    if(type === 'body') return { class: 'PARTIAL', reason: 'Body state is partly in your control through rest, fuel, and pacing — not a closed timeline.' };
+    if(type === 'planning' || /\b(host|hosting|guest|logistic|plan|prepare|checklist|organis|organiz|worried about)\b/.test(t)){
+      return { class: 'CONTROLLABLE', reason: 'Future event you can still prepare for — assignable to your planning runtime.' };
     }
-    if(ctrl.some(p => p.test(t))){
-      return { class: 'CONTROLLABLE', reason: 'User-executable variable detected in statement.' };
+    if(type === 'guilt') return { class: 'PARTIAL', reason: 'Moral signal — split the rule you think you broke from what you can actually change.' };
+    if(type === 'hosting_health' || type === 'habit' || type === 'body_image') return { class: 'PARTIAL', reason: 'Mixed body state and behaviour — partly steerable with small protocols.' };
+    if(type === 'guest_anxiety') return { class: 'CONTROLLABLE', reason: 'RSVP and expectation-setting are still in your hands.' };
+    if(type === 'external' || /\b(they|he|she)\s+(won'?t|don't|didn'?t|can'?t|refuse)\b/.test(t)){
+      return { class: 'UNCONTROLLABLE', reason: 'Another agent holds the decision — not assignable to your runtime.' };
     }
-    if(/\b(maybe|might|unsure|don't know)\b/.test(t)){
-      return { class: 'PARTIAL', reason: 'Uncertainty present — gather one data point before action.' };
+    if(/\b(past|already happened|can't change|cannot change|too late|died|passed away)\b/.test(t)){
+      return { class: 'UNCONTROLLABLE', reason: 'Closed timeline — output only, no further steering.' };
     }
-    return { class: 'PARTIAL', reason: 'Influence mixed — split into facts vs requests vs feelings.' };
+    if(/\b(i can|i will|i should|i need to|i could|myself|my )\b/.test(t)
+      || /\b(sleep|eat|rest|walk|drink|call|text|ask|write|list|plan|prepare)\b/.test(t)){
+      return { class: 'CONTROLLABLE', reason: 'User-executable action detected in this thread.' };
+    }
+    return { class: 'PARTIAL', reason: 'Mixed influence — separate facts, feelings, and one next action.' };
   },
 
-  generateSolution(problem, emotions, ctrl){
+  rephraseProblem(problem){
+    const map = {
+      body: "You're physically depleted — sick or exhausted — and your body is asking for maintenance.",
+      hosting_health: "You're unwell before guests arrive and worried you won't have the energy to show up well for them.",
+      planning: "You're anxious about hosting logistics for an upcoming event.",
+      guest_anxiety: "You're worried about guest numbers — who will or won't show up.",
+      habit: "You're caught in a binge eating loop and it's distressing you.",
+      body_image: "You're putting pressure on yourself to be thinner or hit a certain body ideal.",
+      guilt: "You're carrying guilt about something you think you did wrong.",
+      external: "Someone else's choices are dominating this thread.",
+    };
+    if(map[problem.type]) return map[problem.type];
+    const t = problem.text;
+    if(/\bhost|guest|weekend|logistic/i.test(t)) return "You're stressed about an upcoming social event and how it will run.";
+    if(/\bsick|tired|ill/i.test(t)) return "Your body is under strain and needs recovery bandwidth.";
+    return t.length > 120 ? t.slice(0, 118) + '…' : t;
+  },
+
+  suggestSeverity(problem, emotions){
+    if(problem.type === 'body' || problem.type === 'hosting_health') return 'HIGH';
+    if(problem.type === 'habit' || emotions.includes('guilty') || problem.type === 'body_image') return 'MEDIUM';
+    if(problem.type === 'guest_anxiety' || problem.type === 'planning') return 'MEDIUM';
+    return 'LOW';
+  },
+
+  suggestMeta(problem, emotions){
+    const control = this.classifyControl(problem.text, problem.type);
+    const severity = this.suggestSeverity(problem, emotions);
+    const logic = {
+      body: 'Fatigue and illness are signals, not moral failures — treat as maintenance, separate from hosting prep.',
+      hosting_health: 'Guests care more about warmth than perfection — rest now is part of hosting prep, not competing with it.',
+      planning: 'Logistics anxiety shrinks when written as a short checklist with deadlines.',
+      guest_anxiety: 'Headcount fear is uncertainty — confirm invites and set a realistic cap rather than simulating both disasters.',
+      habit: 'Binge cycles often spike under stress — address the stress thread and add one stabiliser (meal, walk, pause).',
+      body_image: 'Body goals under stress become punishment loops — separate health actions from shame.',
+      guilt: 'Name the rule before obeying it — many guilt rules are self-imposed.',
+      external: 'Another person holds the lever — your only job is how much RAM this gets.',
+    };
+    return {
+      control: control.class,
+      reason: control.reason,
+      severity,
+      logic: logic[problem.type] || 'Split what happened from what you can still move.',
+    };
+  },
+
+  narrativeFor(problem, meta){
+    const ctrl = meta.control;
+    const lines = [];
+    lines.push({ kind: 'class', text: `${ctrl} · severity ${meta.severity} — ${meta.reason}` });
+    lines.push({ kind: 'think', text: `THINK OF IT LIKE THIS: ${meta.logic}` });
+    if(problem.type === 'body' || problem.type === 'hosting_health'){
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Rest blocks, fluids, food, pacing, and how much you commit to before the event.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: You white-knuckle through, crash when guests arrive, and feel worse after.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One recovery block today makes the social thread survivable — not perfect, but present.' });
+      lines.push({ kind: 'action', text: 'FIX: 20min rest + water + one meal now. Reassess energy before any host prep.' });
+    } else if(problem.type === 'planning' || problem.type === 'guest_anxiety'){
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Guest list clarity, one confirmation message, food/space basics, and a sleep buffer.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Spiral on imaginary headcounts instead of sending one clarifying text.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: A five-line checklist + one RSVP ping calms most of the noise.' });
+      lines.push({ kind: 'action', text: 'FIX: Write checklist (food, space, timing, sleep, backup). Send one low-stakes headcount message.' });
+    } else if(problem.type === 'habit'){
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Next meal choice, removing binge triggers for 2h, and naming the stress underneath.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Shame spiral → more binge → less energy for everything else.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One planned meal + short walk interrupts the loop enough to think clearly.' });
+      lines.push({ kind: 'action', text: 'FIX: Eat one intentional meal within 90min. No restriction talk — just stabilise blood sugar.' });
+    } else if(problem.type === 'body_image'){
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Whether today is a maintenance day vs a punishment day.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Restrictive panic on top of stress and illness.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Framing today as recovery — not weight loss — keeps energy for what matters.' });
+      lines.push({ kind: 'action', text: 'FIX: Park the body-image thread until after the event. Today: stabilise body only.' });
+    } else if(ctrl === 'UNCONTROLLABLE'){
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: Attention budget — park this thread.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: All-day simulation of someone else\'s choices.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Redirecting frees energy for rest or host prep.' });
+      lines.push({ kind: 'redirect', text: 'DO THIS INSTEAD: Acknowledge once, mark [PARK], move to a controllable thread.' });
+      lines.push({ kind: 'checkin', text: `CHECK IN AGAIN: ${this.checkInFor({ class: ctrl })}` });
+    } else {
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL: One concrete next move in the next 30 minutes.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Analysis replaces action.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One small step reduces load noticeably.' });
+      lines.push({ kind: 'action', text: 'FIX: One ≤15min action — execute before judging it.' });
+    }
+    return lines;
+  },
+
+  prepareWalkthrough(rant, emotionIds){
+    return {
+      problems: this.decomposeProblems(rant).map((p, i) => ({
+        ...p,
+        index: i + 1,
+        raw: p.text,
+        rephrase: this.rephraseProblem(p),
+        suggested: this.suggestMeta(p, emotionIds),
+      })),
+      emotionIds,
+    };
+  },
+
+  checkInFor(ctrl){
+    if(ctrl.class === 'UNCONTROLLABLE') return '4 hours — or tomorrow morning if this is about a future event you cannot steer';
+    if(ctrl.class === 'PARTIAL') return '2 hours — after one body-maintenance block';
+    return 'after you complete the first fix step (~30 minutes)';
+  },
+
+  buildNarrative(problem, ctrl, emotions){
+    const t = problem.text.toLowerCase();
+    const lines = [];
+    lines.push({ kind: 'problem', text: `PROBLEM ${problem.index}: ${problem.text}` });
+    lines.push({ kind: 'class', text: `${ctrl.class} — ${ctrl.reason}` });
+    if(problem.type === 'body' || /\b(sick|tired|ill|exhausted|unwell)\b/.test(t)){
+      lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: Your body is sending a maintenance alert. It is not the same thread as hosting or logistics — do not merge them in one panic loop.' });
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: Rest blocks, hydration, food, sleep debt, and how hard you push before the event.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: You ignore the signal, push through, and arrive at the weekend depleted.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One recovery block today + pacing makes the hosting thread actually manageable.' });
+      lines.push({ kind: 'action', text: 'FIX: Rest minimum 20 minutes, drink water, eat one real meal — then reassess energy.' });
+      return lines;
+    }
+    if(problem.type === 'planning' || /\b(host|hosting|logistic|guest|worried)\b/.test(t)){
+      lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: This is a planning problem, not a “people are uncontrollable” problem. Guests respond to preparation — your checklist is the lever.' });
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: Guest count expectations, timings, food, space, what you do the day before, and how much you rest before they arrive.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Last-minute scramble while you are already sick and tired — chaos at the door.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: A short checklist spread across a few days keeps the weekend calm enough.' });
+      lines.push({ kind: 'action', text: 'FIX: Tonight — write a 5-line host checklist (food, space, timing, sleep buffer, one backup plan). Do one item tomorrow.' });
+      return lines;
+    }
+    if(problem.type === 'guilt' || emotions.includes('guilty')){
+      lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: Guilt is a rule alarm. Name the rule before you punish yourself — many rules are self-imposed and negotiable.' });
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: Whether the rule is valid, whether you clarify expectations, and one corrective action if actually needed.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: You loop on self-punishment without changing anything useful.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Writing the rule down shrinks the shame signal to a single decision.' });
+      lines.push({ kind: 'action', text: 'FIX: State the rule you think you broke in one sentence. Mark it valid, external, or self-imposed — then stop the loop.' });
+      return lines;
+    }
     if(ctrl.class === 'UNCONTROLLABLE'){
-      return 'Acknowledge output. Mark [DISCARD]. Allocate zero further processing. Redirect attention to nearest controllable subsystem.';
+      lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: This thread depends on someone else’s choice or a timeline that already closed. Rehearsing it costs energy without changing the outcome.' });
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: How much attention you allocate — zero is a valid setting.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: You spend the day simulating outcomes you cannot steer.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: Parking this frees bandwidth for body recovery or host prep — the threads you can actually run.' });
+      lines.push({ kind: 'redirect', text: 'DO THIS INSTEAD: Acknowledge once, mark [DISCARD], redirect to nearest controllable subsystem (rest or checklist).' });
+      lines.push({ kind: 'checkin', text: `CHECK IN AGAIN: ${this.checkInFor(ctrl)}` });
+      return lines;
     }
-    const id = problem.emotionId;
-    if(id === 'sick' || emotions.includes('sick') || emotions.includes('unwell')){
-      return 'Run body protocol: hydration, food checkpoint, rest block minimum 20min. Escalate to medical if symptoms worsen or persist >48h.';
+    if(ctrl.class === 'CONTROLLABLE'){
+      lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: There is an executable move here — small, time-boxed, no evaluation loop required.' });
+      lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: The next concrete action in the next 30 minutes.' });
+      lines.push({ kind: 'worst', text: 'WORST CASE: Analysis replaces action and nothing changes before sleep.' });
+      lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One completed step reduces the emotional load noticeably.' });
+      lines.push({ kind: 'action', text: 'FIX: Pick one action ≤15 minutes. Execute before judging whether it helped.' });
+      return lines;
     }
-    if(id === 'guilty' || emotions.includes('guilty')){
-      return 'Identify violated rule. If self-imposed: revise or repeal. If external: clarify expectation or accept non-compliance cost. No punishment loop.';
-    }
-    if(id === 'ashamed' || emotions.includes('ashamed')){
-      return 'Name the simulated audience. If absent in reality: downgrade shame signal. One private corrective action only.';
-    }
-    if(emotions.includes('exhausted') || emotions.includes('burnt_out')){
-      return 'Schedule non-negotiable recovery window within 2h. Defer all non-critical threads.';
-    }
-    if(emotions.includes('anxious') || emotions.includes('panicked')){
-      return 'Write worst-case + best-case + most-likely. Assign rough %. Act only on most-likely path.';
-    }
-    if(emotions.includes('lonely')){
-      return 'Send one low-stakes connection signal (message, voice note). No attachment to response time.';
-    }
-    if(emotions.includes('stuck') || emotions.includes('stagnant')){
-      return 'Select smallest reversible action completable in <15 minutes. Execute before evaluating.';
-    }
-    if(emotions.includes('angry') || emotions.includes('frustrated')){
-      return 'Extract one factual blocker. One boundary or request to address it. No replay of narrative.';
-    }
-    return 'Define one action ≤15 minutes. Execute without evaluation loop.';
+    lines.push({ kind: 'think', text: 'THINK OF IT LIKE THIS: Part feeling, part fact — split them before you pick a move.' });
+    lines.push({ kind: 'control', text: 'YOU CAN CONTROL THIS ASPECT: One body or planning action while the rest stays on read-only.' });
+    lines.push({ kind: 'worst', text: 'WORST CASE: Treating the whole blob as one emergency.' });
+    lines.push({ kind: 'likely', text: 'LIKELY OUTCOME: One small maintenance action stabilises the partial thread.' });
+    lines.push({ kind: 'action', text: 'FIX: Run body protocol (rest + water + food) OR one planning line — not both at once.' });
+    lines.push({ kind: 'checkin', text: `CHECK IN AGAIN: ${this.checkInFor(ctrl)}` });
+    return lines;
   },
 
   suggestCommand(solutions, emotions){
+    const plan = solutions.find(s => (s.type === 'planning' || s.type === 'guest_anxiety') && s.control !== 'UNCONTROLLABLE');
+    if(plan) return 'EXECUTE: write checklist + send one headcount message';
+    const host = solutions.find(s => s.type === 'hosting_health');
+    if(host) return 'EXECUTE: rest 20min + one meal — then reassess before host prep';
+    const body = solutions.find(s => s.type === 'body');
+    if(body) return 'EXECUTE: rest + hydration checkpoint within 20 minutes';
     const ctrl = solutions.find(s => s.control === 'CONTROLLABLE');
-    if(ctrl) return 'EXECUTE: ' + ctrl.solution.split('.')[0].slice(0, 90);
-    if(emotions.includes('sick')) return 'EXECUTE: rest + hydration checkpoint within 20 minutes';
-    if(emotions.includes('exhausted')) return 'EXECUTE: sleep window within 2 hours — defer non-critical threads';
-    if(emotions.includes('guilty')) return 'EXECUTE: write the rule you think you broke — then mark valid or self-imposed';
+    if(ctrl) return 'EXECUTE: ' + (ctrl.actionLine || 'one 15-minute task').replace(/^FIX:\s*/i, '').slice(0, 90);
+    if(emotions.includes('guilty')) return 'EXECUTE: write the rule you think you broke — mark valid or self-imposed';
     return 'EXECUTE: one 10-minute maintenance task (water, food, shower, or walk)';
   },
 
   parse(rant, emotionIds){
-    const sentences = this.extractSentences(rant);
-    const problems = this.identifyProblems(sentences, emotionIds);
+    const problems = this.decomposeProblems(rant).map((p, i) => ({ ...p, index: String(i + 1).padStart(2, '0') }));
+    const displayQueue = [];
     const transcript = [];
     const solutions = [];
-
-    transcript.push({ role: 'system', text: '>>> RANT_BUFFER CLOSED' });
-    transcript.push({ role: 'system', text: '>>> AUTONOMOUS_LOGIC_PARSE — no user input required' });
-    transcript.push({ role: 'system', text: `>>> INPUT_LENGTH: ${rant.length} chars · ${sentences.length} segment(s)` });
-    transcript.push({ role: 'system', text: `>>> ACTIVE_FLAGS: ${emotionIds.map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(' | ')}` });
-
-    emotionIds.forEach(id => {
-      const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
-      transcript.push({ role: 'system', text: `>>> FLAG::${(em?.label || id).toUpperCase()} — ${this.emotionProblem(id)}` });
+    const flagLabels = emotionIds.map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(' · ');
+    const intro = [
+      { kind: 'intro', text: 'Parsing rant — reading for separate threads, not dumping every flag as its own problem.' },
+      { kind: 'intro', text: flagLabels ? `Context flags: ${flagLabels} (inform the read — not standalone problems).` : 'No emotion flags — parsing text only.' },
+      { kind: 'divider', text: '—' },
+    ];
+    intro.forEach(l => { displayQueue.push(l); transcript.push({ role: 'system', text: l.text, kind: l.kind }); });
+    problems.forEach(p => {
+      const ctrl = this.classifyControl(p.text, p.type);
+      const narrative = this.buildNarrative(p, ctrl, emotionIds);
+      narrative.forEach(line => { displayQueue.push(line); transcript.push({ role: 'system', text: line.text, kind: line.kind }); });
+      displayQueue.push({ kind: 'divider', text: '—' });
+      transcript.push({ role: 'system', text: '—', kind: 'divider' });
+      const actionLine = narrative.find(n => n.kind === 'action' || n.kind === 'redirect')?.text || '';
+      solutions.push({ problem: p.text, type: p.type, control: ctrl.class, reason: ctrl.reason, actionLine, checkIn: narrative.find(n => n.kind === 'checkin')?.text || '' });
     });
-
-    if(!problems.length){
-      problems.push({ text: this.summarizeRant(rant) || 'Emotional discharge without named target', category: 'summary' });
-    }
-
-    problems.forEach((p, i) => {
-      const ctrl = this.classifyControl(p.text);
-      const sol = this.generateSolution(p, emotionIds, ctrl);
-      const num = String(i + 1).padStart(2, '0');
-      transcript.push({ role: 'system', text: `>>> PROBLEM_${num}: ${p.text}` });
-      transcript.push({ role: 'system', text: `>>> VARIABLE_${num}: ${ctrl.class} — ${ctrl.reason}` });
-      transcript.push({ role: 'system', text: `>>> RESOLUTION_${num}: ${sol}` });
-      solutions.push({ problem: p.text, control: ctrl.class, reason: ctrl.reason, solution: sol });
-    });
-
-    const uncontrollable = solutions.filter(s => s.control === 'UNCONTROLLABLE');
-    const controllable = solutions.filter(s => s.control === 'CONTROLLABLE');
-
-    transcript.push({ role: 'system', text: `>>> PARSE_COMPLETE: ${controllable.length} controllable · ${uncontrollable.length} uncontrollable · ${solutions.length - controllable.length - uncontrollable.length} partial` });
-    if(uncontrollable.length){
-      transcript.push({ role: 'system', text: '>>> DISCARD_PROTOCOL ENGAGED — uncontrollable variables marked below' });
-      uncontrollable.forEach(u => transcript.push({ role: 'system', text: `>>> [DISCARD] ${u.problem}` }));
-    }
-    if(controllable.length){
-      transcript.push({ role: 'system', text: '>>> ACTIONABLE_QUEUE:' });
-      controllable.forEach((c, i) => transcript.push({ role: 'system', text: `>>> [${i + 1}] ${c.solution}` }));
-    }
-
+    const controllable = solutions.filter(s => s.control === 'CONTROLLABLE').length;
+    const uncontrollable = solutions.filter(s => s.control === 'UNCONTROLLABLE').length;
+    const partial = solutions.length - controllable - uncontrollable;
     const suggestedCommand = this.suggestCommand(solutions, emotionIds);
-    transcript.push({ role: 'system', text: `>>> SUGGESTED_EXECUTE: ${suggestedCommand}` });
-
-    return { transcript, solutions, problems, suggestedCommand, diagnostics: { controllable: controllable.length, uncontrollable: uncontrollable.length } };
+    const outro = [
+      { kind: 'summary', text: `Parse complete — ${controllable} controllable · ${uncontrollable} parked · ${partial} partial` },
+      { kind: 'command', text: `Suggested command: ${suggestedCommand}` },
+    ];
+    outro.forEach(l => { displayQueue.push(l); transcript.push({ role: 'system', text: l.text, kind: l.kind }); });
+    return { displayQueue, transcript, solutions, problems, suggestedCommand, diagnostics: { controllable, uncontrollable, partial, total: solutions.length } };
   },
 };
 
@@ -325,6 +422,18 @@ const OverloadLog = {
   sessionDraft: null,
   diagnosticQueue: [],
   diagnosticIndex: 0,
+  parseProblems: [],
+  parseProblemIndex: 0,
+  parseStep: 'idle',
+  parseAwaitingClassify: false,
+  parseTranscriptLines: [],
+  parseQueue: [],
+  parseQueueIndex: 0,
+  parseCharIndex: 0,
+  parseComplete: false,
+  parseTypingTimer: null,
+  parseCurrentLineEl: null,
+  _parseBoot: false,
 
   emptyDraft(){
     return {
@@ -468,17 +577,19 @@ const OverloadLog = {
   },
 
   exitChannel(){
-    document.body.classList.remove('mind-channel-open');
-    document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
-    const target = document.getElementById('view-' + this.returnView) || document.getElementById('view-profile');
-    target?.classList.add('active');
-    const navBtn = document.querySelector(`.node-btn[data-view="${this.returnView}"]`) || document.querySelector('.node-btn[data-view="profile"]');
-    navBtn?.classList.add('active');
+    this.stopParseTypewriter();
+    document.body.classList.remove('mind-channel-open', 'mind-repair-active');
+    const view = this.returnView || 'profile';
+    if(typeof navigateToView === 'function') navigateToView(view);
+    else {
+      document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-' + view)?.classList.add('active');
+      document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.node-btn[data-view="${view}"]`)?.classList.add('active');
+    }
     this.view = 'hub';
     this.editingId = null;
     this.sessionDraft = null;
-    document.body.classList.add('mind-repair-active');
-    setTimeout(() => document.body.classList.remove('mind-repair-active'), 700);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
@@ -542,14 +653,276 @@ const OverloadLog = {
     this.sessionDraft.date = document.getElementById('olDate')?.value || this.sessionDraft.date;
     this.sessionDraft.title = document.getElementById('olTitle')?.value?.trim() || this.sessionDraft.title || ('overload ' + (this.sessionDraft.date || todayKey()));
 
-    const analysis = RantLogicEngine.parse(rant, emotions);
-    this.sessionDraft.transcript = analysis.transcript;
-    this.sessionDraft.solutions = analysis.solutions;
-    this.sessionDraft.diagnostics = analysis.diagnostics;
-    this.sessionDraft.suggestedCommand = analysis.suggestedCommand;
-    this.sessionDraft.command = analysis.suggestedCommand;
+    const walk = RantLogicEngine.prepareWalkthrough(rant, emotions);
+    this.parseProblems = walk.problems;
+    this.parseProblemIndex = 0;
+    this.parseStep = 'intro';
+    this.parseQueue = [];
+    this.parseQueueIndex = 0;
+    this.parseCharIndex = 0;
+    this.parseComplete = false;
+    this.parseAwaitingClassify = false;
+    this.parseTranscriptLines = [];
+    this.sessionDraft.solutions = [];
+    this.sessionDraft.transcript = [];
     this.sessionPhase = 'parse';
+    this._parseBoot = true;
     this.render();
+  },
+
+  queueIntroLines(){
+    const n = this.parseProblems.length;
+    const flags = (this.sessionDraft?.emotions || []).map(id => OVERLOAD_EMOTIONS.find(e => e.id === id)?.label || id).join(' · ');
+    this.enqueueLines([
+      { kind: 'intro', text: 'logic_core online — one thread at a time' },
+      { kind: 'intro', text: flags ? `context: ${flags} (background only, not separate problems)` : 'no emotion flags — parsing text only' },
+      { kind: 'intro', text: `found ${n} thread${n === 1 ? '' : 's'} in rant buffer` },
+      { kind: 'divider', text: '—' },
+    ]);
+  },
+
+  enqueueLines(lines){
+    this.parseQueue.push(...lines);
+  },
+
+  appendTranscript(text, kind){
+    this.parseTranscriptLines.push({ role: 'system', text, kind });
+    if(this.sessionDraft) this.sessionDraft.transcript = [...this.parseTranscriptLines];
+  },
+
+  queueProblemIntro(){
+    const p = this.parseProblems[this.parseProblemIndex];
+    if(!p) return;
+    const total = this.parseProblems.length;
+    this.enqueueLines([
+      { kind: 'problem', text: `THREAD ${p.index} / ${total}` },
+      { kind: 'intro', text: `raw: "${p.raw.length > 90 ? p.raw.slice(0, 88) + '…' : p.raw}"` },
+      { kind: 'rephrase', text: `distilled: ${p.rephrase}` },
+      { kind: 'pause_classify', text: '' },
+    ]);
+  },
+
+  showClassifyPanel(){
+    const p = this.parseProblems[this.parseProblemIndex];
+    const panel = document.getElementById('olClassifyPanel');
+    if(!p || !panel) return;
+    const s = p.suggested;
+    panel.innerHTML = `
+      <p class="ol-classify-kicker">How should we classify this thread?</p>
+      <p class="ol-classify-suggest">Suggested: <strong>${esc(s.control)}</strong> · severity <strong>${esc(s.severity)}</strong></p>
+      <p class="ol-classify-why">${esc(s.logic)}</p>
+      <div class="ol-classify-controls">
+        <span class="ol-classify-label">Control</span>
+        <button type="button" class="btn ol-classify-btn" data-ol-class="CONTROLLABLE">Controllable</button>
+        <button type="button" class="btn ol-classify-btn" data-ol-class="PARTIAL">Partial</button>
+        <button type="button" class="btn ol-classify-btn" data-ol-class="UNCONTROLLABLE">Uncontrollable</button>
+      </div>
+      <div class="ol-classify-controls">
+        <span class="ol-classify-label">Severity</span>
+        <button type="button" class="btn ol-classify-btn" data-ol-sev="LOW">Low</button>
+        <button type="button" class="btn ol-classify-btn" data-ol-sev="MEDIUM">Medium</button>
+        <button type="button" class="btn ol-classify-btn" data-ol-sev="HIGH">High</button>
+      </div>
+      <button type="button" class="btn primary ol-classify-accept" data-ol-accept="1">Accept suggestion → analyse</button>`;
+    panel.classList.remove('hidden');
+    panel.querySelector('[data-ol-accept]')?.addEventListener('click', () => this.confirmClassification(s.control, s.severity));
+    panel.querySelectorAll('[data-ol-class]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        panel.dataset.olControl = btn.dataset.olClass;
+        panel.querySelectorAll('[data-ol-class]').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+    panel.querySelectorAll('[data-ol-sev]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        panel.dataset.olSeverity = btn.dataset.olSev;
+        panel.querySelectorAll('[data-ol-sev]').forEach(b => b.classList.toggle('active', b === btn));
+      });
+    });
+    const status = document.getElementById('olParseStatus');
+    if(status) status.textContent = 'waiting — classify this thread';
+  },
+
+  confirmClassification(control, severity){
+    const panel = document.getElementById('olClassifyPanel');
+    const p = this.parseProblems[this.parseProblemIndex];
+    if(!p) return;
+    const finalControl = panel?.dataset.olControl || control || p.suggested.control;
+    const finalSeverity = panel?.dataset.olSeverity || severity || p.suggested.severity;
+    p.finalMeta = { control: finalControl, severity: finalSeverity, reason: p.suggested.reason, logic: p.suggested.logic };
+    panel?.classList.add('hidden');
+    this.parseAwaitingClassify = false;
+    const narrative = RantLogicEngine.narrativeFor(p, p.finalMeta);
+    const actionLine = narrative.find(n => n.kind === 'action' || n.kind === 'redirect')?.text || '';
+    this.sessionDraft.solutions.push({
+      problem: p.rephrase,
+      raw: p.raw,
+      type: p.type,
+      control: finalControl,
+      severity: finalSeverity,
+      actionLine,
+    });
+    this.enqueueLines(narrative);
+    if(this.parseProblemIndex < this.parseProblems.length - 1){
+      this.enqueueLines([
+        { kind: 'divider', text: '—' },
+        { kind: 'intro', text: 'next thread →' },
+        { kind: 'divider', text: '—' },
+      ]);
+    }
+    const status = document.getElementById('olParseStatus');
+    if(status) status.textContent = 'typing analysis…';
+    this.startParseTypewriter();
+  },
+
+  finishWalkthrough(){
+    const solutions = this.sessionDraft?.solutions || [];
+    const controllable = solutions.filter(s => s.control === 'CONTROLLABLE').length;
+    const uncontrollable = solutions.filter(s => s.control === 'UNCONTROLLABLE').length;
+    const partial = solutions.length - controllable - uncontrollable;
+    const suggestedCommand = RantLogicEngine.suggestCommand(solutions, this.sessionDraft?.emotions || []);
+    this.sessionDraft.diagnostics = { controllable, uncontrollable, partial, total: solutions.length };
+    this.sessionDraft.suggestedCommand = suggestedCommand;
+    this.sessionDraft.command = suggestedCommand;
+    this.parseStep = 'done';
+    this.enqueueLines([
+      { kind: 'divider', text: '—' },
+      { kind: 'summary', text: `All threads parsed — ${controllable} controllable · ${uncontrollable} parked · ${partial} partial` },
+      { kind: 'command', text: `Suggested command: ${suggestedCommand}` },
+    ]);
+    this.startParseTypewriter();
+  },
+
+  stopParseTypewriter(){
+    clearTimeout(this.parseTypingTimer);
+    this.parseTypingTimer = null;
+  },
+
+  lineKindClass(kind){
+    const map = {
+      problem: 'ol-line-problem',
+      rephrase: 'ol-line-rephrase',
+      class: 'ol-line-class',
+      think: 'ol-line-think',
+      control: 'ol-line-control',
+      worst: 'ol-line-worst',
+      likely: 'ol-line-likely',
+      action: 'ol-line-action',
+      redirect: 'ol-line-redirect',
+      checkin: 'ol-line-checkin',
+      summary: 'ol-line-summary',
+      command: 'ol-line-command',
+      intro: 'ol-line-intro',
+      divider: 'ol-line-divider',
+    };
+    return map[kind] || 'ol-line-body';
+  },
+
+  startParseTypewriter(){
+    this.stopParseTypewriter();
+    if(!this.parseQueue.length && !this.parseAwaitingClassify){
+      if(this.parseProblemIndex === 0 && this.parseStep === 'intro'){
+        this.parseStep = 'problem';
+        this.queueProblemIntro();
+      }
+    }
+    if(!document.getElementById('olTermLog')) return;
+    this.typeNextParseChar();
+  },
+
+  typeNextParseChar(){
+    if(this.parseAwaitingClassify) return;
+    if(this.parseQueueIndex >= this.parseQueue.length){
+      if(this.parseStep === 'intro'){
+        this.parseStep = 'problem';
+        this.queueProblemIntro();
+        this.typeNextParseChar();
+        return;
+      }
+      if(this.parseStep === 'problem' && this.parseProblemIndex < this.parseProblems.length - 1){
+        this.parseProblemIndex++;
+        this.queueProblemIntro();
+        this.typeNextParseChar();
+        return;
+      }
+      if(this.parseStep === 'problem'){
+        this.finishWalkthrough();
+        return;
+      }
+      if(this.parseStep === 'done'){
+        this.parseComplete = true;
+        this.onParseTypingComplete();
+        return;
+      }
+    }
+
+    const item = this.parseQueue[this.parseQueueIndex];
+    const log = document.getElementById('olTermLog');
+    if(!log) return;
+
+    if(item.kind === 'pause_classify'){
+      this.parseQueueIndex++;
+      this.parseCharIndex = 0;
+      this.parseCurrentLineEl = null;
+      this.parseAwaitingClassify = true;
+      this.showClassifyPanel();
+      return;
+    }
+
+    if(item.kind === 'divider'){
+      const div = document.createElement('div');
+      div.className = 'ol-term-line system ol-line-divider';
+      div.innerHTML = '<span class="ol-term-tag">—</span><p> </p>';
+      log.appendChild(div);
+      this.appendTranscript('—', 'divider');
+      this.parseQueueIndex++;
+      this.parseCharIndex = 0;
+      this.parseCurrentLineEl = null;
+      this.parseTypingTimer = setTimeout(() => this.typeNextParseChar(), 400);
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+
+    if(!this.parseCurrentLineEl || this.parseCharIndex === 0){
+      const row = document.createElement('div');
+      row.className = `ol-term-line system ${this.lineKindClass(item.kind)}`;
+      row.innerHTML = `<span class="ol-term-tag">SYS</span><p></p>`;
+      log.appendChild(row);
+      this.parseCurrentLineEl = row.querySelector('p');
+    }
+
+    const text = item.text || '';
+    if(this.parseCharIndex < text.length){
+      this.parseCurrentLineEl.textContent += text[this.parseCharIndex];
+      this.parseCharIndex++;
+      const delay = item.kind === 'rephrase' ? 18 : 12;
+      this.parseTypingTimer = setTimeout(() => this.typeNextParseChar(), delay);
+    } else {
+      this.appendTranscript(text, item.kind);
+      this.parseQueueIndex++;
+      this.parseCharIndex = 0;
+      this.parseCurrentLineEl = null;
+      const pause = item.kind === 'problem' ? 600 : item.kind === 'rephrase' ? 500 : 320;
+      this.parseTypingTimer = setTimeout(() => this.typeNextParseChar(), pause);
+    }
+    log.scrollTop = log.scrollHeight;
+  },
+
+  onParseTypingComplete(){
+    const diag = this.sessionDraft?.diagnostics || {};
+    const stats = document.getElementById('olParseStats');
+    if(stats){
+      const ctrl = stats.querySelector('[data-stat="ctrl"] strong');
+      const park = stats.querySelector('[data-stat="park"] strong');
+      const total = stats.querySelector('[data-stat="total"] strong');
+      if(ctrl) ctrl.textContent = diag.controllable ?? 0;
+      if(park) park.textContent = diag.uncontrollable ?? 0;
+      if(total) total.textContent = diag.total ?? 0;
+      stats.classList.remove('ol-parse-pending');
+    }
+    const status = document.getElementById('olParseStatus');
+    if(status) status.textContent = 'parse complete — review below';
+    document.getElementById('olContinueCommand')?.classList.remove('hidden');
+    document.getElementById('olContinueCommand')?.removeAttribute('disabled');
   },
 
   saveSession(){
@@ -611,7 +984,7 @@ const OverloadLog = {
             <ol class="mind-protocol-steps">
               <li><span>01</span> FLAG emotions</li>
               <li><span>02</span> RANT until empty</li>
-              <li><span>03</span> LOGIC parse (robot Q&amp;A)</li>
+              <li><span>03</span> LOGIC parse (one thread at a time)</li>
               <li><span>04</span> TERMINAL command</li>
             </ol>
           </div>
@@ -692,9 +1065,8 @@ const OverloadLog = {
   },
 
   renderParse(draft){
-    const solutions = draft.solutions || [];
-    const ctrl = solutions.filter(s => s.control === 'CONTROLLABLE');
-    const unctrl = solutions.filter(s => s.control === 'UNCONTROLLABLE');
+    const diag = draft.diagnostics || {};
+    const pending = !this.parseComplete;
     return `
       <div class="mind-session-layout diagnostic">
         <div class="mind-session-progress">
@@ -705,24 +1077,19 @@ const OverloadLog = {
         </div>
         <section class="ol-terminal sys-panel">
           <header class="ol-terminal-head">
-            <span>LOGIC_CORE v1.0 — AUTONOMOUS</span>
-            <span class="sys-flicker">user input: DISABLED · parsing complete</span>
+            <span>LOGIC_CORE — reading your rant</span>
+            <span class="sys-flicker" id="olParseStatus">${pending ? 'typing analysis…' : 'parse complete — review below'}</span>
           </header>
-          <div class="ol-parse-summary">
-            <div class="ol-parse-stat"><strong>${ctrl.length}</strong><span>controllable</span></div>
-            <div class="ol-parse-stat discard"><strong>${unctrl.length}</strong><span>discard</span></div>
-            <div class="ol-parse-stat"><strong>${solutions.length}</strong><span>problems parsed</span></div>
+          <div class="ol-parse-summary ${pending ? 'ol-parse-pending' : ''}" id="olParseStats">
+            <div class="ol-parse-stat" data-stat="ctrl"><strong>${pending ? '…' : (diag.controllable ?? 0)}</strong><span>controllable</span></div>
+            <div class="ol-parse-stat discard" data-stat="park"><strong>${pending ? '…' : (diag.uncontrollable ?? 0)}</strong><span>parked</span></div>
+            <div class="ol-parse-stat" data-stat="total"><strong>${pending ? '…' : (diag.total ?? 0)}</strong><span>threads found</span></div>
           </div>
-          <div class="ol-term-log read" id="olTermLog">
-            ${(draft.transcript || []).map(line => `
-              <div class="ol-term-line ${line.role}">
-                <span class="ol-term-tag">SYS</span>
-                <p>${esc(line.text)}</p>
-              </div>`).join('')}
-          </div>
+          <div class="ol-term-log read typing" id="olTermLog"></div>
+          <div class="ol-classify-panel hidden" id="olClassifyPanel"></div>
           <div class="ol-rant-actions">
             <button type="button" class="btn" id="olBackToRant">← RE-RANT</button>
-            <button type="button" class="btn ol-btn-finished" id="olContinueCommand">ACCEPT PARSE → COMMAND</button>
+            <button type="button" class="btn ol-btn-finished ${pending ? 'hidden' : ''}" id="olContinueCommand" ${pending ? 'disabled' : ''}>ACCEPT PARSE → COMMAND</button>
           </div>
         </section>
       </div>`;
@@ -760,7 +1127,7 @@ const OverloadLog = {
       return em ? `<span class="ol-tag" style="--olt-neon:${em.neon}"><span class="ol-tag-glyph">${em.icon}</span>${em.label}</span>` : '';
     }).join('');
     const transcript = (log.transcript || []).map(line => `
-      <div class="ol-term-line ${line.role}">
+      <div class="ol-term-line ${line.role} ${line.kind ? OverloadLog.lineKindClass(line.kind) : ''}">
         <span class="ol-term-tag">${line.role === 'user' ? 'USR' : 'SYS'}</span>
         <p>${esc(line.text)}</p>
       </div>`).join('');
@@ -793,27 +1160,38 @@ const OverloadLog = {
   render(){
     const root = document.getElementById('mindContent');
     if(!root) return;
+    if(this.view === 'session' && this.sessionPhase === 'parse') this.stopParseTypewriter();
     if(this.view === 'session') root.innerHTML = this.renderSession();
     else if(this.view === 'read') root.innerHTML = this.renderRead();
     else root.innerHTML = this.renderHub();
 
     root.querySelector('#olNewBtn')?.addEventListener('click', () => this.newLog());
-    root.querySelector('#olBackHub')?.addEventListener('click', () => { this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.render(); });
+    root.querySelector('#olBackHub')?.addEventListener('click', () => { this.stopParseTypewriter(); this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.render(); });
     root.querySelector('#olFinishedRant')?.addEventListener('click', () => this.runAutoParse());
     root.querySelector('#olContinueCommand')?.addEventListener('click', () => { this.sessionPhase = 'command'; this.render(); });
-    root.querySelector('#olBackToParse')?.addEventListener('click', () => { this.sessionPhase = 'parse'; this.render(); });
-    root.querySelector('#olBackToRant')?.addEventListener('click', () => { this.sessionPhase = 'emotions'; this.render(); });
+    root.querySelector('#olBackToParse')?.addEventListener('click', () => {
+      this.parseComplete = true;
+      this.parseAwaitingClassify = false;
+      this.sessionPhase = 'parse';
+      this.render();
+    });
+    root.querySelector('#olBackToRant')?.addEventListener('click', () => { this.stopParseTypewriter(); this.sessionPhase = 'emotions'; this.render(); });
     root.querySelector('#olSaveSession')?.addEventListener('click', () => this.saveSession());
     root.querySelector('#olEditCurrent')?.addEventListener('click', () => this.editLog(this.editingId));
     root.querySelectorAll('[data-ol-open]').forEach(btn => btn.addEventListener('click', () => this.viewLog(btn.dataset.olOpen)));
     root.querySelectorAll('[data-ol-edit]').forEach(btn => btn.addEventListener('click', () => this.editLog(btn.dataset.olEdit)));
     root.querySelectorAll('[data-ol-del]').forEach(btn => btn.addEventListener('click', () => this.deleteLog(btn.dataset.olDel)));
 
-    if(this.view === 'session' && this.sessionPhase === 'parse'){
+    if(this.view === 'session' && this.sessionPhase === 'parse' && this._parseBoot){
+      this._parseBoot = false;
       queueMicrotask(() => {
         const log = document.getElementById('olTermLog');
-        if(log) log.scrollTop = log.scrollHeight;
+        if(log) log.innerHTML = '';
+        this.queueIntroLines();
+        this.startParseTypewriter();
       });
+    } else if(this.view === 'session' && this.sessionPhase === 'parse' && this.parseAwaitingClassify){
+      queueMicrotask(() => this.showClassifyPanel());
     }
   },
 
@@ -822,8 +1200,7 @@ const OverloadLog = {
     this.ensureLogs();
     document.getElementById('oglEnterBtn')?.addEventListener('click', e => { e.stopPropagation(); this.completeGlitchTransition(); });
     document.getElementById('overloadGlitchScreen')?.addEventListener('click', () => this.completeGlitchTransition());
-    document.addEventListener('click', e => {
-      if(e.target.closest('#mindExitBtn')){ e.preventDefault(); this.exitChannel(); }
-    });
+    const exitBtn = document.getElementById('mindExitBtn');
+    exitBtn?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.exitChannel(); });
   },
 };

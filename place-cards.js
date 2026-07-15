@@ -112,6 +112,9 @@ function buildPlaceCardBack(item, unlocked, opts = {}){
     ${placeRankRow('Experience', pc.experienceRank, accent)}
     ${placeRankRow('Utility', pc.utilityRank, accent)}
     ${pc.description ? `<div class="plc-desc"><p>${esc(pc.description)}</p></div>` : ''}
+    <div class="pc-card-actions">
+      <button type="button" class="btn card-visit-btn" data-visit-name="${esc(item.name)}">◎ Visited today</button>
+    </div>
     <div class="pc-admin-row edit-when-editing">
       <button type="button" class="btn flip-edit-btn">Edit</button>
       ${cardId ? `<button type="button" class="btn admin-delete flip-del-btn" data-del-type="place" data-del-id="${esc(cardId)}">Delete</button>` : ''}

@@ -116,7 +116,7 @@
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span>Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
-      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Pinboard</span></button>
+      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
     </nav>
     <div class="admin-bar admin-only hidden" id="adminBar">
       <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Editing</span></div>
@@ -258,17 +258,17 @@
     </section>
 
     <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
-      <h2 class="view-title sketch-title">Pinboard</h2>
+      <h2 class="view-title sketch-title">Community Board</h2>
+      <p class="gallery-hint">Posts stay permanently. Reply to others. Date, time, and location only — no mood tracking here.</p>
       <div class="pinboard-layout">
         <form class="pin-form sketch-card" id="pinForm">
           <div class="field-row">
             <div class="field"><label>Name</label><input type="text" id="pinName" required placeholder="who are you"></div>
-            <div class="field field-mood"><label>Current mood</label><div id="pinMoodPicker"></div></div>
+            <div class="field"><label>Posting from</label><input type="text" id="pinLocation" required placeholder="Shenzhen, UK, café, flat…"></div>
           </div>
-          <div class="field"><label>Say something</label><textarea id="pinText" required placeholder="whatever's on your mind"></textarea></div>
-          <div class="field"><label>Neon colour</label><input type="color" id="pinColor" value="#3ad6e0"></div>
+          <div class="field"><label>Message</label><textarea id="pinText" required placeholder="leave a note on the board…" rows="4"></textarea></div>
           <div class="field"><label>Photo (optional)</label><input type="file" id="pinPhoto" accept="image/*"></div>
-          <button class="btn primary" type="submit">Pin it</button>
+          <button class="btn primary" type="submit">Pin to board</button>
         </form>
         <div class="pin-wall" id="pinWall"></div>
       </div>

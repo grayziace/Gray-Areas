@@ -516,10 +516,13 @@ function saveContentEdit(){
   }
 
   saveState();
-  if(type === 'article' && data.title) LiveSync?.pressSaved(data.title);
+  const wasNew = !id;
+  if(wasNew && type === 'article' && data.title) LiveSync?.pressSaved(data.title);
+  else if(wasNew && type === 'gallery') LiveSync?.gallerySaved(data.caption || data.place);
+  else if(wasNew && type === 'place' && data.name) LiveSync?.cardUnlocked('place', data.name);
+  else if(wasNew && type === 'character' && data.name) LiveSync?.cardUnlocked('player', data.name);
+  else if(type === 'article' && data.title) LiveSync?.pressSaved(data.title);
   else if(type === 'gallery') LiveSync?.gallerySaved(data.caption || data.place);
-  else if(type === 'place' && data.name) LiveSync?.pulse('place', `Place: ${data.name}`, { type: 'place' });
-  else if(type === 'character' && data.name) LiveSync?.pulse('character', `Player: ${data.name}`, { type: 'person' });
   pendingContentImage = null;
   pendingSpiritImage = null;
   document.getElementById('contentEditBack').classList.add('hidden');
@@ -634,7 +637,6 @@ const DailyLog = {
     document.getElementById('dailyLogEditor')?.classList.remove('hidden');
     if(!this.activeKey) this.selectDay(todayKey());
     renderSkillControls();
-    mountMoodPicker('pinMoodPicker', getCurrentMood(), { name: 'pinMood', compact: true });
   },
 
   selectDay(key){
@@ -1179,6 +1181,37 @@ function countPlaceVisits(placeName){
   return c;
 }
 
+function appendTodayListField(field, value){
+  if(!value) return false;
+  const key = todayKey();
+  const raw = state.entries[key] || {};
+  const n = normalizeEntry(raw);
+  const list = [...(n[field] || [])];
+  if(list.includes(value)) return false;
+  state.entries[key] = { ...raw, [field]: [...list, value] };
+  saveState();
+  return true;
+}
+
+function recordPlayerMeetup(name){
+  if(!name) return;
+  appendTodayListField('people', name);
+  LiveSync?.playerMet(name);
+  if(typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
+}
+
+function recordPlaceVisit(name){
+  if(!name) return;
+  appendTodayListField('places', name);
+  if(!state.unlockedZones.includes(name)) state.unlockedZones.push(name);
+  const place = getPlaces().find(p => p.name === name);
+  if(place && !place.unlocked) place.unlocked = true;
+  saveState();
+  LiveSync?.placeVisited(name);
+  if(typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
+  if(typeof renderAbout === 'function') renderAbout();
+}
+
 /* ---------- Skills ---------- */
 function getHobbyNamesForSkill(skill){
   if(!skill || skill.id === 'mandarin') return [];
@@ -1401,11 +1434,17 @@ function wireNavigation(){
   document.getElementById('tabs')?.addEventListener('click', e => {
     const btn = e.target.closest('button[data-view]');
     if(!btn) return;
-    document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('view-' + btn.dataset.view)?.classList.add('active');
+    navigateToView(btn.dataset.view);
   });
+}
+
+function navigateToView(view){
+  if(!view) return;
+  document.body.classList.remove('mind-channel-open', 'mind-repair-active');
+  document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.node-btn[data-view="${view}"]`)?.classList.add('active');
+  document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + view)?.classList.add('active');
 }
 
 function bootApp(){
@@ -1578,7 +1617,7 @@ function renderAbout(){
     recents.drama ? { label: 'Media', text: `${recents.drama.title} · ${getMediaType(recents.drama.mediaType).unit.toLowerCase()} ${recents.drama.currentEpisode}`, view: 'drama' } : null,
     recents.character ? { label: 'Players', text: recents.character.name, view: 'characters' } : null,
     recents.place ? { label: 'Places', text: recents.place.name, view: 'places' } : null,
-    recents.pin ? { label: 'Pinboard', text: `${recents.pin.name}: ${(recents.pin.text||'').slice(0, 50)}`, view: 'comm' } : null,
+    recents.pin ? { label: 'Community', text: `${recents.pin.name} · ${recents.pin.location || recents.pin.from || 'somewhere'}`, view: 'comm' } : null,
   ].filter(Boolean);
 
   const skillRows = stats.skills.map(skill => {
@@ -1716,14 +1755,6 @@ const HomeCheckIn = {
     spread.querySelector('#homeOpenPulse')?.addEventListener('click', () => this.openPulseComposer());
     spread.querySelectorAll('[data-pulse-quick]').forEach(btn => {
       btn.addEventListener('click', () => this.openPulseComposer(btn.dataset.pulseQuick));
-    });
-    spread.querySelector('#syncLiveSteps')?.addEventListener('click', () => {
-      if(typeof GoogleSteps !== 'undefined'){
-        GoogleSteps.syncForDate(todayKey(), {
-          statusEl: document.getElementById('liveStepsSyncStatus'),
-          button: spread.querySelector('#syncLiveSteps'),
-        });
-      }
     });
   },
 
@@ -2066,11 +2097,7 @@ function renderHomeCheckIn(){
 
   const key = todayKey();
   const stream = getDayStream(key);
-  const today = normalizeEntry(state.entries[key]);
   const admin = isAdmin();
-  const last7 = last7Entries();
-  const totalSteps = last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).steps)||0), 0);
-  const currentMood = getCurrentMood();
   const nodeCount = stream.nodes.length;
   const onAir = stream.startedAt && !stream.endedAt;
 
@@ -2129,25 +2156,6 @@ function renderHomeCheckIn(){
           }).join('')}
         </div>
       </section>` : ''}
-
-      <section class="live-stats-panel">
-        <div class="live-stat">
-          <span class="live-stat-num">${totalSteps.toLocaleString()}</span>
-          <span class="live-stat-lbl">steps this week</span>
-        </div>
-        <div class="live-stat" style="--live-stat-neon:${moodNeon(currentMood)}">
-          <span class="live-stat-num">${moodIcon(currentMood)}</span>
-          <span class="live-stat-lbl">${esc(moodLabel(currentMood))}</span>
-        </div>
-        <div class="live-stat">
-          <span class="live-stat-num">${mandarinHoursFromEntry(today)}h</span>
-          <span class="live-stat-lbl">Mandarin (hobby+skill)</span>
-        </div>
-        ${admin ? `<div class="live-stat live-stat-sync">
-          <button type="button" class="btn" id="syncLiveSteps">Sync Google Health steps</button>
-          <span class="live-stat-lbl" id="liveStepsSyncStatus"></span>
-        </div>` : ''}
-      </section>
     </main>`;
 
   HomeCheckIn.bindSpread(spread);
@@ -2355,6 +2363,13 @@ function saveSkillEditor(){
       milestones: [],
       hobbyNames,
     });
+    saveState();
+    LiveSync?.skillUnlocked(name);
+    closeSkillEditor();
+    renderSkillSkyline();
+    renderAbout();
+    renderHomeCheckIn();
+    return;
   }
 
   saveState();
@@ -2421,9 +2436,16 @@ function renderSkillControls(){
       if(!isAdmin()) return;
       const skill = getSkills().find(s => s.id === btn.dataset.skill);
       const delta = Number(btn.dataset.delta);
+      const prevHrs = getTotalSkillHours(btn.dataset.skill);
+      const prevTier = getSkillTier(prevHrs);
       state.skillHours[btn.dataset.skill] = Math.max(0, (state.skillHours[btn.dataset.skill] || 0) + delta);
+      const newHrs = getTotalSkillHours(btn.dataset.skill);
+      const newTier = getSkillTier(newHrs);
       saveState();
-      if(skill) LiveSync?.skillUpdated(skill.name, delta);
+      if(skill){
+        LiveSync?.skillUpdated(skill.name, delta);
+        if(newTier.level > prevTier.level) LiveSync?.skillTierUp(skill.name, newTier.name, newTier.level);
+      }
       renderSkillSkyline();
       renderAbout();
       renderHomeCheckIn();
@@ -2560,6 +2582,8 @@ function openSkillJourney(skillId){
       hours: Number(document.getElementById('msHours').value) || 0,
     };
     updateSkillMilestones(skillId, [...milestones, ms]);
+    const skill = getSkillById(skillId);
+    if(skill) LiveSync?.skillMilestone(skill.name, title);
     openSkillJourney(skillId);
     renderSkillSkyline();
   });
@@ -3032,35 +3056,129 @@ function renderGallery(){
   }
 }
 
-/* ---------- Pinboard ---------- */
+/* ---------- Pinboard — community board ---------- */
+function normalizePinPost(p){
+  return {
+    id: p.id,
+    name: p.name || 'Anonymous',
+    location: p.location || p.from || 'Unknown',
+    text: p.text || '',
+    photo: p.photo || '',
+    time: p.time || new Date().toISOString(),
+    replies: Array.isArray(p.replies) ? p.replies.map(r => ({
+      id: r.id,
+      name: r.name || 'Anonymous',
+      location: r.location || r.from || 'Unknown',
+      text: r.text || '',
+      photo: r.photo || '',
+      time: r.time || new Date().toISOString(),
+      parentId: r.parentId || p.id,
+    })) : [],
+  };
+}
+
+function fmtPinDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
 function renderPinboard(){
   const wall = document.getElementById('pinWall');
   if(!wall) return;
-  const posts = state.pinboard || [];
-  if(!posts.length){ wall.innerHTML = '<p class="empty-hint pin-empty">Be the first to pin something.</p>'; return; }
+  const posts = (state.pinboard || []).map(normalizePinPost);
+  if(!posts.length){ wall.innerHTML = '<p class="empty-hint pin-empty">Be the first to leave a note on the board.</p>'; return; }
 
   wall.innerHTML = posts.slice().reverse().map((p, i) => {
-    const rot = [-2, 1.5, -1, 2.5, -0.5][i % 5];
-    const pinColor = p.neonColor || moodNeon(p.mood);
-    const moodTxt = getMoodById(p.mood) ? `${moodIcon(p.mood)} ${moodLabel(p.mood)}` : legacyMoodDisplay(p.mood);
-    return `<article class="pin-post" style="--prot:${rot}deg;--pmc:${pinColor}">
-      <div class="pin-post-head">
-        <span class="pin-name">${esc(p.name)}</span>
-        <span class="pin-mood">${esc(moodTxt)}</span>
+    const rot = [-1.5, 1.2, -0.8, 1.8, -1][i % 5];
+    const replies = (p.replies || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    return `<article class="pin-post community-pin" style="--prot:${rot}deg" data-pin-id="${esc(p.id)}">
+      <header class="pin-post-head">
+        <div class="pin-meta-block">
+          <span class="pin-name">${esc(p.name)}</span>
+          <span class="pin-location">📍 ${esc(p.location)}</span>
+          <time class="pin-time">${esc(fmtPinDateTime(p.time))}</time>
+        </div>
         ${isAdmin() ? `<button type="button" class="pin-delete" data-pin="${esc(p.id)}" title="Remove">×</button>` : ''}
-      </div>
-      ${p.photo?`<div class="pin-photo"><img src="${esc(p.photo)}" alt=""></div>`:''}
+      </header>
+      ${p.photo ? `<div class="pin-photo"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>` : ''}
       <p class="pin-text">${esc(p.text)}</p>
-      <div class="pin-time">${new Date(p.time).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>
+      <div class="pin-replies">${replies.map(r => `
+        <div class="pin-reply" data-reply-id="${esc(r.id)}">
+          <header class="pin-reply-head">
+            <span class="pin-name">${esc(r.name)}</span>
+            <span class="pin-location">📍 ${esc(r.location)}</span>
+            <time class="pin-time">${esc(fmtPinDateTime(r.time))}</time>
+          </header>
+          ${r.photo ? `<div class="pin-photo pin-photo-sm"><img src="${esc(r.photo)}" alt="" loading="lazy"></div>` : ''}
+          <p class="pin-text">${esc(r.text)}</p>
+        </div>`).join('')}</div>
+      <button type="button" class="btn pin-reply-btn" data-reply-to="${esc(p.id)}">↩ Reply</button>
+      <form class="pin-reply-form hidden" data-reply-form="${esc(p.id)}">
+        <div class="field-row">
+          <div class="field"><label>Name</label><input type="text" class="pin-reply-name" required></div>
+          <div class="field"><label>Posting from</label><input type="text" class="pin-reply-location" required placeholder="where are you"></div>
+        </div>
+        <div class="field"><label>Reply</label><textarea class="pin-reply-text" required rows="2"></textarea></div>
+        <div class="field"><label>Photo (optional)</label><input type="file" class="pin-reply-photo" accept="image/*"></div>
+        <div class="pin-reply-actions">
+          <button type="button" class="btn pin-reply-cancel">Cancel</button>
+          <button type="submit" class="btn primary">Post reply</button>
+        </div>
+      </form>
     </article>`;
   }).join('');
 
   wall.querySelectorAll('.pin-delete').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
+      if(!confirm('Remove this post and all replies?')) return;
       state.pinboard = state.pinboard.filter(p => p.id !== btn.dataset.pin);
       saveState();
       renderPinboard();
+    });
+  });
+
+  wall.querySelectorAll('.pin-reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const form = wall.querySelector(`[data-reply-form="${btn.dataset.replyTo}"]`);
+      form?.classList.toggle('hidden');
+    });
+  });
+
+  wall.querySelectorAll('.pin-reply-cancel').forEach(btn => {
+    btn.addEventListener('click', () => btn.closest('.pin-reply-form')?.classList.add('hidden'));
+  });
+
+  wall.querySelectorAll('.pin-reply-form').forEach(form => {
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const parentId = form.dataset.replyForm;
+      const post = state.pinboard.find(p => p.id === parentId);
+      if(!post) return;
+      const name = form.querySelector('.pin-reply-name')?.value?.trim();
+      const location = form.querySelector('.pin-reply-location')?.value?.trim();
+      const text = form.querySelector('.pin-reply-text')?.value?.trim();
+      const file = form.querySelector('.pin-reply-photo')?.files?.[0];
+      if(!name || !location || !text) return;
+      const addReply = (photo) => {
+        if(!Array.isArray(post.replies)) post.replies = [];
+        post.replies.push({
+          id: 'reply-' + Date.now(),
+          parentId,
+          name, location, text,
+          photo: photo || '',
+          time: new Date().toISOString(),
+        });
+        saveState();
+        LiveSync?.pinPosted(name, location);
+        renderPinboard();
+      };
+      if(file){
+        const reader = new FileReader();
+        reader.onload = () => addReply(reader.result);
+        reader.readAsDataURL(file);
+      } else addReply('');
     });
   });
 }
@@ -3068,18 +3186,22 @@ function renderPinboard(){
 document.getElementById('pinForm')?.addEventListener('submit', e => {
   e.preventDefault();
   const name = document.getElementById('pinName').value.trim();
+  const location = document.getElementById('pinLocation').value.trim();
   const text = document.getElementById('pinText').value.trim();
-  const mood = readMoodPickerValue(document.getElementById('pinMoodPicker'), 'pinMood') || getCurrentMood();
   const file = document.getElementById('pinPhoto').files[0];
+  if(!name || !location || !text) return;
 
   const addPost = (photo) => {
-    const pinColor = document.getElementById('pinColor')?.value || moodNeon(mood) || '#3ad6e0';
-    if(mood) setCurrentMood(mood);
-    state.pinboard.push({ id:'pin-'+Date.now(), name, text, mood, photo: photo||'', neonColor: pinColor, time: new Date().toISOString() });
+    state.pinboard.push({
+      id: 'pin-' + Date.now(),
+      name, location, text,
+      photo: photo || '',
+      time: new Date().toISOString(),
+      replies: [],
+    });
     saveState();
-    LiveSync?.pinPosted(name);
+    LiveSync?.pinPosted(name, location);
     document.getElementById('pinForm').reset();
-    mountMoodPicker('pinMoodPicker', getCurrentMood(), { name: 'pinMood', compact: true });
     renderPinboard();
   };
 

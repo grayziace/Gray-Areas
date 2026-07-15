@@ -6,13 +6,15 @@ const LIVE_SOURCE_META = {
   gallery: { type: 'photo', label: 'Photo Wall' },
   hobby: { type: 'hobby', label: 'Hobby' },
   skill: { type: 'hobby', label: 'Skill' },
-  pinboard: { type: 'message', label: 'Pinboard' },
+  pinboard: { type: 'message', label: 'Community' },
   drama: { type: 'film', label: 'Media' },
   place: { type: 'place', label: 'Place' },
   character: { type: 'person', label: 'Player' },
   log: { type: 'note', label: 'Daily Log' },
   mood: { type: 'mood', label: 'Mood' },
   steps: { type: 'health', label: 'Steps' },
+  meetup: { type: 'person', label: 'Meetup' },
+  unlock: { type: 'win', label: 'Unlock' },
 };
 
 const LiveSync = {
@@ -53,9 +55,45 @@ const LiveSync = {
 
   pressSaved(title){ this.pulse('press', title ? `Published: ${title}` : 'New press post', { type: 'press' }); },
   gallerySaved(caption){ this.pulse('gallery', caption || 'New photo on wall', { type: 'photo' }); },
-  hobbyLogged(name, hours){ this.pulse('hobby', `${name}${hours ? ' · ' + hours + 'h' : ''}`, { type: 'hobby' }); },
-  skillUpdated(name, delta){ this.pulse('skill', `${name} ${delta > 0 ? '+' : ''}${delta}h`, { type: 'hobby' }); },
-  pinPosted(name){ this.pulse('pinboard', name ? `Pin: ${name}` : 'New pinboard post', { type: 'message' }); },
+
+  hobbyLogged(name, hours){
+    this.pulse('hobby', hours ? `${name} · ${hours}h` : `${name}`, { type: 'hobby', body: hours ? `Hobby session logged` : undefined });
+  },
+
+  skillUpdated(name, delta){
+    this.pulse('skill', `${name} ${delta > 0 ? '+' : ''}${delta}h`, { type: 'hobby' });
+  },
+
+  skillTierUp(name, tierName, level){
+    this.pulse('skill', `${name} → Lv ${level} · ${tierName}`, { type: 'win', body: 'Skill milestone reached' });
+  },
+
+  skillMilestone(name, title){
+    this.pulse('skill', `${name}: ${title}`, { type: 'win', body: 'New skill milestone logged' });
+  },
+
+  skillUnlocked(name){
+    this.pulse('unlock', `New skill tower: ${name}`, { type: 'win' });
+  },
+
+  playerMet(name){
+    this.pulse('meetup', `Met up with ${name}`, { type: 'person' });
+  },
+
+  placeVisited(name){
+    this.pulse('place', `Visited ${name}`, { type: 'place' });
+  },
+
+  cardUnlocked(kind, name){
+    const label = kind === 'place' ? 'place' : (kind === 'skill' ? 'skill' : 'player');
+    this.pulse('unlock', `New ${label} unlocked: ${name}`, { type: 'win' });
+  },
+
+  pinPosted(name, location){
+    const label = location ? `Board: ${name} from ${location}` : (name ? `Board: ${name}` : 'New community post');
+    this.pulse('pinboard', label, { type: 'message' });
+  },
+
   dramaUpdated(title, ep){ this.pulse('drama', `${title} · ep ${ep}`, { type: 'film' }); },
   moodChanged(label){ this.pulse('mood', `Mood → ${label}`, { type: 'mood' }); },
   stepsSynced(count){ this.pulse('steps', `Steps synced: ${Number(count).toLocaleString()}`, { type: 'health' }); },
