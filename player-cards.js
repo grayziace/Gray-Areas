@@ -26,9 +26,68 @@ function normalizeCardBlob(raw){
     .trim();
 }
 
+function pickLineField(text, labels){
+  for(const label of labels){
+    const re = new RegExp(`^${label}\\s*:?\\s*(.+)$`, 'im');
+    const m = text.match(re);
+    if(m) return m[1].trim();
+  }
+  return '';
+}
+
+function extractSection(text, startLabel, endLabels){
+  const end = endLabels.map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const re = new RegExp(`^${startLabel}\\s*:?\\s*\\n?([\\s\\S]*?)(?=\\n(?:${end})\\s*:|$)`, 'im');
+  return re.exec(text)?.[1]?.trim() || '';
+}
+
+function splitStatLine(raw){
+  const body = (raw || '').trim();
+  if(!body) return { name: '', effect: '' };
+  const structured = body.match(/^(.+?)\nEffect:\s*([\s\S]+)$/i);
+  if(structured) return { name: structured[1].trim(), effect: structured[2].trim() };
+  const dot = body.search(/\.\s+/);
+  if(dot > 0 && dot < 120){
+    return { name: body.slice(0, dot).trim(), effect: body.slice(dot + 2).trim() };
+  }
+  return { name: body, effect: '' };
+}
+
+function parseNameEffectLines(section){
+  const entries = [];
+  (section || '').split('\n').forEach(line => {
+    line = line.trim();
+    if(!line || /^stats\s/i.test(line)) return;
+    const m = line.match(/^([^:]+):\s*(.+)$/);
+    if(m) entries.push({ name: m[1].trim(), effect: m[2].trim() });
+  });
+  return entries;
+}
+
+function parseStructuredAbilities(section){
+  const abilities = [];
+  const moves = [];
+  section.split(/(?=(?:Ability:|Move\s*\d+:))/gi).filter(Boolean).forEach(chunk => {
+    const nameM = chunk.match(/^(Ability:|Move\s*\d+:)\s*(.+?)(?:\n|$)/i);
+    if(!nameM) return;
+    const effectM = chunk.match(/Effect:\s*([\s\S]+?)$/i);
+    const entry = { name: nameM[2].trim(), effect: effectM ? effectM[1].trim() : '' };
+    if(/^Ability:/i.test(nameM[1])) abilities.push(entry);
+    else moves.push(entry);
+  });
+  return { abilities, moves };
+}
+
+function distributeAbilityEntries(entries){
+  if(!entries.length) return { abilities: [], moves: [] };
+  if(entries.length <= 2) return { abilities: entries, moves: [] };
+  const split = Math.ceil(entries.length / 2);
+  return { abilities: entries.slice(0, split), moves: entries.slice(split) };
+}
+
 function parsePlayerCardText(raw){
   if(!raw?.trim()) return null;
-  const t = normalizeCardBlob(raw);
+  const text = raw.replace(/\r/g, '').trim();
   const out = {
     name: '', cardSubtitle: '', level: 1, mbti: '', spiritPrompt: '', colorPalette: '', vibe: '',
     abilities: [], moves: [],
@@ -36,44 +95,65 @@ function parsePlayerCardText(raw){
     retreatCost: '1', quote: '',
   };
 
-  const cardLine = t.match(/^Card:\s*(.+)$/im);
-  if(cardLine){
-    const parts = cardLine[1].split(',').map(s => s.trim());
+  const titleMatch = text.match(/(?:Character Card|Card)\s*:\s*(.+?)(?:\n|$)/i);
+  if(titleMatch){
+    const parts = titleMatch[1].split(',').map(s => s.trim());
     out.name = parts[0] || '';
     out.cardSubtitle = parts.slice(1).join(', ') || '';
   }
 
-  const pick = (key) => {
-    const m = t.match(new RegExp(`^${key}\\s*:?\\s*(.+)$`, 'im'));
-    return m ? m[1].trim() : '';
-  };
+  out.name = out.name || pickLineField(text, ['Name']);
+  out.level = parseInt(pickLineField(text, ['Level']), 10) || 1;
+  out.mbti = pickLineField(text, ['MBTI']);
+  out.spiritPrompt = pickLineField(text, ['Spirit Animal']);
+  out.colorPalette = pickLineField(text, ['Colour Palette', 'Color Palette']);
+  out.vibe = pickLineField(text, ['Character Vibe']);
 
-  out.name = out.name || pick('Name');
-  out.level = parseInt(pick('Level'), 10) || 1;
-  out.mbti = pick('MBTI');
-  out.spiritPrompt = pick('Spirit Animal');
-  out.colorPalette = pick('Color Palette');
-  out.vibe = pick('Character Vibe');
-  out.quote = pick('Quote').replace(/^["']|["']$/g, '').trim();
-  const retreat = pick('Retreat Cost');
-  out.retreatCost = retreat.match(/^\d+/)?.[0] || retreat.split(/[—–-]/)[0].trim() || '1';
+  const quoteIdx = text.search(/^Quote\s*:?/im);
+  if(quoteIdx >= 0){
+    out.quote = text.slice(quoteIdx)
+      .replace(/^Quote\s*:?\s*/i, '')
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .trim();
+  }
 
-  const wm = t.match(/Weakness:\s*([^\n]+)\nEffect:\s*([\s\S]*?)(?=\n(?:Resistance|Retreat|Quote)|$)/i);
-  if(wm){ out.weakness = { name: wm[1].trim(), effect: wm[2].trim() }; }
-  const rm = t.match(/Resistance:\s*([^\n]+)\nEffect:\s*([\s\S]*?)(?=\n(?:Retreat|Quote)|$)/i);
-  if(rm){ out.resistance = { name: rm[1].trim(), effect: rm[2].trim() }; }
+  const retreat = pickLineField(text, ['Retreat Cost']);
+  if(retreat) out.retreatCost = retreat.match(/^\d+/)?.[0] || retreat.split(/[—–-]/)[0].trim() || '1';
 
-  const section = t.match(/Abilities\s*&\s*Moves([\s\S]*?)(?:Stats\s*&\s*Conditions|$)/i)?.[1] || '';
-  section.split(/(?=(?:Ability:|Move\s*\d+:))/gi).filter(Boolean).forEach(chunk => {
-    const nameM = chunk.match(/^(Ability:|Move\s*\d+:)\s*(.+?)(?:\n|$)/i);
-    if(!nameM) return;
-    const effectM = chunk.match(/Effect:\s*([\s\S]+?)$/i);
-    const entry = { name: nameM[2].trim(), effect: effectM ? effectM[1].trim() : '' };
-    if(/^Ability:/i.test(nameM[1])) out.abilities.push(entry);
-    else out.moves.push(entry);
-  });
-  while(out.abilities.length < 2) out.abilities.push({ name: '', effect: '' });
-  while(out.moves.length < 2) out.moves.push({ name: '', effect: '' });
+  const weakLine = pickLineField(text, ['Weakness']);
+  if(weakLine) out.weakness = splitStatLine(weakLine);
+  else {
+    const wm = text.match(/Weakness:\s*([^\n]+)\nEffect:\s*([\s\S]*?)(?=\n(?:Resistance|Retreat|Quote)|$)/i);
+    if(wm) out.weakness = { name: wm[1].trim(), effect: wm[2].trim() };
+  }
+
+  const resistLine = pickLineField(text, ['Resistance']);
+  if(resistLine) out.resistance = splitStatLine(resistLine);
+  else {
+    const rm = text.match(/Resistance:\s*([^\n]+)\nEffect:\s*([\s\S]*?)(?=\n(?:Retreat|Quote)|$)/i);
+    if(rm) out.resistance = { name: rm[1].trim(), effect: rm[2].trim() };
+  }
+
+  const abSection = extractSection(text, 'Abilities(?:\\s*&\\s*|\\s+and\\s+)Moves', ['Stats(?:\\s*&\\s*|\\s+and\\s+)Conditions', 'Weakness', 'Resistance', 'Retreat Cost', 'Quote']);
+  if(/Ability:|Move\s*\d+:/i.test(abSection)){
+    const parsed = parseStructuredAbilities(abSection);
+    out.abilities = parsed.abilities;
+    out.moves = parsed.moves;
+  } else {
+    const entries = parseNameEffectLines(abSection);
+    const split = distributeAbilityEntries(entries);
+    out.abilities = split.abilities;
+    out.moves = split.moves;
+  }
+
+  if(!out.abilities.length && !out.moves.length){
+    const legacy = normalizeCardBlob(raw);
+    const section = legacy.match(/Abilities\s*(?:&|and)\s*Moves([\s\S]*?)(?:Stats\s*(?:&|and)\s*Conditions|$)/i)?.[1] || '';
+    const parsed = parseStructuredAbilities(section);
+    out.abilities = parsed.abilities;
+    out.moves = parsed.moves;
+  }
 
   return {
     name: out.name,
@@ -81,7 +161,8 @@ function parsePlayerCardText(raw){
     pokeCard: {
       level: out.level, mbti: out.mbti, spiritPrompt: out.spiritPrompt,
       colorPalette: out.colorPalette, vibe: out.vibe, subtitle: out.cardSubtitle,
-      abilities: out.abilities.slice(0, 2), moves: out.moves.slice(0, 2),
+      abilities: out.abilities.filter(a => a.name),
+      moves: out.moves.filter(m => m.name),
       weakness: out.weakness, resistance: out.resistance,
       retreatCost: out.retreatCost, quote: out.quote,
     },
@@ -92,19 +173,31 @@ function itemToCardBlob(item, opts = {}){
   const pc = normalizePokeCard(item);
   const sub = pc.subtitle || item.cardSubtitle || '';
   const isPlace = opts.isPlace;
+  const title = sub ? `Character Card: ${item.name || 'Unknown'}, ${sub}` : `Character Card: ${item.name || 'Unknown'}`;
   const lines = [
-    sub ? `Card: ${item.name}, ${sub}` : `Card: ${item.name || 'Unknown'}`,
-    '', `Name: ${item.name || ''}`, `Level: ${pc.level}`, `MBTI: ${pc.mbti}`,
+    title, '',
+    `Level: ${pc.level}`, `MBTI: ${pc.mbti}`,
   ];
   if(!isPlace) lines.push(`Spirit Animal: ${pc.spiritPrompt || ''}`);
-  lines.push(`Color Palette: ${pc.colorPalette}`, `Character Vibe: ${pc.vibe}`, '', 'Abilities & Moves');
-  pc.abilities.forEach(a => { if(a?.name) lines.push(`Ability: ${a.name}`, `Effect: ${a.effect || ''}`); });
-  pc.moves.forEach((m, i) => { if(m?.name) lines.push(`Move ${i + 1}: ${m.name}`, `Effect: ${m.effect || ''}`); });
-  lines.push('', 'Stats & Conditions');
-  if(pc.weakness?.name) lines.push(`Weakness: ${pc.weakness.name}`, `Effect: ${pc.weakness.effect || ''}`);
-  if(pc.resistance?.name) lines.push(`Resistance: ${pc.resistance.name}`, `Effect: ${pc.resistance.effect || ''}`);
+  lines.push(
+    `Colour Palette: ${pc.colorPalette}`,
+    `Character Vibe: ${pc.vibe}`,
+    '',
+    'Abilities and Moves:',
+    '',
+  );
+  [...pc.abilities, ...pc.moves].filter(e => e?.name).forEach(e => {
+    lines.push(`${e.name}: ${e.effect || ''}`);
+  });
+  lines.push('', 'Stats and Conditions:', '');
+  if(pc.weakness?.name){
+    lines.push(`Weakness: ${pc.weakness.name}${pc.weakness.effect ? `. ${pc.weakness.effect}` : ''}`);
+  }
+  if(pc.resistance?.name){
+    lines.push(`Resistance: ${pc.resistance.name}${pc.resistance.effect ? `. ${pc.resistance.effect}` : ''}`);
+  }
   if(pc.retreatCost) lines.push(`Retreat Cost: ${pc.retreatCost}`);
-  lines.push('', 'Quote', `"${pc.quote || ''}"`);
+  lines.push('', 'Quote:', '', `"${pc.quote || ''}"`);
   return lines.join('\n');
 }
 
@@ -244,13 +337,16 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
 
   return `<div class="pc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>
+    ${pc.subtitle || item.cardSubtitle ? `<div class="pc-row"><span>Title</span><span>${esc(pc.subtitle || item.cardSubtitle)}</span></div>` : ''}
     ${row('Level', pc.level)}${row('MBTI', pc.mbti)}${row('Palette', pc.colorPalette)}
+    ${pc.vibe ? `<div class="pc-block"><div class="pc-block-title">Vibe</div><p>${esc(pc.vibe)}</p></div>` : ''}
     ${!hideSpirit ? (pc.spiritAnimalImage ? `<div class="pc-spirit-row"><span>Spirit</span><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : row('Spirit', pc.spiritPrompt)) : ''}
     ${pc.abilities.filter(a => a.name).map(a => block('Ability', a.name, a.effect)).join('')}
     ${pc.moves.filter(m => m.name).map(m => block('Move', m.name, m.effect)).join('')}
     ${block('Weakness', pc.weakness?.name, pc.weakness?.effect)}
     ${block('Resistance', pc.resistance?.name, pc.resistance?.effect)}
     ${row('Retreat', pc.retreatCost)}
+    ${pc.quote ? `<div class="pc-quote">"${esc(pc.quote)}"</div>` : ''}
     <div class="pc-admin-row edit-when-editing">
       <button type="button" class="btn flip-edit-btn">Edit</button>
       ${cardType !== 'player' && cardId ? `<button type="button" class="btn admin-delete flip-del-btn" data-del-type="${esc(cardType)}" data-del-id="${esc(cardId)}">Delete</button>` : ''}
@@ -318,10 +414,11 @@ function playerCardEditorHtml(item, opts = {}){
   const cardColor = pc.cardColor || '#ff4fd8';
   return `
     <div class="player-card-editor">
-      <div class="field"><label>Paste player card template</label>
-        <textarea id="ce_card_blob" rows="14">${esc(blob)}</textarea>
+      <div class="field"><label>Paste character card</label>
+        <span class="field-hint">Paste your full block — stats appear on the back when flipped.</span>
+        <textarea id="ce_card_blob" rows="16" placeholder="Character Card: Name, Title&#10;&#10;Level: 22&#10;MBTI: ENTJ&#10;...">${esc(blob)}</textarea>
       </div>
-      <button type="button" class="btn" id="parseCardBtn">Build card from text</button>
+      <button type="button" class="btn primary" id="parseCardBtn">Build card from text</button>
       <p class="gen-note" id="parseCardPreview"></p>
       <div class="field"><label>Card description <span class="field-hint">shows on front of card</span></label>
         <textarea id="ce_card_desc" rows="3" placeholder="Who they are in a sentence or two…">${esc(item?.cardDescription || '')}</textarea>
@@ -360,12 +457,32 @@ function wirePlayerCardEditor(opts = {}){
   const showSpirit = !opts.isPlace;
 
   document.getElementById('parseCardBtn')?.addEventListener('click', () => {
-    const parsed = parsePlayerCardText(document.getElementById('ce_card_blob')?.value);
+    const blob = document.getElementById('ce_card_blob')?.value || '';
+    const parsed = parsePlayerCardText(blob);
     const el = document.getElementById('parseCardPreview');
-    if(el) el.textContent = parsed?.name ? `✓ ${parsed.name} · Lv ${parsed.pokeCard.level} · ${parsed.pokeCard.mbti}` : 'Could not parse — check template format.';
-    if(showSpirit && parsed?.pokeCard?.spiritPrompt){
+    if(!parsed?.name){
+      if(el) el.textContent = 'Could not parse — start with "Character Card: Name, Title"';
+      return;
+    }
+    const pc = parsed.pokeCard;
+    const abCount = (pc.abilities?.length || 0) + (pc.moves?.length || 0);
+    if(el){
+      el.textContent = `✓ ${parsed.name}${parsed.cardSubtitle ? ` · ${parsed.cardSubtitle}` : ''} · Lv ${pc.level} · ${pc.mbti || '—'} · ${abCount} abilities/moves`;
+    }
+    const desc = document.getElementById('ce_card_desc');
+    if(desc && !desc.value.trim() && pc.vibe) desc.value = pc.vibe;
+    if(showSpirit && pc.spiritPrompt){
       const sd = document.getElementById('ce_spirit_desc');
-      if(sd && !sd.value.trim()) sd.value = parsed.pokeCard.spiritPrompt;
+      if(sd && !sd.value.trim()) sd.value = pc.spiritPrompt;
+    }
+    if(showSpirit && pc.colorPalette){
+      const color = paletteToAccent(pc.colorPalette);
+      const colorInput = document.getElementById('ce_card_color');
+      const colorPreview = document.getElementById('ce_card_color_preview');
+      if(colorInput){
+        colorInput.value = color;
+        if(colorPreview) colorPreview.style.setProperty('--swatch', toNeonAccent(color) || color);
+      }
     }
   });
 

@@ -401,6 +401,7 @@ body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offse
 .pc-block{margin:8px 0;padding:6px 0;border-bottom:1px dashed color-mix(in srgb,var(--pc-accent) 20%,transparent);}
 .pc-block-title{font-size:9px;color:var(--pc-accent);margin-bottom:3px;letter-spacing:0.06em;}
 .pc-block p{margin:0;color:var(--text-mid);font-size:9px;line-height:1.4;}
+.pc-quote{margin-top:10px;padding-top:8px;border-top:1px dashed color-mix(in srgb,var(--pc-accent) 25%,transparent);font-size:9px;font-style:italic;color:var(--text-mid);line-height:1.45;}
 .pc-spirit-row{display:flex;align-items:center;gap:10px;margin:8px 0;}
 .pc-spirit-row img{width:40px;height:40px;border-radius:50%;border:2px solid var(--pc-accent);object-fit:cover;}
 .pc-locked{text-align:center;padding:40px;color:var(--text-low);}
