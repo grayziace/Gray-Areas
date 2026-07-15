@@ -100,6 +100,20 @@ function saveState(){
 }
 
 let state = loadState();
+
+function mergeSiteStateFromFile(){
+  if(typeof SITE_STATE === 'undefined' || !SITE_STATE) return;
+  const s = SITE_STATE;
+  if(s.entries) state.entries = s.entries;
+  if(s.skillHours) state.skillHours = s.skillHours;
+  if(s.pinboard) state.pinboard = s.pinboard;
+  if(s.arrivalDate) state.arrivalDate = s.arrivalDate;
+  if(s.unlockedZones) state.unlockedZones = s.unlockedZones;
+  if(s.dramaState) state.dramaState = s.dramaState;
+  if(s.hiddenDramas) state.hiddenDramas = s.hiddenDramas;
+  saveState();
+}
+mergeSiteStateFromFile();
 let pendingContentImage = null;
 let pendingSpiritImage = null;
 let pendingDramaImage = null;

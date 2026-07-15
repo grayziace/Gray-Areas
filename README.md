@@ -18,6 +18,15 @@ If you see `ERR_CONNECTION_RESET` or “can’t be reached”, **GitHub Pages is
 
 Optional: **Custom domains** in Cloudflare Pages after you buy a domain.
 
+### Saving edits permanently (Export to code)
+
+In **editing mode**, click **Export to code** in the sidebar. That downloads:
+
+- `content.js` — player cards, places, photos, articles, skills, dramas
+- `site-state.js` — daily log, pinboard, skill hours, drama episode ratings
+
+Replace both files in your repo, commit, and push. Cloudflare/GitHub redeploys and **everyone** sees your changes.
+
 ## For visitors
 
 Browse everything. Leave a message via **Pinboard**.

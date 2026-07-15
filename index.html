@@ -96,6 +96,7 @@
     <div class="admin-bar admin-only hidden" id="adminBar">
       <div class="admin-bar-top"><span class="admin-bar-dot"></span><span class="admin-bar-label">Editing</span></div>
       <button type="button" class="btn admin-exit" id="exitEditing">Exit editing</button>
+      <button type="button" class="btn" id="exportCodeBtn" title="Download content.js + site-state.js for git">Export to code</button>
     </div>
     <button class="admin-unlock" id="adminUnlock">·</button>
   </aside>
@@ -353,7 +354,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'character-gen.js', 'image-tools.js', 'player-cards.js', 'place-cards.js', 'script.js'];
+  var files = ['content.js', 'site-state.js', 'code-export.js', 'character-gen.js', 'image-tools.js', 'player-cards.js', 'place-cards.js', 'script.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
