@@ -138,6 +138,24 @@ function renderCategoryRecommendationsHtml(category, sectionLabel){
   </aside>`;
 }
 
+function getLoggedInCoderDisplayName(){
+  const card = getMyCoderCard();
+  if(card?.name) return card.name;
+  const id = getCoderSessionId();
+  if(id){
+    const byId = getCoderById(id);
+    if(byId?.name) return byId.name;
+    const deck = typeof getCharacters === 'function' ? getCharacters() : [];
+    const deckC = deck.find(c => c.id === id);
+    if(deckC?.name) return deckC.name;
+  }
+  try{
+    return sessionStorage.getItem('ga-coder-display-name') || '';
+  }catch(e){
+    return '';
+  }
+}
+
 function renderCoderWelcomeBar(){
   const host = document.getElementById('coderWelcomeBar');
   if(!host) return;
@@ -147,12 +165,10 @@ function renderCoderWelcomeBar(){
     return;
   }
   if(isCoderLoggedIn()){
-    const card = getMyCoderCard();
-    if(card){
-      host.innerHTML = `<div class="coder-welcome-bar"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(card.name)}</strong></span></div>`;
-      host.classList.remove('hidden');
-      return;
-    }
+    const name = getLoggedInCoderDisplayName() || 'Coder';
+    host.innerHTML = `<div class="coder-welcome-bar"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong></span></div>`;
+    host.classList.remove('hidden');
+    return;
   }
   host.classList.add('hidden');
   host.innerHTML = '';
@@ -429,15 +445,19 @@ function unlockCoderSession(cardId, opts = {}){
   clearGuestMode();
   clearCardCreationMode();
   try{ sessionStorage.removeItem('ga-admin'); }catch(e){}
-  try{ sessionStorage.setItem(CODERS_SESSION_KEY, cardId); }catch(e){}
-  enterMainSite();
   const card = (state.viewerCharacters || []).find(c => c.id === cardId);
+  try{ sessionStorage.setItem(CODERS_SESSION_KEY, cardId); }catch(e){}
+  try{
+    if(card?.name) sessionStorage.setItem('ga-coder-display-name', card.name);
+  }catch(e){}
+  enterMainSite();
   awardLoginPoints(cardId);
   if(opts.welcome !== false && card) showWelcomeCoder(card);
   else if(card) showBirthdayCelebration(card);
   applyAdminUI?.();
   if(typeof navigateToView === 'function') navigateToView(opts.view || 'sync');
   ViewerWorld.renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
 }
 
 function lockCoderSession(){
@@ -755,10 +775,86 @@ function pinCoderThumb(coderId){
   </div>`;
 }
 
-function cardWizardFieldsHtml(prefix, card){
+function cardWizardFieldsHtml(prefix, card, opts = {}){
   const c = card || {};
   const p = prefix ? `${prefix}_` : 'vw_';
   const id = k => p + k;
+  const borderColor = c.pokeCard?.cardColor || c.cardColor || '#4ade80';
+  const neon = typeof toNeonAccent === 'function' ? (toNeonAccent(borderColor) || borderColor) : borderColor;
+  const portraitSrc = opts.portraitPreview || c.image || c.avatar || '';
+  const spiritSrc = opts.spiritPreview || c.pokeCard?.spiritAnimalImage || '';
+
+  if(opts.createLayout){
+    return `
+    <div class="card-wizard-layout">
+      <div class="card-wizard-form-col">
+        <div class="field-row">
+          <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name" required></div>
+          <div class="field"><label>Title</label><input type="text" id="${id('Title')}" value="${esc(c.cardSubtitle || c.pokeCard?.subtitle || '')}" placeholder="optional"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Birthday</label><input type="date" id="${id('Birthday')}" value="${esc(c.birthday || '')}"></div>
+          <div class="field"><label>MBTI</label><input type="text" id="${id('Mbti')}" value="${esc(c.mbti || '')}" placeholder="optional"></div>
+        </div>
+        <div class="field card-border-field">
+          <label>Border colour</label>
+          <div class="card-border-picker-row">
+            <input type="color" id="${id('CardColor')}" value="${esc(borderColor)}">
+            <div class="card-border-swatch" id="${id('BorderSwatch')}" style="--preview-neon:${esc(neon)}">
+              <span class="card-border-swatch-ring"></span>
+              <span class="card-border-swatch-label">Neon glow</span>
+            </div>
+          </div>
+        </div>
+        <div class="field"><label>Favourite colour</label><input type="text" id="${id('Palette')}" value="${esc(c.pokeCard?.colorPalette || '')}" placeholder="e.g. rose gold, midnight blue…"></div>
+        <div class="field-row">
+          <div class="field"><label>Hair colour</label><input type="text" id="${id('Hair')}" value="${esc(c.hairColor || '')}" placeholder="optional"></div>
+          <div class="field"><label>Skin colour</label><input type="text" id="${id('Skin')}" value="${esc(c.skinColor || '')}" placeholder="optional"></div>
+        </div>
+        <div class="field"><label>Eye colour</label><input type="text" id="${id('Eyes')}" value="${esc(c.eyeColor || '')}" placeholder="glows neon on your portrait"></div>
+        <div class="field card-gen-field">
+          <label>Self description</label>
+          <textarea id="${id('SelfDesc')}" rows="4" placeholder="Describe your look — hair, vibe, outfit, energy…">${esc(c.selfDescription || '')}</textarea>
+          <button type="button" class="btn primary" id="${id('GenPortraitBtn')}">Generate my character</button>
+          <p class="field-hint" id="${id('PortraitStatus')}">Describe yourself, then generate your portrait before summoning.</p>
+        </div>
+        <div class="field card-gen-field">
+          <label>Spirit animal</label>
+          <input type="text" id="${id('Spirit')}" value="${esc(c.spiritAnimal || c.pokeCard?.spiritPrompt || '')}" placeholder="e.g. neon fox, crystal owl…">
+          <button type="button" class="btn" id="${id('GenSpiritBtn')}">Generate spirit animal</button>
+          <p class="field-hint" id="${id('SpiritStatus')}">Optional — generate if you want one on your card.</p>
+        </div>
+        <details class="card-wizard-more">
+          <summary>More card details (optional)</summary>
+          <div class="field"><label>Vibe</label><textarea id="${id('Vibe')}" rows="2" placeholder="optional">${esc(c.vibe || c.pokeCard?.vibe || '')}</textarea></div>
+          <div class="field"><label>Strengths</label><textarea id="${id('Strengths')}" rows="2" placeholder="optional">${esc(c.strengths || '')}</textarea></div>
+          <div class="field"><label>Weaknesses</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="optional">${esc(c.weaknesses || '')}</textarea></div>
+          <div class="field"><label>Resistances</label><textarea id="${id('Resistances')}" rows="2" placeholder="optional">${esc(c.resistances || '')}</textarea></div>
+          <div class="field"><label>Quote</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
+        </details>
+      </div>
+      <aside class="card-wizard-preview-col">
+        <p class="card-preview-kicker">Live preview</p>
+        <div class="card-preview-frame" id="${id('PreviewFrame')}" style="--preview-neon:${esc(neon)}">
+          <div class="card-preview-portrait" id="${id('PortraitPreview')}">
+            ${portraitSrc
+              ? `<img src="${esc(portraitSrc)}" alt="Your character">`
+              : `<div class="card-preview-placeholder"><span>◎</span><p>Your character image will appear here</p></div>`}
+          </div>
+          <div class="card-preview-meta">
+            <span class="card-preview-name" id="${id('PreviewName')}">${esc(c.name || 'Your name')}</span>
+            <span class="card-preview-lv">Lv 1</span>
+          </div>
+          <div class="card-preview-spirit" id="${id('SpiritPreview')}">
+            ${spiritSrc
+              ? `<img src="${esc(spiritSrc)}" alt="Spirit animal">`
+              : `<span class="card-preview-spirit-ph">Spirit animal</span>`}
+          </div>
+        </div>
+      </aside>
+    </div>`;
+  }
+
   return `
     <div class="field-row">
       <div class="field"><label>Name</label><input type="text" id="${id('Name')}" value="${esc(c.name || '')}" placeholder="your name"></div>
@@ -956,6 +1052,7 @@ const ViewerWorld = {
   pendingQuestClips: [],
   editingCardId: null,
   playerEditingCoderId: null,
+  wizardDraft: { portrait: '', spirit: '' },
 
   init(){
     if(this.inited) return;
@@ -1032,6 +1129,80 @@ const ViewerWorld = {
     this.renderViewerCard();
     this.renderQuests();
     this.renderVlog();
+    if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
+  },
+
+  wireCardWizardCreate(prefix){
+    const p = prefix ? `${prefix}_` : 'vw_';
+    const colorInput = document.getElementById(p + 'CardColor');
+    const frame = document.getElementById(p + 'PreviewFrame');
+    const swatch = document.getElementById(p + 'BorderSwatch');
+    const syncBorder = () => {
+      const raw = colorInput?.value || '#4ade80';
+      const neon = typeof toNeonAccent === 'function' ? (toNeonAccent(raw) || raw) : raw;
+      frame?.style.setProperty('--preview-neon', neon);
+      swatch?.style.setProperty('--preview-neon', neon);
+    };
+    colorInput?.addEventListener('input', syncBorder);
+    syncBorder();
+    document.getElementById(p + 'Name')?.addEventListener('input', e => {
+      const el = document.getElementById(p + 'PreviewName');
+      if(el) el.textContent = e.target.value.trim() || 'Your name';
+    });
+    document.getElementById(p + 'GenPortraitBtn')?.addEventListener('click', () => this.generateWizardPortrait(prefix));
+    document.getElementById(p + 'GenSpiritBtn')?.addEventListener('click', () => this.generateWizardSpirit(prefix));
+  },
+
+  async generateWizardPortrait(prefix){
+    const form = readCardFormFromDom(prefix, { consoleKey: '' });
+    if(!form.selfDescription?.trim() && !form.name?.trim() && !form.hairColor?.trim()){
+      alert('Add a self description (or name + hair) so we know what to draw.');
+      return;
+    }
+    const p = prefix ? `${prefix}_` : 'vw_';
+    const btn = document.getElementById(p + 'GenPortraitBtn');
+    const status = document.getElementById(p + 'PortraitStatus');
+    const preview = document.getElementById(p + 'PortraitPreview');
+    if(btn) btn.disabled = true;
+    if(status) status.textContent = 'Generating your character… this takes a minute. Please wait.';
+    let temp = buildCoderCardFromWizard(form);
+    try{
+      temp = await generateCoderCardImages(temp, { portrait: true, spirit: false });
+      this.wizardDraft.portrait = temp.image || '';
+      if(preview && temp.image){
+        preview.innerHTML = `<img src="${esc(temp.image)}" alt="Your character">`;
+      }
+      if(status) status.textContent = 'Character ready — looking good.';
+    }catch(e){
+      if(status) status.textContent = 'Generation failed — try again in a moment.';
+    }
+    if(btn) btn.disabled = false;
+  },
+
+  async generateWizardSpirit(prefix){
+    const form = readCardFormFromDom(prefix, { consoleKey: '' });
+    if(!form.spiritAnimal?.trim()){
+      alert('Describe your spirit animal first.');
+      return;
+    }
+    const p = prefix ? `${prefix}_` : 'vw_';
+    const btn = document.getElementById(p + 'GenSpiritBtn');
+    const status = document.getElementById(p + 'SpiritStatus');
+    const preview = document.getElementById(p + 'SpiritPreview');
+    if(btn) btn.disabled = true;
+    if(status) status.textContent = 'Summoning spirit animal… please wait.';
+    let temp = buildCoderCardFromWizard(form);
+    try{
+      temp = await generateCoderCardImages(temp, { portrait: false, spirit: true });
+      this.wizardDraft.spirit = temp.pokeCard?.spiritAnimalImage || '';
+      if(preview && this.wizardDraft.spirit){
+        preview.innerHTML = `<img src="${esc(this.wizardDraft.spirit)}" alt="Spirit animal">`;
+      }
+      if(status) status.textContent = 'Spirit animal arrived.';
+    }catch(e){
+      if(status) status.textContent = 'Spirit generation failed — try again.';
+    }
+    if(btn) btn.disabled = false;
   },
 
   renderInstructions(){
@@ -1084,14 +1255,15 @@ const ViewerWorld = {
     }
 
     if(!getMyCoderCard()){
+      this.wizardDraft = { portrait: '', spirit: '' };
       host.innerHTML = `
         <div class="viewer-wizard sketch-card card-create-intro">
           <p class="instructions-kicker">You're joining the deck</p>
           <h3 class="viewer-wizard-title">Make My Card</h3>
-          <p class="field-hint">Fill what you want — blanks are fine. Gray can patch gaps later. You'll watch your <strong>portrait</strong> and <strong>spirit animal</strong> generate live (takes a minute).</p>
+          <p class="field-hint">Generate your <strong>character</strong> and <strong>spirit animal</strong> first — then summon your card into the deck.</p>
           <form id="viewerCardForm" class="viewer-wizard-form">
-            ${cardWizardFieldsHtml('vw', null)}
-            <div class="field-row">
+            ${cardWizardFieldsHtml('vw', null, { createLayout: true })}
+            <div class="field-row card-wizard-keys">
               <div class="field"><label>Console key</label><input type="password" id="vw_ConsoleKey" required placeholder="unique secret — yours alone"></div>
               <div class="field"><label>Confirm key</label><input type="password" id="vw_ConsoleKey2" required></div>
             </div>
@@ -1099,6 +1271,7 @@ const ViewerWorld = {
           </form>
         </div>`;
       document.getElementById('viewerCardForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitCharacterWizard(); });
+      this.wireCardWizardCreate('vw');
       return;
     }
 
@@ -1259,21 +1432,35 @@ const ViewerWorld = {
       alert('That console key is already taken — each card needs its own unique key. Please choose another.');
       return;
     }
+    if(!this.wizardDraft?.portrait){
+      alert('Generate your character portrait first — hit “Generate my character” and wait for the image.');
+      return;
+    }
+    const form = readCardFormFromDom('vw', { consoleKey: k1 });
+    if(form.spiritAnimal?.trim() && !this.wizardDraft?.spirit){
+      alert('You described a spirit animal — generate it first, or clear the field.');
+      return;
+    }
+    if(!form.name?.trim()) form.name = 'Coder';
 
     const host = document.getElementById('viewerCardSpread');
     if(host) host.innerHTML = cardGenProgressHtml();
-
-    const form = readCardFormFromDom('vw', { consoleKey: k1 });
-    if(!form.name?.trim()) form.name = 'Coder';
+    updateCardGenProgress('portrait', 'done', 'Portrait ready.');
+    if(this.wizardDraft.spirit) updateCardGenProgress('spirit', 'done', 'Spirit ready.');
+    else updateCardGenProgress('spirit', 'skip', 'No spirit animal.');
+    updateCardGenProgress('seal', 'active', 'Sealing your card into the deck…');
 
     let card = buildCoderCardFromWizard(form);
-    card = await generateCoderCardImages(card, { onStep: updateCardGenProgress });
-    updateCardGenProgress('seal', 'active', 'Sealing your card into the deck…');
+    card.image = this.wizardDraft.portrait;
+    card.avatar = this.wizardDraft.portrait;
+    if(this.wizardDraft.spirit) card.pokeCard.spiritAnimalImage = this.wizardDraft.spirit;
+
     state.viewerCharacters.push(card);
     saveState();
     await postVisitorData('createCharacter', card);
     logCoderActivity('card_created', { coderId: card.id, name: card.name, detail: `${card.name} created their Coders Card` });
     updateCardGenProgress('seal', 'done', 'Welcome to the deck!');
+    this.wizardDraft = { portrait: '', spirit: '' };
     unlockCoderSession(card.id, { welcome: true, view: 'sync' });
     if(typeof renderCharacters === 'function') renderCharacters();
     this.editingCardId = null;

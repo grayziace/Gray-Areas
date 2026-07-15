@@ -1817,6 +1817,7 @@ function navigateToView(view){
   }
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
   if(view === 'vlog' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
 }
 
 function bootApp(){
