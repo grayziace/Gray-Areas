@@ -43,8 +43,14 @@ function applyAdminUI(){
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const pinForm = document.getElementById('pinForm');
   if(pinForm) pinForm.classList.toggle('hidden', !canPost);
-  const pinGuestHint = document.getElementById('pinGuestHint');
-  if(pinGuestHint) pinGuestHint.classList.toggle('hidden', canPost);
+  const commHint = document.getElementById('commBoardHint');
+  if(commHint){
+    commHint.textContent = admin
+      ? 'Player Gray mode — post as yourself. Your notes stay on the board permanently.'
+      : canPost
+        ? 'Posts stay permanently. Your Coders Card shows on your note.'
+        : 'Guest watch-only — log in or make My Card to post.';
+  }
   const pinPreview = document.getElementById('pinAuthorPreview');
   if(pinPreview){
     const author = typeof pinSessionAuthor === 'function' ? pinSessionAuthor() : null;
@@ -82,6 +88,7 @@ function unlockAdmin(opts = {}){
   else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
   renderAll();
+  if(typeof awardGrayLoginPoints === 'function') awardGrayLoginPoints();
   if(opts.welcome !== false && typeof showWelcomePlayer === 'function') showWelcomePlayer();
   else if(opts.toast !== false){
     const toast = document.getElementById('editToast');
@@ -299,10 +306,21 @@ function getCharacters(){
   const base = getContentList('characters', [...CONTENT.characters, ...(state.runtimeCharacters || [])]);
   const seen = new Set(base.map(c => c.id));
   const merged = [...base];
-  (state.viewerCharacters || []).forEach(c => {
-    if(!c?.id || seen.has(c.id)) return;
-    merged.push({ ...c, isCoderCard: c.isCoderCard !== false });
-    seen.add(c.id);
+  (state.viewerCharacters || []).forEach(vc => {
+    if(!vc?.id) return;
+    const norm = typeof normalizeCoderName === 'function' ? normalizeCoderName : (n) => (n || '').trim().toLowerCase();
+    const byId = merged.findIndex(m => m.id === vc.id);
+    const byName = merged.findIndex(m => norm(m.name) === norm(vc.name));
+    if(byId >= 0){
+      merged[byId] = { ...merged[byId], ...vc, isCoderCard: true, points: vc.points ?? merged[byId].points ?? 0 };
+      seen.add(vc.id);
+    } else if(byName >= 0){
+      merged[byName] = { ...merged[byName], ...vc, id: merged[byName].id, isCoderCard: true, points: vc.points ?? merged[byName].points ?? 0 };
+      seen.add(vc.id);
+    } else if(!seen.has(vc.id)){
+      merged.push({ ...vc, isCoderCard: vc.isCoderCard !== false });
+      seen.add(vc.id);
+    }
   });
   const godNames = new Set((state.viewerCharacters || []).filter(c => c.isGod).map(c => (c.name || '').trim().toLowerCase()));
   const isCoder = c => c?.isCoderCard || (state.viewerCharacters || []).some(v => v.id === c.id);
@@ -1310,6 +1328,7 @@ const GRAY_XP_AWARDS = {
   new_card: { label: 'New player/place card', xp: 10 },
   overload_session: { label: 'Overload session archived', xp: 12 },
   custom: { label: 'Custom award', xp: 0 },
+  login: { label: 'Daily login', xp: 3 },
 };
 
 function getGrayPoints(){
@@ -1774,6 +1793,16 @@ function navigateToView(view){
   document.getElementById('view-' + view)?.classList.add('active');
   document.body.dataset.activeView = view;
   if(view === 'sync') closeCoderNotify();
+  if(view === 'comm') applyAdminUI();
+  if(view === 'mind' && typeof OverloadLog !== 'undefined'){
+    OverloadLog.embedded = false;
+    document.body.classList.add('mind-channel-open');
+    OverloadLog.spawnMindGlitchBars?.();
+    if(!OverloadLog.view || OverloadLog.view === 'hub') OverloadLog.view = 'hub';
+    OverloadLog.render();
+  } else if(view !== 'mind'){
+    document.body.classList.remove('mind-channel-open', 'mind-repair-active');
+  }
   if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions'){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   }
@@ -2119,13 +2148,8 @@ function bindCommunityConsole(){
     }
     if(v === ':('){
       if(typeof OverloadLog !== 'undefined'){
-        if(typeof OverloadLog.openEmbedded === 'function'){
-          OverloadLog.openEmbedded();
-        } else if(typeof OverloadLog.triggerPageCrack === 'function'){
-          OverloadLog.triggerPageCrack(() => OverloadLog.showGlitchIntro());
-        } else {
-          OverloadLog.enterChannel();
-        }
+        if(typeof OverloadLog.enterMindView === 'function') OverloadLog.enterMindView();
+        else if(typeof OverloadLog.enterChannel === 'function') OverloadLog.enterChannel();
       }
       resetConsoleInput(input);
       return;
@@ -2839,33 +2863,32 @@ function renderCoderNotifyRail(){
     const meta = CODER_ACTIVITY_META[act.type] || { label: act.type, icon: '·', neon: '#94a3b8' };
     const when = relativeSignalTime(act.at);
     const detail = act.detail || act.name || '';
-    return `<article class="live-node coder-act-node" style="--ln-neon:${meta.neon}">
-      <div class="live-node-marker"><span class="live-node-glow"></span><span class="live-node-core">${meta.icon}</span></div>
-      <div class="live-node-card">
-        <div class="live-node-top">
-          <time class="live-node-time">${esc(when)}</time>
-          <span class="live-node-type">${meta.label}</span>
+    const who = act.name ? `<span class="coder-signal-who">${esc(act.name)}</span>` : '';
+    return `<article class="coder-signal-card" style="--cs-neon:${meta.neon}">
+      <div class="coder-signal-icon" aria-hidden="true">${meta.icon}</div>
+      <div class="coder-signal-body">
+        <div class="coder-signal-top">
+          <span class="coder-signal-type">${meta.label}</span>
+          <time class="coder-signal-time">${esc(when)}</time>
         </div>
-        <p class="live-node-text">${esc(detail)}</p>
+        ${who}
+        <p class="coder-signal-text">${esc(detail)}</p>
       </div>
     </article>`;
   }).join('') : `<div class="coder-signal-empty">
     <p class="coder-signal-empty-title">Quiet on the wire</p>
-    <p>Coder quests, posts, XP awards, and new cards will pulse here.</p>
+    <p>When coders log in, send quests, post on Community, or earn XP — you'll see it here.</p>
   </div>`;
   rail.innerHTML = `
     <div class="coder-notify-head">
       <div>
         <span class="live-rail-label">Coder signals</span>
-        <span class="coder-notify-sub">Quests · posts · XP · new cards</span>
+        <span class="coder-notify-sub">${acts.length} pulse${acts.length === 1 ? '' : 's'} · quests · posts · XP · cards</span>
       </div>
       <button type="button" class="coder-notify-close" id="closeCoderNotify" aria-label="Close">×</button>
     </div>
     <div class="coder-notify-scroll">
-      <div class="live-rail-track">
-        <div class="live-rail-spine" aria-hidden="true"></div>
-        <div class="live-rail-nodes">${nodes}</div>
-      </div>
+      <div class="coder-signal-list">${nodes}</div>
     </div>`;
   document.getElementById('closeCoderNotify')?.addEventListener('click', closeCoderNotify);
 }
@@ -4141,7 +4164,8 @@ function renderPinboard(){
   if(!wall) return;
   const posts = (state.pinboard || []).map(normalizePinPost);
   if(!posts.length){
-    wall.innerHTML = `<p class="empty-hint pin-empty">${(typeof isCoderLoggedIn === 'function' && isCoderLoggedIn()) || isAdmin() ? 'Be the first to leave a note on the board.' : 'Log in to post on the board.'}</p>`;
+    const canPost = isAdmin() || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+    wall.innerHTML = `<p class="empty-hint pin-empty">${canPost ? 'Be the first to leave a note on the board.' : 'Log in to post on the board.'}</p>`;
     return;
   }
 
@@ -4244,7 +4268,7 @@ function renderPinboard(){
 document.getElementById('pinForm')?.addEventListener('submit', e => {
   e.preventDefault();
   const author = pinSessionAuthor();
-  if(!author){ alert('Log in to your card to post.'); return; }
+  if(!author){ alert(isAdmin() ? 'Something went wrong — try exiting and re-entering Player Gray mode.' : 'Log in to your card to post.'); return; }
   const location = document.getElementById('pinLocation').value.trim();
   const text = document.getElementById('pinText').value.trim();
   const file = document.getElementById('pinPhoto').files[0];

@@ -2512,7 +2512,10 @@ body.is-viewer #view-profile .view-title::after{
 .vlog-upload{margin-bottom:22px;}
 
 /* Instructions + Coders key gate */
-.instructions-panel{max-width:720px;padding:22px 24px;line-height:1.65;}
+#instructionsSpread,.instructions-wrap{display:flex;flex-direction:column;align-items:center;width:100%;}
+.instructions-wrap > *{width:100%;max-width:720px;}
+#view-instructions .view-title{text-align:center;}
+.instructions-panel{max-width:720px;padding:22px 24px;line-height:1.65;margin:0 auto;}
 .instructions-kicker{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#e8c547;margin:0 0 8px;}
 .instructions-p{font-size:14px;color:var(--text-mid);margin:0 0 14px;}
 .instructions-steps{margin:0 0 18px;padding-left:1.2rem;font-size:13px;color:var(--text-mid);}
@@ -2603,25 +2606,47 @@ body.is-player-gray .admin-bar-dot{background:#ff4fd8;box-shadow:0 0 8px #ff4fd8
   position:fixed;inset:0;z-index:880;background:rgba(4,2,10,0.62);backdrop-filter:blur(2px);
 }
 .coder-notify-drawer{
-  position:fixed;top:0;right:0;bottom:0;z-index:890;width:min(340px,94vw);
+  position:fixed;top:0;right:0;bottom:0;z-index:890;width:min(380px,94vw);
   display:flex;flex-direction:column;min-height:0;
-  border-left:2px solid color-mix(in srgb,#3ad6e0 40%,var(--border-glass));
-  background:linear-gradient(180deg,rgba(6,4,12,0.98),rgba(10,8,18,0.96));
-  box-shadow:-12px 0 40px rgba(0,0,0,0.55);
+  border-left:2px solid color-mix(in srgb,#ff4fd8 35%,var(--border-glass));
+  background:linear-gradient(180deg,rgba(8,4,14,0.99),rgba(12,8,20,0.97));
+  box-shadow:-16px 0 48px rgba(0,0,0,0.6);
   transform:translateX(105%);transition:transform 0.28s ease;
 }
 body.coder-notify-open .coder-notify-drawer{transform:translateX(0);}
 .coder-notify-head{
   display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
-  padding:16px 14px 12px;border-bottom:1px solid var(--border-glass);flex-shrink:0;
+  padding:18px 16px 14px;border-bottom:1px solid rgba(255,79,216,0.15);flex-shrink:0;
+  background:rgba(255,79,216,0.04);
 }
-.coder-notify-sub{display:block;margin-top:4px;font-size:10px;color:var(--text-low);}
+.coder-notify-sub{display:block;margin-top:4px;font-size:10px;color:var(--text-low);line-height:1.45;}
 .coder-notify-close{
-  background:none;border:1px solid var(--border-glass);color:var(--text-mid);
-  width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:18px;line-height:1;
+  background:rgba(0,0,0,0.25);border:1px solid var(--border-glass);color:var(--text-mid);
+  width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0;
 }
-.coder-notify-close:hover{color:var(--neon-cyan);border-color:var(--neon-cyan);}
-.coder-notify-scroll{flex:1;overflow-y:auto;padding:12px 8px 20px;}
+.coder-notify-close:hover{color:#ff4fd8;border-color:#ff4fd8;}
+.coder-notify-scroll{flex:1;overflow-y:auto;padding:14px 12px 24px;}
+.coder-signal-list{display:flex;flex-direction:column;gap:10px;}
+.coder-signal-card{
+  display:flex;gap:12px;align-items:flex-start;padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--cs-neon,#3ad6e0) 28%,var(--border-glass));
+  background:rgba(0,0,0,0.28);border-radius:6px;
+}
+.coder-signal-icon{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-size:16px;border-radius:50%;
+  background:color-mix(in srgb,var(--cs-neon,#3ad6e0) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--cs-neon,#3ad6e0) 35%,transparent);
+  color:var(--cs-neon,#3ad6e0);
+}
+.coder-signal-body{flex:1;min-width:0;}
+.coder-signal-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
+.coder-signal-type{font-family:var(--font-data);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cs-neon,#3ad6e0);}
+.coder-signal-time{font-family:var(--font-data);font-size:9px;color:var(--text-low);white-space:nowrap;}
+.coder-signal-who{display:block;font-family:var(--font-voice);font-size:12px;color:var(--text-hi);margin-bottom:4px;}
+.coder-signal-text{margin:0;font-size:12px;line-height:1.5;color:var(--text-mid);}
+.coder-admin-mini{width:36px;height:36px;border-radius:50%;overflow:hidden;border:1px solid var(--border-glass);flex-shrink:0;}
+.coder-admin-mini img{width:100%;height:100%;object-fit:cover;}
 .pc-age{font-size:10px;color:var(--text-mid);letter-spacing:0.04em;}
 .gray-xp-board{margin-top:8px;}
 .gray-xp-bar{height:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(252,211,77,0.25);margin:10px 0 6px;}

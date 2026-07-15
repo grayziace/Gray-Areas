@@ -348,9 +348,8 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   const focus = { x: item.imageFocusX, y: item.imageFocusY };
   const spirit = !hideSpirit && unlocked && pc.spiritAnimalImage
     ? `<div class="pc-spirit-sticker"><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : '';
-  const xpBadge = (item.isCoderCard || (typeof state !== 'undefined' && (state.viewerCharacters || []).some(v => v.id === item.id)))
-    ? `<span class="pc-xp-badge">${item.points || 0} XP</span>`
-    : (item.points ? `<span class="pc-xp-badge">${item.points} XP</span>` : '');
+  const showXp = opts.cardType !== 'place' && (item.name || '').trim().toLowerCase() !== 'gray' && !item.isGod;
+  const xpBadge = showXp ? `<span class="pc-xp-badge">${item.points || 0} XP</span>` : '';
   const ageLabel = unlocked && displayCardAge(item, pc) ? `<span class="pc-age">Age ${esc(displayCardAge(item, pc))}</span>` : '';
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">

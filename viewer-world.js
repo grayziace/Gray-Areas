@@ -34,6 +34,7 @@ const XP_AWARDS = {
   mandarin_cheer: { label: 'Mandarin encouragement', xp: 12 },
   photo_shoutout: { label: 'Photo shoutout', xp: 8 },
   press_collab: { label: 'Press collab', xp: 30 },
+  login: { label: 'Daily login', xp: 3, auto: true },
   login_streak_7: { label: '7-day login streak', xp: 20 },
   first_quest: { label: 'First quest ever', xp: 10 },
   legendary: { label: 'Legendary moment', xp: 75 },
@@ -167,6 +168,8 @@ function deriveCardStats(form){
 function getCoderById(id){
   return (state.viewerCharacters || []).find(c => c.id === id) || null;
 }
+
+const GRAY_LOGIN_DAY_KEY = 'ga-gray-login-day';
 
 function tryPlayerLogin(name, key){
   if(normalizeCoderName(name) !== PLAYER_LOGIN_NAME) return false;
@@ -342,9 +345,11 @@ function showWelcomeCoder(card){
 function unlockCoderSession(cardId, opts = {}){
   clearGuestMode();
   clearCardCreationMode();
+  try{ sessionStorage.removeItem('ga-admin'); }catch(e){}
   try{ sessionStorage.setItem(CODERS_SESSION_KEY, cardId); }catch(e){}
   enterMainSite();
   const card = (state.viewerCharacters || []).find(c => c.id === cardId);
+  awardLoginPoints(cardId);
   if(opts.welcome !== false && card) showWelcomeCoder(card);
   else if(card) showBirthdayCelebration(card);
   applyAdminUI?.();
@@ -390,10 +395,38 @@ function coderLevelFromPoints(points){
   return { level, points: pts, progress: (pts % 100) / 100 };
 }
 
+function awardGrayLoginPoints(){
+  if(typeof awardGrayPoints !== 'function') return;
+  try{
+    const today = typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
+    if(sessionStorage.getItem(GRAY_LOGIN_DAY_KEY) === today) return;
+    sessionStorage.setItem(GRAY_LOGIN_DAY_KEY, today);
+    awardGrayPoints(XP_AWARDS.login.xp, 'login');
+  }catch(e){}
+}
+
+function ensureCoderXpRecord(characterId){
+  ensureViewerState();
+  let c = state.viewerCharacters.find(x => x.id === characterId);
+  if(c) return c;
+  const deck = typeof getCharacters === 'function' ? getCharacters() : [];
+  const deckC = deck.find(x => x.id === characterId);
+  if(!deckC) return null;
+  c = {
+    ...deckC,
+    isCoderCard: true,
+    points: deckC.points || 0,
+    consoleKey: deckC.consoleKey || '',
+    xpHistory: deckC.xpHistory || [],
+  };
+  state.viewerCharacters.push(c);
+  saveState();
+  return c;
+}
+
 function awardCoderPoints(characterId, amount, reason){
   if(!amount) return;
-  ensureViewerState();
-  const c = state.viewerCharacters.find(x => x.id === characterId);
+  const c = ensureCoderXpRecord(characterId);
   if(!c) return;
   c.points = (c.points || 0) + amount;
   const lvl = coderLevelFromPoints(c.points);
@@ -420,8 +453,22 @@ function awardCoderPoints(characterId, amount, reason){
   postVisitorData('updateCharacter', c);
 }
 
-function awardLoginPoints(){
-  /* Gray awards login XP manually via player mode */
+function awardLoginPoints(cardId){
+  if(!cardId) return;
+  try{
+    const today = typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
+    const key = `${CODERS_LOGIN_DAY_KEY}:${cardId}`;
+    if(sessionStorage.getItem(key) === today) return;
+    sessionStorage.setItem(key, today);
+    awardCoderPoints(cardId, XP_AWARDS.login.xp, 'login');
+  }catch(e){}
+}
+
+function getAwardableCoders(){
+  const grayId = typeof getPlayer === 'function' ? getPlayer()?.id : '';
+  return (typeof getCharacters === 'function' ? getCharacters() : [])
+    .filter(c => c.id !== grayId && normalizeCoderName(c.name) !== PLAYER_LOGIN_NAME)
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
 }
 
 function buildCoderCardFromWizard(form, existing){
@@ -680,7 +727,7 @@ function buildDefaultInstructionsHtml(){
       <p class="instructions-kicker">Hi!</p>
       <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
       <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
-      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours. I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
+      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
       <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
       <h3 class="viewer-wizard-title">The sidebar</h3>
       <ul class="instructions-nav-list">
@@ -841,14 +888,16 @@ const ViewerWorld = {
     if(!host) return;
     if(isAdmin()){
       host.innerHTML = `
-        <div class="player-mode-banner sketch-card">
-          <span class="player-mode-banner-dot" aria-hidden="true"></span>
-          <div>
-            <p class="player-mode-banner-kicker">Player Gray mode</p>
-            <p class="player-mode-banner-text">Click the instructions below to edit what coders see.</p>
+        <div class="instructions-wrap">
+          <div class="player-mode-banner sketch-card">
+            <span class="player-mode-banner-dot" aria-hidden="true"></span>
+            <div>
+              <p class="player-mode-banner-kicker">Player Gray mode</p>
+              <p class="player-mode-banner-text">Click the instructions below to edit what coders see.</p>
+            </div>
           </div>
-        </div>
-        <div class="instructions-panel sketch-card instructions-gray-voice instructions-editable" id="instructionsEditor" contenteditable="true">${getInstructionsHtml()}</div>`;
+          <div class="instructions-panel sketch-card instructions-gray-voice instructions-editable" id="instructionsEditor" contenteditable="true">${getInstructionsHtml()}</div>
+        </div>`;
       const ed = host.querySelector('#instructionsEditor');
       ed?.addEventListener('blur', () => {
         state.instructionsHtml = ed.innerHTML;
@@ -856,7 +905,7 @@ const ViewerWorld = {
       });
       return;
     }
-    host.innerHTML = getInstructionsHtml();
+    host.innerHTML = `<div class="instructions-wrap">${getInstructionsHtml()}</div>`;
     bindInstructionsActions(host);
   },
 
@@ -967,13 +1016,19 @@ const ViewerWorld = {
   },
 
   coderAdminRow(c){
+    const hasThumb = c.id && (state.viewerCharacters || []).some(v => v.id === c.id) && typeof pinCoderThumb === 'function';
+    const thumb = hasThumb
+      ? pinCoderThumb(c.id)
+      : (c.image || c.avatar)
+        ? `<span class="coder-admin-mini"><img src="${esc(c.image || c.avatar)}" alt=""></span>`
+        : `<span class="pin-name">${esc(c.name)}</span>`;
     const opts = Object.entries(XP_AWARDS)
       .filter(([k, v]) => k !== 'custom' && !v.auto)
       .map(([k, v]) => `<option value="${k}">${v.label} (+${v.xp})</option>`)
       .join('');
     return `<div class="coder-admin-row sketch-card">
       <div class="coder-admin-head">
-        ${pinCoderThumb(c.id)}
+        ${thumb}
         <div><strong>${esc(c.name)}</strong> · <span class="coder-admin-xp">${c.points || 0} XP</span></div>
       </div>
       <div class="quest-actions coder-award-row">
@@ -996,6 +1051,7 @@ const ViewerWorld = {
     if(!pts) return;
     awardCoderPoints(coderId, pts, awardKey);
     this.renderQuests();
+    if(typeof renderCharacters === 'function') renderCharacters();
   },
 
   openPlayerCoderEdit(coderId){
@@ -1053,9 +1109,10 @@ const ViewerWorld = {
       if(completed.length){
         html += `<section class="quest-completed-section"><h3 class="viewer-wizard-title">Completed</h3><div class="quest-list">${completed.map(q => this.questRowHtml(q, true)).join('')}</div></section>`;
       }
-      const coders = state.viewerCharacters || [];
+      const coders = getAwardableCoders();
       if(coders.length){
         html += `<section class="coder-admin-panel sketch-card"><h3 class="viewer-wizard-title">Award coder XP</h3>
+          <p class="field-hint">Deck cards and visitor cards — XP shows on Coder Cards.</p>
           <div class="coder-admin-list">${coders.map(c => this.coderAdminRow(c)).join('')}</div></section>`;
       }
       host.innerHTML = html;
@@ -1282,7 +1339,6 @@ const ViewerWorld = {
     host.innerHTML = html;
     document.getElementById('vlogUploadForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitVlog(); });
     document.getElementById('vlogVideoFile')?.addEventListener('change', e => { this.pendingVlogFile = e.target.files?.[0] || null; });
-    if(isAdmin() && typeof OverloadLog !== 'undefined') OverloadLog.mountInVlog();
   },
 
   vlogEntryHtml(v){

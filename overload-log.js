@@ -563,12 +563,22 @@ const OverloadLog = {
 
   openEmbedded(){
     if(!isAdmin()) return;
-    this.embedded = true;
-    if(typeof navigateToView === 'function') navigateToView('vlog');
-    else if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
-    else this.mountInVlog();
+    this.enterMindView();
+  },
+
+  enterMindView(){
+    if(!isAdmin()) return;
+    this.embedded = false;
+    if(typeof navigateToView === 'function') navigateToView('mind');
+    else {
+      document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-mind')?.classList.add('active');
+      document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.node-btn[data-view="mind"]`)?.classList.add('active');
+      this.render();
+    }
     queueMicrotask(() => {
-      document.getElementById('vlogOverloadHost')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('view-mind')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   },
 
@@ -740,7 +750,7 @@ const OverloadLog = {
 
   enterChannel(){
     if(isAdmin()){
-      this.openEmbedded();
+      this.enterMindView();
       return;
     }
     const active = document.querySelector('section.view.active');
@@ -767,7 +777,7 @@ const OverloadLog = {
       return;
     }
     document.body.classList.remove('mind-channel-open', 'mind-repair-active');
-    const view = this.returnView || 'profile';
+    const view = this.returnView || 'sync';
     if(typeof navigateToView === 'function') navigateToView(view);
     else {
       document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
@@ -778,7 +788,6 @@ const OverloadLog = {
     this.view = 'hub';
     this.editingId = null;
     this.sessionDraft = null;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
   newLog(mode = 'solve'){

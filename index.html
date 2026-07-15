@@ -152,6 +152,7 @@
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
       <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
+      <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span>System Overload</span></button>
       <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
       <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
@@ -197,16 +198,10 @@
         <div class="mind-glitch-bars" id="mindGlitchBars"></div>
       </div>
       <div class="mind-channel-header sys-broken">
-        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">[ GLITCH FIXED ] return</button>
         <div class="mind-channel-title">
-          <span class="mind-channel-kicker sys-flicker">// CHANNEL_0x7F · OFFLOAD_PROTOCOL</span>
-          <h2 class="view-title sketch-title mind-glitch-title">SYSTEM FAILURE</h2>
-          <p class="mind-channel-sub">Cognitive buffer dump zone. Corrupted but functional. Not indexed.</p>
-        </div>
-        <div class="mind-sys-bar" aria-hidden="true">
-          <span>MEM: ████░░ 78%</span>
-          <span>STACK: overflow</span>
-          <span>STATUS: degraded</span>
+          <span class="mind-channel-kicker sys-flicker">// Gray only · private vault · never on Coming To You Live</span>
+          <h2 class="view-title sketch-title mind-glitch-title">System Overload</h2>
+          <p class="mind-channel-sub">Problem solver · staff vent · body log. Your private space on the left — nothing broadcasts to viewers.</p>
         </div>
       </div>
       <div class="mind-channel-body sys-broken" id="mindContent"></div>
@@ -318,8 +313,7 @@
 
     <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
       <h2 class="view-title sketch-title">Community Board</h2>
-      <p class="gallery-hint">Posts stay permanently. Log in with My Card to post — your card shows on your note.</p>
-      <p class="gallery-hint hidden" id="pinGuestHint">Guest watch-only — log in to post or reply.</p>
+      <p class="gallery-hint" id="commBoardHint">Posts stay permanently. Log in with My Card to post — your card shows on your note.</p>
       <div class="pinboard-layout">
         <form class="pin-form sketch-card" id="pinForm">
           <div id="pinAuthorPreview" class="pin-author-preview"></div>
@@ -348,7 +342,7 @@
 
     <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">
       <h2 class="view-title sketch-title">Video Log</h2>
-      <p class="gallery-hint">Vlog notes, short clips — and for Player Gray only, System Overload when you need to offload.</p>
+      <p class="gallery-hint">Vlog notes and short clips.</p>
       <div id="vlogSpread"></div>
       <div id="vlogOverloadHost" class="vlog-overload-host admin-only hidden"></div>
     </section>
