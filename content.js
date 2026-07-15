@@ -221,8 +221,8 @@ const CONTENT = {
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 6,
-      "questsSent": 0,
+      "points": 14,
+      "questsSent": 1,
       "questsCompleted": 0,
       "loginCount": 0,
       "cardColor": "#ff5c5c",
@@ -266,6 +266,20 @@ const CONTENT = {
       "imageFocusY": 50,
       "type": "Person",
       "xpHistory": [
+        {
+          "id": "xp-1784139493388-hw0h",
+          "at": "2026-07-15T18:18:13.388Z",
+          "amount": 5,
+          "reason": "quest_submit",
+          "label": "Quest sent"
+        },
+        {
+          "id": "xp-1784139459019-66gb",
+          "at": "2026-07-15T18:17:39.019Z",
+          "amount": 3,
+          "reason": "login",
+          "label": "Daily login"
+        },
         {
           "id": "xp-1784136599406-b9ty",
           "at": "2026-07-15T17:29:59.406Z",
