@@ -1,5 +1,9 @@
 # Gray Areas
 
+**Live site:** https://grayziace.github.io/Gray-Areas/
+
+Share that link with friends and family. Do not use `grayareas.com` (not owned) or `github.com/grayziace/Gray-Areas` (repo page, not the site).
+
 A personal site for friends and family to follow Gray's life in Shenzhen — places, people, skills, dramas, writing, and photos.
 
 ## For visitors

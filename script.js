@@ -979,13 +979,24 @@ function initGlobalEditHandlers(){
 
 function dismissLoading(){
   const el = document.getElementById('loading');
-  if(!el || el.dataset.dismissed) return;
-  el.dataset.dismissed = '1';
-  el.classList.add('is-dismissed');
-  document.body.classList.add('app-ready');
-  try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
-  setTimeout(() => el.remove(), 700);
-  if(typeof window.__gaFinishBoot === 'function') window.__gaFinishBoot();
+  if(!el) return;
+  if(!el.dataset.dismissed){
+    el.dataset.dismissed = '1';
+    el.classList.add('is-dismissed');
+    document.body.classList.add('app-ready');
+    try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
+    setTimeout(() => el.remove(), 700);
+  }
+  document.getElementById('bootError')?.classList.add('hidden');
+}
+
+function bindIntroSkip(){
+  document.getElementById('skipLoading')?.addEventListener('click', dismissLoading);
+  document.getElementById('enterSiteBtn')?.addEventListener('click', dismissLoading);
+  document.getElementById('loadingBrand')?.addEventListener('click', e => {
+    if(e.target.closest('#enterSiteBtn')) return;
+    if(document.getElementById('loadingBrand')?.classList.contains('in')) dismissLoading();
+  });
 }
 
 function introSequence(){
@@ -995,26 +1006,23 @@ function introSequence(){
   const travel = document.getElementById('introTravel');
   const brand = document.getElementById('loadingBrand');
 
-  document.getElementById('skipLoading')?.addEventListener('click', dismissLoading);
+  bindIntroSkip();
 
   setTimeout(() => {
     uk?.classList.add('out');
     travel?.classList.add('active');
-  }, 1000);
+  }, 900);
 
   setTimeout(() => {
     sz?.classList.add('in');
-  }, 1450);
+  }, 1300);
 
   setTimeout(() => {
     journey?.classList.add('out');
-  }, 2800);
-
-  setTimeout(() => {
     brand?.classList.add('in');
-  }, 3100);
+  }, 2400);
 
-  setTimeout(dismissLoading, 5600);
+  setTimeout(dismissLoading, 4200);
 }
 
 function wireNavigation(){
@@ -1030,6 +1038,7 @@ function wireNavigation(){
 
 function bootApp(){
   try{
+    bindIntroSkip();
     if(sessionStorage.getItem('ga-saw-intro') === '1') dismissLoading();
     else introSequence();
 
@@ -1041,6 +1050,7 @@ function bootApp(){
   }catch(err){
     console.error('Gray Areas boot failed:', err);
     dismissLoading();
+    document.getElementById('bootError')?.classList.remove('hidden');
   }
   window.__grayAreasReady = true;
 }

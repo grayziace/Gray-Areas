@@ -30,7 +30,13 @@
     if(e.persisted) finishBoot();
   });
   document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(finishBoot, 8000);
+    setTimeout(function(){
+      if(!window.__grayAreasReady){
+        finishBoot();
+        var err = document.getElementById('bootError');
+        if(err) err.classList.remove('hidden');
+      }
+    }, 18000);
   });
 })();
 </script>
@@ -60,8 +66,14 @@
   <div class="loading-brand" id="loadingBrand">
     <h1 class="loading-title">Gray Areas</h1>
     <p class="loading-sub">project shenzhen</p>
+    <button class="btn primary intro-enter-btn" id="enterSiteBtn" type="button">Enter site →</button>
   </div>
   <button class="skip-btn" id="skipLoading" aria-label="Skip intro">×</button>
+</div>
+
+<div id="bootError" class="boot-error hidden" role="alert">
+  The site is still loading. If this stays blank, refresh or use
+  <a href="https://grayziace.github.io/Gray-Areas/">grayziace.github.io/Gray-Areas</a>.
 </div>
 
 <div id="app">
