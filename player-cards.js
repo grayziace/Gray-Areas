@@ -118,7 +118,7 @@ function parsePlayerCardText(raw){
   out.level = parseInt(pickLineField(text, ['Level']), 10) || 1;
   out.mbti = pickLineField(text, ['MBTI']);
   out.spiritPrompt = pickLineField(text, ['Spirit Animal']);
-  out.colorPalette = pickLineField(text, ['Colour Palette', 'Color Palette']);
+  out.colorPalette = pickLineField(text, ['Favourite colour', 'Favourite color', 'Colour Palette', 'Color Palette']);
   out.vibe = pickLineField(text, ['Character Vibe']);
 
   const quoteIdx = text.search(/^Quote\s*:?/im);
@@ -192,7 +192,7 @@ function itemToCardBlob(item, opts = {}){
   ];
   if(!isPlace) lines.push(`Spirit Animal: ${pc.spiritPrompt || ''}`);
   lines.push(
-    `Colour Palette: ${pc.colorPalette}`,
+    `Favourite colour: ${pc.colorPalette}`,
     `Character Vibe: ${pc.vibe}`,
     '',
     'Abilities and Moves:',
@@ -382,7 +382,7 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
   return `<div class="pc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>
     ${pc.subtitle || item.cardSubtitle ? `<div class="pc-row"><span>Title</span><span>${esc(pc.subtitle || item.cardSubtitle)}</span></div>` : ''}
-    ${row('Level', displayCardLevel(item, pc))}${row('Age', displayCardAge(item, pc))}${row('MBTI', pc.mbti)}${row('Palette', pc.colorPalette)}
+    ${row('Level', displayCardLevel(item, pc))}${row('Age', displayCardAge(item, pc))}${row('MBTI', pc.mbti)}${row('Favourite colour', pc.colorPalette)}
     ${row('Birthday', formatBirthdayDisplay(pc.birthday || item.birthday))}
     ${pc.vibe ? `<div class="pc-block"><div class="pc-block-title">Vibe</div><p>${esc(pc.vibe)}</p></div>` : ''}
     ${!hideSpirit ? (pc.spiritAnimalImage ? `<div class="pc-spirit-row"><span>Spirit</span><img src="${esc(pc.spiritAnimalImage)}" alt=""></div>` : row('Spirit', pc.spiritPrompt)) : ''}

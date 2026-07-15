@@ -38,6 +38,8 @@ function applyAdminUI(){
   document.body.classList.toggle('is-player-gray', admin);
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
+  const showInstr = typeof shouldShowInstructionsNav === 'function' ? shouldShowInstructionsNav() : true;
+  document.querySelectorAll('.node-btn[data-view="instructions"]').forEach(btn => btn.classList.toggle('hidden', !showInstr));
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
   if(admin && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
@@ -70,6 +72,7 @@ function lockAdmin(){
   else if(typeof showEntryGate === 'function') showEntryGate({ force: true });
   applyAdminUI();
   renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   const toast = document.getElementById('editToast');
   if(toast){
     toast.textContent = 'Signed out.';
@@ -88,6 +91,7 @@ function unlockAdmin(opts = {}){
   else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
   renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   if(typeof awardGrayLoginPoints === 'function') awardGrayLoginPoints();
   if(opts.welcome !== false && typeof showWelcomePlayer === 'function') showWelcomePlayer();
   else if(opts.toast !== false){
@@ -670,6 +674,7 @@ function saveContentEdit(){
   document.getElementById('contentEditBack').classList.add('hidden');
   document.getElementById('cardModalBack')?.classList.add('hidden');
   renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
 }
 
 function deleteContentItem(type, id){
@@ -701,6 +706,7 @@ function deleteContentItem(type, id){
   document.getElementById('contentEditBack')?.classList.add('hidden');
   document.getElementById('dramaDetailBack')?.classList.add('hidden');
   renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
 }
 
 function deleteContentEdit(){
@@ -1786,6 +1792,9 @@ function wireNavigation(){
 
 function navigateToView(view){
   if(!view) return;
+  if(view === 'instructions' && typeof shouldShowInstructionsNav === 'function' && !shouldShowInstructionsNav()){
+    view = typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync';
+  }
   document.body.classList.remove('mind-channel-open', 'mind-repair-active');
   document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll(`.node-btn[data-view="${view}"]`).forEach(b => b.classList.add('active'));
@@ -1832,6 +1841,7 @@ function bootApp(){
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
+  try{ initCommunityCommentModal(); }catch(err){ console.error('Community comment modal failed:', err); }
   document.getElementById('toggleCoderNotify')?.addEventListener('click', toggleCoderNotify);
   document.getElementById('coderNotifyBackdrop')?.addEventListener('click', closeCoderNotify);
   showLoginIfNeeded();
@@ -2155,7 +2165,7 @@ function bindCommunityConsole(){
       return;
     }
     if(typeof tryCoderLoginFromConsole === 'function' && tryCoderLoginFromConsole(v)){
-      if(!isAdmin()) navigateToView('instructions');
+      if(!isAdmin()) navigateToView(typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync');
       resetConsoleInput(input);
       return;
     }
@@ -3259,6 +3269,10 @@ document.getElementById('deleteDayModal')?.addEventListener('click', () => {
 function renderPlaces(){
   const deck = document.getElementById('placeDeck');
   if(!deck) return;
+  const recHost = document.getElementById('placeRecommendations');
+  if(recHost && typeof renderCategoryRecommendationsHtml === 'function'){
+    recHost.innerHTML = renderCategoryRecommendationsHtml('place', 'places');
+  }
   const places = getPlaces();
   deck.innerHTML = places.map((p, i) => buildFlipPlaceCard(p, i)).join('');
   bindFlipPlayerCards(deck);
@@ -3462,6 +3476,10 @@ function renderSkillControls(){
 function renderSkillSkyline(){
   const container = document.getElementById('skillSkyline');
   if(!container) return;
+  const recHost = document.getElementById('skillRecommendations');
+  if(recHost && typeof renderCategoryRecommendationsHtml === 'function'){
+    recHost.innerHTML = renderCategoryRecommendationsHtml('skill', 'skills & hobbies');
+  }
   const maxH = 280;
   const skills = getSkills();
   container.innerHTML = skills.map(skill => {
@@ -3670,6 +3688,7 @@ function renderDramaDeck(){
     }).join('');
     return `<section class="media-type-section" style="--mts-neon:${stableNeon(type, 2)}">
       <h3 class="media-type-title">${mt.label}</h3>
+      ${typeof renderCategoryRecommendationsHtml === 'function' ? renderCategoryRecommendationsHtml(type, mt.label) : ''}
       <div class="drama-deck media-type-deck">${cards}</div>
     </section>`;
   }).join('');
@@ -3955,7 +3974,10 @@ function renderPress(){
   const spread = document.getElementById('pressSpread');
   if(!spread) return;
   const articles = getArticles();
-  spread.innerHTML = articles.map((a, i) => {
+  const recs = typeof renderCategoryRecommendationsHtml === 'function'
+    ? renderCategoryRecommendationsHtml('press', 'The Press')
+    : '';
+  spread.innerHTML = recs + articles.map((a, i) => {
     const neon = stableNeon(a.id, i);
     return `
     <article class="manga-panel ${a.layout||'note'}" style="--panel-neon:${neon}" data-article-id="${esc(a.id)}">
@@ -3974,11 +3996,16 @@ function renderPress(){
       if(!a) return;
       if(isAdmin()) openContentEditor('article', a.id, false);
       else {
+        const commentBtn = canCommunityInteract()
+          ? `<div class="article-comment-row"><button type="button" class="btn community-comment-btn" data-cc-type="press" data-cc-id="${esc(a.id)}" data-cc-label="${esc(a.title)}">↩ Comment on Community</button></div>`
+          : '';
         document.getElementById('articleModalContent').innerHTML = `
           <div class="manga-section">${esc(a.section)} · ${esc(a.date)}</div>
           <h2 class="article-full-headline">${esc(a.title)}</h2>
           ${a.image?`<div class="manga-panel-image"><img src="${esc(a.image)}" alt=""></div>`:''}
-          <div class="article-full-body">${esc(a.body)}</div>`;
+          <div class="article-full-body">${esc(a.body)}</div>
+          ${commentBtn}`;
+        wireCommunityCommentButtons(document.getElementById('articleModalContent'));
         document.getElementById('articleModalBack').classList.remove('hidden');
       }
     });
@@ -4045,15 +4072,19 @@ function renderGalleryBack(photo){
     photo.address ? `<div class="flip-row"><span class="flip-label">Address</span><span>${esc(photo.address)}</span></div>` : '',
   ].filter(Boolean).join('');
 
-  const adminBtns = `<div class="flip-admin-row edit-when-editing">
+  const adminBtns = isAdmin() ? `<div class="flip-admin-row edit-when-editing">
     <button type="button" class="btn flip-edit-btn">Edit</button>
     <button type="button" class="btn admin-delete flip-del-btn" data-del-type="gallery" data-del-id="${esc(photo.id || '')}">Delete</button>
-  </div>`;
+  </div>` : '';
+  const commentBtn = canCommunityInteract()
+    ? `<button type="button" class="btn community-comment-btn" data-cc-type="gallery" data-cc-id="${esc(photo.id || '')}" data-cc-label="${esc(photo.caption || photo.place || 'Photo')}">↩ Comment on Community</button>`
+    : '';
 
   if(!photoHasStory(photo)){
     return `<div class="flip-back-inner">
       <h3 class="flip-caption">${esc(photo.caption || 'Untitled')}</h3>
       <p class="flip-empty">No story written for this one yet.</p>
+      ${commentBtn}
       ${adminBtns}
       <span class="flip-hint-back">tap to flip back</span>
     </div>`;
@@ -4065,6 +4096,7 @@ function renderGalleryBack(photo){
     ${rows ? `<div class="flip-details">${rows}</div>` : ''}
     ${photo.description ? `<p class="flip-desc">${esc(photo.description)}</p>` : ''}
     ${photo.story ? `<blockquote class="flip-story">${esc(photo.story)}</blockquote>` : ''}
+    ${commentBtn}
     ${adminBtns}
     <span class="flip-hint-back">tap to flip back</span>
   </div>`;
@@ -4105,7 +4137,7 @@ function renderGallery(){
         deleteContentItem(delBtn.dataset.delType, delBtn.dataset.delId);
         return;
       }
-      if(e.target.closest('.flip-edit-btn, .card-edit-front')) return;
+      if(e.target.closest('.flip-edit-btn, .card-edit-front, .community-comment-btn')) return;
       const fig = e.target.closest('.photo-flip');
       if(!fig || !wall.contains(fig)) return;
       const wasFlipped = fig.classList.contains('is-flipped');
@@ -4114,6 +4146,87 @@ function renderGallery(){
     };
     wall.addEventListener('click', wall._galleryHandler);
   }
+  wireCommunityCommentButtons(wall);
+}
+
+/* ---------- Community comments → pinboard ---------- */
+function canCommunityInteract(){
+  return isAdmin() || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
+}
+
+function openCommunityCommentModal(source){
+  if(!canCommunityInteract()) return;
+  document.getElementById('ccSourceType').value = source.type || '';
+  document.getElementById('ccSourceId').value = source.id || '';
+  document.getElementById('ccSourceLabel').value = source.label || '';
+  document.getElementById('communityCommentTitle').textContent = `Note on ${source.label || 'this post'}`;
+  document.getElementById('communityCommentHint').textContent = 'Posts to the Community board — Gray sees it there, even though you commented from here.';
+  document.getElementById('ccText').value = '';
+  document.getElementById('ccLocation').value = '';
+  document.getElementById('communityCommentBack')?.classList.remove('hidden');
+  document.getElementById('ccText')?.focus();
+}
+
+function wireCommunityCommentButtons(root){
+  root?.querySelectorAll('.community-comment-btn').forEach(btn => {
+    if(btn.dataset.ccBound) return;
+    btn.dataset.ccBound = '1';
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      openCommunityCommentModal({
+        type: btn.dataset.ccType,
+        id: btn.dataset.ccId,
+        label: btn.dataset.ccLabel,
+      });
+    });
+  });
+}
+
+function initCommunityCommentModal(){
+  const back = document.getElementById('communityCommentBack');
+  if(!back || back.dataset.bound) return;
+  back.dataset.bound = '1';
+  document.getElementById('closeCommunityComment')?.addEventListener('click', () => back.classList.add('hidden'));
+  document.getElementById('cancelCommunityComment')?.addEventListener('click', () => back.classList.add('hidden'));
+  back.addEventListener('click', e => { if(e.target.id === 'communityCommentBack') back.classList.add('hidden'); });
+  document.getElementById('communityCommentForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    const author = pinSessionAuthor();
+    if(!author){ alert('Log in with your card to comment.'); return; }
+    const location = document.getElementById('ccLocation')?.value?.trim();
+    const text = document.getElementById('ccText')?.value?.trim();
+    const sourceType = document.getElementById('ccSourceType')?.value;
+    const sourceId = document.getElementById('ccSourceId')?.value;
+    const sourceLabel = document.getElementById('ccSourceLabel')?.value;
+    if(!location || !text) return;
+    const prefix = sourceLabel ? `Re: ${sourceLabel} — ` : '';
+    state.pinboard.push({
+      id: 'pin-' + Date.now(),
+      name: author.name,
+      characterId: author.characterId,
+      location,
+      text: prefix + text,
+      photo: '',
+      time: new Date().toISOString(),
+      replies: [],
+      sourceType: sourceType || '',
+      sourceId: sourceId || '',
+      sourceLabel: sourceLabel || '',
+    });
+    saveState();
+    if(typeof logCoderActivity === 'function'){
+      logCoderActivity(author.characterId ? 'community_post' : 'community_post', {
+        coderId: author.characterId || '',
+        name: author.name,
+        detail: `${author.name} commented via ${sourceType || 'post'}`,
+      });
+    }
+    LiveSync?.pinPosted(author.name, location);
+    back.classList.add('hidden');
+    renderPinboard();
+    navigateToView('comm');
+  });
 }
 
 /* ---------- Pinboard — community board ---------- */
@@ -4126,6 +4239,9 @@ function normalizePinPost(p){
     text: p.text || '',
     photo: p.photo || '',
     time: p.time || new Date().toISOString(),
+    sourceType: p.sourceType || '',
+    sourceId: p.sourceId || '',
+    sourceLabel: p.sourceLabel || '',
     replies: Array.isArray(p.replies) ? p.replies.map(r => ({
       id: r.id,
       name: r.name || 'Anonymous',
@@ -4181,6 +4297,7 @@ function renderPinboard(){
           <span class="pin-location">📍 ${esc(p.location)}</span>
           <time class="pin-time">${esc(fmtPinDateTime(p.time))}</time>
         </div>
+        ${p.sourceLabel ? `<span class="pin-source-ref">↩ on ${esc(p.sourceType || 'post')}: ${esc(p.sourceLabel)}</span>` : ''}
         ${isAdmin() ? `<button type="button" class="pin-delete" data-pin="${esc(p.id)}" title="Remove">×</button>` : ''}
       </header>
       ${p.photo ? `<div class="pin-photo"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>` : ''}
@@ -4335,5 +4452,6 @@ function renderAll(){
     () => { if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll(); },
   ].forEach(safeRender);
   applyAdminUI();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   if(isAdmin() && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
 }

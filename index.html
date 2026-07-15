@@ -176,6 +176,7 @@
 
   <div class="workspace-col">
   <div class="main-col">
+    <div id="coderWelcomeBar" class="coder-welcome-host hidden" aria-live="polite"></div>
 
     <section class="view neon-section active" id="view-instructions" style="--sec-neon:#e8c547">
       <h2 class="view-title sketch-title">Instructions</h2>
@@ -258,6 +259,7 @@
     <section class="view neon-section" id="view-places" style="--sec-neon:#4fa3ff">
       <h2 class="view-title sketch-title">Place Cards</h2>
       <p class="gallery-hint">Click a card to flip it over.</p>
+      <div id="placeRecommendations"></div>
       <div class="card-deck" id="placeDeck"></div>
       <button class="btn admin-only hidden" id="addPlaceBtn" style="margin-top:14px">+ Add place</button>
     </section>
@@ -272,6 +274,7 @@
     <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
       <h2 class="view-title sketch-title">Skill Cards</h2>
       <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
+      <div id="skillRecommendations"></div>
       <div class="skill-deck-actions edit-when-editing">
         <button class="btn primary" id="addSkillCardBtn" type="button">+ Add skill card</button>
       </div>
@@ -361,6 +364,25 @@
 
 <div class="modal-back hidden" id="articleModalBack">
   <div class="modal article-modal"><button class="modal-close" id="closeArticleModal">×</button><div id="articleModalContent"></div></div>
+</div>
+
+<div class="modal-back hidden" id="communityCommentBack">
+  <div class="modal sketch-card community-comment-modal">
+    <button class="modal-close" id="closeCommunityComment">×</button>
+    <h3 class="viewer-wizard-title" id="communityCommentTitle">Leave a note</h3>
+    <p class="field-hint" id="communityCommentHint">Your comment goes on the Community board — Gray sees it there.</p>
+    <form id="communityCommentForm">
+      <input type="hidden" id="ccSourceType">
+      <input type="hidden" id="ccSourceId">
+      <input type="hidden" id="ccSourceLabel">
+      <div class="field"><label>Posting from</label><input type="text" id="ccLocation" required placeholder="where you are"></div>
+      <div class="field"><label>Your note</label><textarea id="ccText" required rows="4" placeholder="say something…"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="cancelCommunityComment">Cancel</button>
+        <button type="submit" class="btn primary">Post to Community</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div class="modal-back hidden" id="dayModalBack">
