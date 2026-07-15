@@ -1,6 +1,7 @@
 /* ===== GRAY AREAS — content ===== */
 
 const ADMIN_KEY = 'gray-shenzhen-2026';
+const OVERLOAD_KEY = 'gray-overload-2026';
 
 const SKILL_TIERS = [
   { level: 1,  name: 'Novice',      hours: 1 },

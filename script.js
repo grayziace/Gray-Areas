@@ -84,6 +84,7 @@ function defaultState(){
     arrivalDate: '',
     calendarView: null,
     content: null,
+    overloadLogs: [],
   };
 }
 
@@ -112,6 +113,7 @@ function mergeSiteStateFromFile(){
   if(s.unlockedZones) state.unlockedZones = s.unlockedZones;
   if(s.dramaState) state.dramaState = s.dramaState;
   if(s.hiddenDramas) state.hiddenDramas = s.hiddenDramas;
+  if(Array.isArray(s.overloadLogs)) state.overloadLogs = s.overloadLogs;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -1065,12 +1067,13 @@ function bootApp(){
   try{ DailyLog.init(); }catch(err){ console.error('DailyLog init failed:', err); }
   try{ applyAdminUI(); }catch(err){ console.error('Admin UI failed:', err); }
   try{ renderAll(); }catch(err){ console.error('Render failed:', err); }
+  try{ if(typeof OverloadLog !== 'undefined') OverloadLog.init(); }catch(err){ console.error('Overload log init failed:', err); }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
 }
 
-/* ---------- About Gray ---------- */
+/* ---------- Player Profile ---------- */
 const PIN_ACCENTS = ['#ff4fd8','#3ad6e0','#9b5cff','#4fa3ff','#e8a87c','#38bdf8','#f472b6'];
 
 function getArrivalDate(){
@@ -1105,16 +1108,111 @@ function setCalendarView(year, month){
   saveState();
 }
 
+function computeLogStreak(){
+  let streak = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  for(let i = 0; i < 400; i++){
+    const key = d.toISOString().slice(0, 10);
+    const n = normalizeEntry(state.entries[key]);
+    const active = n.mood || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length;
+    if(!active) break;
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function aggregateLogMetrics(days){
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - (days - 1));
+  const rows = Object.entries(state.entries)
+    .filter(([k]) => new Date(k + 'T00:00:00') >= cutoff)
+    .map(([, e]) => normalizeEntry(e));
+  const moods = rows.map(e => Number(e.mood)).filter(n => n > 0);
+  const sum = (fn) => rows.reduce((s, e) => s + fn(e), 0);
+  return {
+    days: rows.length,
+    avgMood: moods.length ? (moods.reduce((a, b) => a + b, 0) / moods.length).toFixed(1) : '—',
+    steps: sum(e => Number(e.steps) || 0),
+    mandarin: sum(e => Number(e.mandarinHours) || 0),
+    work: sum(e => Number(e.workHours) || 0),
+    hobby: sum(e => Number(e.hobbyHours) || 0),
+    people: rows.reduce((s, e) => s + (e.people?.length || 0), 0),
+    places: rows.reduce((s, e) => s + (e.places?.length || 0), 0),
+  };
+}
+
+function computeProfileStats(){
+  const allRows = Object.entries(state.entries).map(([, e]) => normalizeEntry(e));
+  const allTime = aggregateLogMetrics(99999);
+  const week = aggregateLogMetrics(7);
+  const month = aggregateLogMetrics(30);
+  const people = new Set();
+  const places = new Set();
+  allRows.forEach(e => {
+    e.people?.forEach(p => people.add(p.trim()));
+    e.places?.forEach(p => places.add(p.trim()));
+  });
+  const skills = getSkills().map(skill => {
+    const hrs = getTotalSkillHours(skill.id);
+    const tier = getSkillTier(hrs);
+    return { ...skill, hrs, tier };
+  });
+  const dramas = allDramas();
+  const watching = dramas.filter(d => d.status === 'watching').length;
+  const completed = dramas.filter(d => d.status === 'completed').length;
+  const ratings = dramas.map(computeShowRating).filter(Boolean).map(Number);
+  const avgMedia = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '—';
+  let bestMood = null, lowMood = null;
+  Object.entries(state.entries).forEach(([k, raw]) => {
+    const m = Number(normalizeEntry(raw).mood);
+    if(!m) return;
+    if(!bestMood || m > bestMood.mood) bestMood = { key: k, mood: m };
+    if(!lowMood || m < lowMood.mood) lowMood = { key: k, mood: m };
+  });
+  return {
+    szDays: daysInShenzhen(),
+    loggedDays: countLoggedDays(),
+    streak: computeLogStreak(),
+    week, month, allTime,
+    people: people.size,
+    places: places.size,
+    unlocked: getUnlockedZones().length,
+    pins: (state.pinboard || []).length,
+    skills,
+    watching, completed, avgMedia,
+    bestMood, lowMood,
+    overloadCount: (state.overloadLogs || []).length,
+  };
+}
+
+function profileStatCell(label, value, sub, neon){
+  return `<div class="profile-stat-cell" style="--psc-neon:${neon}">
+    <span class="profile-stat-val">${esc(String(value))}</span>
+    <span class="profile-stat-lbl">${esc(label)}</span>
+    ${sub ? `<span class="profile-stat-sub">${esc(sub)}</span>` : ''}
+  </div>`;
+}
+
+function profileStatGroup(title, cells, neon){
+  return `<section class="profile-stat-group" style="--psg-neon:${neon}">
+    <h3 class="profile-stat-group-title">${esc(title)}</h3>
+    <div class="profile-stat-grid">${cells}</div>
+  </section>`;
+}
+
 function renderAbout(){
   const spread = document.getElementById('aboutSpread');
   if(!spread) return;
 
   const player = getPlayer();
+  const pc = normalizePokeCard(player);
   const portrait = player.avatar;
-  const cardItem = { ...player, image: portrait, avatar: portrait, cardSubtitle: normalizePokeCard(player).subtitle };
+  const cardItem = { ...player, image: portrait, avatar: portrait, cardSubtitle: pc.subtitle };
+  const stats = computeProfileStats();
   const recents = getSectionRecents();
-  const szDays = daysInShenzhen();
-  const loggedDays = countLoggedDays();
 
   const recentPins = [
     recents.log ? { label: 'Daily Log', text: fmtDateLong(recents.log[0]) + (normalizeEntry(recents.log[1]).diary ? ' — ' + normalizeEntry(recents.log[1]).diary.slice(0, 70) + '…' : ''), view: 'ledger' } : null,
@@ -1126,24 +1224,82 @@ function renderAbout(){
     recents.pin ? { label: 'Pinboard', text: `${recents.pin.name}: ${(recents.pin.text||'').slice(0, 50)}`, view: 'comm' } : null,
   ].filter(Boolean);
 
-  spread.innerHTML = `
-    <div class="about-stage">
-      ${buildFlipPlayerCard(cardItem, 'player', 0, { hero: true, heroAccent: getPlayerAccent(cardItem) })}
-      <div class="about-stats-row">
-        <div class="about-stat-chip about-sz-days" style="--chip-neon:#ff4fd8">
-          <span class="about-stat-num">${szDays}</span>
-          <span class="about-stat-lbl">days in Shenzhen</span>
-        </div>
-        <div class="about-stat-chip" style="--chip-neon:#9b5cff">
-          <span class="about-stat-num">${loggedDays}</span>
-          <span class="about-stat-lbl">days logged</span>
-        </div>
+  const skillRows = stats.skills.map(skill => {
+    const pct = Math.round(skill.tier.progress * 100);
+    const next = skill.tier.next ? `${skill.tier.next.hours - skill.tier.hours}h to ${skill.tier.next.name}` : 'MAX TIER';
+    return `<div class="profile-skill-row" style="--psr-neon:${skill.color || '#7c4dff'}">
+      <div class="profile-skill-head">
+        <span class="profile-skill-name">${esc(skill.name)}</span>
+        <span class="profile-skill-tier">Lv ${skill.tier.level} · ${esc(skill.tier.name)}</span>
       </div>
-      ${isAdmin() ? `<div class="about-arrival-edit field"><label>Arrival date</label><input type="date" id="arrivalDateInput" value="${esc(getArrivalDate())}"><button type="button" class="btn" id="saveArrivalBtn">Save</button></div>` : ''}
-      <p class="about-meta">${esc(player.from)} → Shenzhen · ${esc(player.since)} · click card to flip</p>
-      ${`<button class="btn primary about-edit-btn edit-when-editing" id="editAboutBtn">Edit player card</button>`}
+      <div class="profile-skill-bar"><span style="width:${pct}%"></span></div>
+      <div class="profile-skill-meta">${skill.hrs.toFixed(1)}h logged · ${esc(next)}</div>
+    </div>`;
+  }).join('');
+
+  spread.innerHTML = `
+    <div class="profile-hero-wrap">
+      <div class="about-stage profile-stage">
+        ${buildFlipPlayerCard(cardItem, 'player', 0, { hero: true, heroAccent: getPlayerAccent(cardItem) })}
+        <div class="profile-id-strip">
+          <span class="profile-id-chip" style="--pic-neon:#ff4fd8">LV ${pc.level || 1}</span>
+          ${pc.mbti ? `<span class="profile-id-chip" style="--pic-neon:#3ad6e0">${esc(pc.mbti)}</span>` : ''}
+          ${pc.vibe ? `<span class="profile-id-chip profile-id-wide" style="--pic-neon:#9b5cff">${esc(pc.vibe)}</span>` : ''}
+          <span class="profile-id-chip" style="--pic-neon:#4fa3ff">${esc(player.from)} → Shenzhen</span>
+        </div>
+        ${isAdmin() ? `<div class="about-arrival-edit field"><label>Arrival date</label><input type="date" id="arrivalDateInput" value="${esc(getArrivalDate())}"><button type="button" class="btn" id="saveArrivalBtn">Save</button></div>` : ''}
+        ${`<button class="btn primary about-edit-btn edit-when-editing" id="editAboutBtn">Edit player card</button>`}
+      </div>
     </div>
-    <div class="about-pin-wall">
+
+    <div class="profile-dashboard">
+      ${profileStatGroup('Operational', [
+        profileStatCell('Days in Shenzhen', stats.szDays, 'since ' + getArrivalDate(), '#ff4fd8'),
+        profileStatCell('Days logged', stats.loggedDays, stats.streak ? stats.streak + ' day streak' : 'start a streak', '#9b5cff'),
+        profileStatCell('Zones unlocked', stats.unlocked, stats.places + ' places tagged', '#4fa3ff'),
+        profileStatCell('Pinboard', stats.pins, 'community signals', '#38bdf8'),
+      ].join(''), '#ff4fd8')}
+
+      ${profileStatGroup('Vitals · 7 days', [
+        profileStatCell('Avg mood', stats.week.avgMood, stats.week.days + ' active days', '#f472b6'),
+        profileStatCell('Steps', stats.week.steps.toLocaleString(), 'this week', '#3ad6e0'),
+        profileStatCell('Mandarin', stats.week.mandarin + 'h', 'study hours', '#7c4dff'),
+        profileStatCell('Work', stats.week.work + 'h', 'logged', '#e8a87c'),
+        profileStatCell('Hobby', stats.week.hobby + 'h', stats.week.people + ' people met', '#a78bfa'),
+      ].join(''), '#3ad6e0')}
+
+      ${profileStatGroup('Vitals · 30 days', [
+        profileStatCell('Avg mood', stats.month.avgMood, 'rolling month', '#f472b6'),
+        profileStatCell('Steps', stats.month.steps.toLocaleString(), 'month total', '#3ad6e0'),
+        profileStatCell('Mandarin', stats.month.mandarin + 'h', 'study hours', '#7c4dff'),
+        profileStatCell('Work', stats.month.work + 'h', 'logged', '#e8a87c'),
+        profileStatCell('Places', stats.month.places, 'discovered this month', '#4fa3ff'),
+      ].join(''), '#9b5cff')}
+
+      ${profileStatGroup('All-time totals', [
+        profileStatCell('Steps', stats.allTime.steps.toLocaleString(), 'lifetime counter', '#3ad6e0'),
+        profileStatCell('Mandarin', stats.allTime.mandarin + 'h', 'total study', '#7c4dff'),
+        profileStatCell('Work', stats.allTime.work + 'h', 'total logged', '#e8a87c'),
+        profileStatCell('People', stats.people, 'unique names met', '#e94ff5'),
+        profileStatCell('Places', stats.places, 'unique locations', '#4fa3ff'),
+        profileStatCell('Best mood', stats.bestMood ? stats.bestMood.mood + '/10' : '—', stats.bestMood ? fmtDate(stats.bestMood.key) : '', '#6ee7a0'),
+        profileStatCell('Low mood', stats.lowMood ? stats.lowMood.mood + '/10' : '—', stats.lowMood ? fmtDate(stats.lowMood.key) : '', '#f43f8e'),
+      ].join(''), '#4fa3ff')}
+
+      <section class="profile-stat-group profile-skill-matrix" style="--psg-neon:#7c4dff">
+        <h3 class="profile-stat-group-title">Skill matrix</h3>
+        <div class="profile-skill-list">${skillRows || '<p class="profile-empty">No towers configured yet.</p>'}</div>
+      </section>
+
+      ${profileStatGroup('Media status', [
+        profileStatCell('Watching', stats.watching, 'in progress', '#f43f8e'),
+        profileStatCell('Completed', stats.completed, 'finished', '#a78bfa'),
+        profileStatCell('Avg rating', stats.avgMedia, 'neon dot average', '#f472b6'),
+      ].join(''), '#f43f8e')}
+    </div>
+
+    <div class="about-pin-wall profile-feed">
+      <h3 class="profile-feed-title">Recent signal</h3>
       ${recentPins.map((r, i) => {
         const rot = [-2.5, 1.8, -1.2, 2.2, -0.8, 1.5, -2][i % 7];
         const col = PIN_ACCENTS[i % PIN_ACCENTS.length];
@@ -1151,7 +1307,7 @@ function renderAbout(){
           <div class="about-pin-label">${esc(r.label)}</div>
           <p class="about-pin-text">${esc(r.text)}</p>
         </article>`;
-      }).join('')}
+      }).join('') || '<p class="profile-empty">No recent activity yet — log a day or add content.</p>'}
     </div>`;
 
   spread.querySelector('#editAboutBtn')?.addEventListener('click', () => openContentEditor('player', 'player', false));
@@ -1163,6 +1319,7 @@ function renderAbout(){
     el.addEventListener('click', () => document.querySelector(`.node-btn[data-view="${el.dataset.goto}"]`)?.click());
   });
   bindFlipPlayerCards(spread);
+  if(typeof OverloadLog !== 'undefined') OverloadLog.bindProfileEgg();
 }
 
 /* ---------- Home Check-In ---------- */

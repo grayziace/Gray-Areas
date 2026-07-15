@@ -158,6 +158,7 @@ function buildSiteStateSource(){
     unlockedZones: state.unlockedZones || [],
     dramaState: state.dramaState || {},
     hiddenDramas: state.hiddenDramas || [],
+    overloadLogs: state.overloadLogs || [],
   };
   return `/* Exported from Gray Areas — commit this file and redeploy */\nconst SITE_STATE = ${jsLiteral(payload, 0)};\n`;
 }

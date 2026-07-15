@@ -107,7 +107,7 @@
   <aside class="sidebar">
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
-      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>About Gray</span></button>
+      <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player Profile</span></button>
       <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Home Check-In</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
@@ -130,8 +130,9 @@
   <div class="main-col">
 
     <section class="view active neon-section" id="view-profile" style="--sec-neon:#ff4fd8">
-      <h2 class="view-title sketch-title">About Gray</h2>
+      <h2 class="view-title sketch-title" id="profileTitle">Player Profile</h2>
       <div class="about-root" id="aboutSpread"></div>
+      <button type="button" class="overload-port" id="overloadPort" title="" aria-label="System port">·</button>
     </section>
 
     <section class="view neon-section" id="view-sync" style="--sec-neon:#3ad6e0">
@@ -378,9 +379,25 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="overloadAuthBack">
+  <div class="modal sketch-card overload-auth-modal">
+    <h3>System port</h3>
+    <p class="overload-auth-hint">Private channel. Passcode required.</p>
+    <div class="field"><label>Key</label><input type="password" id="overloadKeyInput" autocomplete="off"></div>
+    <div class="modal-actions"><button class="btn" id="cancelOverloadAuth">Cancel</button><button class="btn primary" id="confirmOverloadAuth">Open</button></div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="overloadBack">
+  <div class="modal overload-terminal-modal">
+    <button class="modal-close" id="closeOverload">×</button>
+    <div id="overloadContent"></div>
+  </div>
+</div>
+
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
