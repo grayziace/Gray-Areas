@@ -6,5 +6,7 @@ const SITE_STATE = {
   "arrivalDate": "2026-08-21",
   "unlockedZones": [],
   "dramaState": {},
-  "hiddenDramas": []
+  "hiddenDramas": [
+    "example-drama"
+  ]
 };

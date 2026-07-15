@@ -354,16 +354,7 @@ const CONTENT = {
   ],
 
   dramas: [
-    {
-      "id": "example-drama",
-      "title": "Love Between Fairy and Devil",
-      "mediaType": "tv",
-      "genre": "xianxia romance",
-      "totalEpisodes": 36,
-      "currentEpisode": 12,
-      "status": "watching",
-      "image": "",
-    }
+
   ],
 
   articles: [
