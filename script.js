@@ -31,7 +31,10 @@ function applyAdminUI(){
       ? 'Browse missions — log in with a Coders Card to send quests.'
       : 'Give Gray missions — places, food, comfort, Press pieces, meetups.';
   const barLabel = document.querySelector('.admin-bar-label');
-  if(barLabel) barLabel.textContent = 'Player mode';
+  if(barLabel) barLabel.textContent = 'Player Gray mode';
+  const brand = document.getElementById('brandName');
+  if(brand) brand.textContent = admin ? 'Gray · PLAYER' : 'Gray Areas';
+  document.body.classList.toggle('is-player-gray', admin);
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
@@ -131,6 +134,7 @@ function defaultState(){
     quests: [],
     videoDiary: [],
     liveTodos: [],
+    instructionsHtml: '',
   };
 }
 
@@ -166,6 +170,7 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.quests)) state.quests = s.quests;
   if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
   if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
+  if(typeof s.instructionsHtml === 'string') state.instructionsHtml = s.instructionsHtml;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -274,7 +279,15 @@ function getContentList(key, fallback){
 }
 
 function getCharacters(){
-  return getContentList('characters', [...CONTENT.characters, ...(state.runtimeCharacters || [])]);
+  const base = getContentList('characters', [...CONTENT.characters, ...(state.runtimeCharacters || [])]);
+  const seen = new Set(base.map(c => c.id));
+  const merged = [...base];
+  (state.viewerCharacters || []).forEach(c => {
+    if(!c?.id || seen.has(c.id)) return;
+    merged.push(c);
+    seen.add(c.id);
+  });
+  return merged;
 }
 
 function getPlaces(){
@@ -2902,6 +2915,12 @@ function renderPlaces(){
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
+  const hint = document.querySelector('#view-characters .gallery-hint');
+  if(hint){
+    hint.textContent = isAdmin()
+      ? 'Rena, Merlin, and every coder who makes a card — click a coder card to edit their deck entry.'
+      : 'Click to flip.';
+  }
   const chars = getCharacters();
   deck.innerHTML = chars.map((c, i) => buildFlipPlayerCard(c, 'character', i)).join('');
   bindFlipPlayerCards(deck);

@@ -2487,6 +2487,20 @@ body.coder-gate-active #birthdayBack{pointer-events:auto;filter:none;}
 .birthday-xp{color:#4ade80;font-size:13px;margin-top:12px;}
 .coder-admin-panel{margin-top:20px;}
 .instructions-panel code{font-family:var(--font-data);font-size:12px;color:#fcd34d;}
+.instructions-editor{width:100%;min-height:280px;font-family:var(--font-main);font-size:12px;line-height:1.5;background:rgba(0,0,0,0.35);border:1px solid var(--border-glass);color:var(--text-hi);padding:12px;}
+.instructions-admin-edit{margin-bottom:18px;}
+.player-mode-banner{
+  display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;padding:16px 18px;
+  border:2px solid color-mix(in srgb,#ff4fd8 45%,var(--border-glass));
+  background:linear-gradient(135deg,rgba(255,79,216,0.12),rgba(58,214,224,0.08));
+}
+.player-mode-banner-dot{width:10px;height:10px;border-radius:50%;background:#ff4fd8;box-shadow:0 0 12px #ff4fd8;margin-top:4px;flex-shrink:0;animation:adminPulse 2s ease infinite;}
+.player-mode-banner-kicker{margin:0 0 6px;font-family:var(--font-data);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:#ff4fd8;}
+.player-mode-banner-text{margin:0;font-size:13px;color:var(--text-mid);line-height:1.55;}
+body.is-player-gray .sidebar .brand .name{color:#ff4fd8;text-shadow:0 0 18px rgba(255,79,216,0.35);}
+body.is-player-gray .admin-bar{border-color:#ff4fd8;background:rgba(255,79,216,0.1);}
+body.is-player-gray .admin-bar-label{color:#ff4fd8;}
+body.is-player-gray .admin-bar-dot{background:#ff4fd8;box-shadow:0 0 8px #ff4fd8;}
 
 /* Live to-do board */
 .live-todo-board{

@@ -118,25 +118,49 @@ function deriveCardStats(form){
   const s = pickMostUnique(strengths) || form.strengths?.trim() || '';
   const w = pickMostUnique(weaknesses) || form.weaknesses?.trim() || '';
   const r = pickMostUnique(resistances) || form.resistances?.trim() || '';
+  const vibe = form.vibe?.trim() || '';
+  const spirit = form.spiritAnimal?.trim() || '';
+  const title = form.title?.trim() || '';
+  const wLow = w.toLowerCase();
+
+  const abilityName = titleFromPhrase(s, spirit ? `${spirit} Instinct` : 'Core Trait');
+  let abilityEffect = 'Gray will fill this in when they spot the blank.';
+  if(s){
+    if(/social|adapt|chameleon/i.test(s + ' ' + vibe + ' ' + spirit)){
+      abilityEffect = `Passive — ${s}. You read the room and blend in; opponents struggle to isolate you as a threat.`;
+    } else {
+      abilityEffect = `${s} is your edge — when the board gets heavy, you steady the room.`;
+    }
+  } else if(vibe){
+    abilityEffect = vibe;
+  }
+
+  const weaknessName = titleFromPhrase(w, 'Soft Spot');
+  let weaknessEffect = 'Gray will fill this in when they spot the blank.';
+  if(w){
+    weaknessEffect = /fringe/i.test(wLow)
+      ? `Fringe Phobia — double impact from opponents with fringe aesthetics; your focus shatters.`
+      : `${weaknessName} — double damage from ${wLow}; high-pressure days hit harder.`;
+  }
+
+  const resistanceName = titleFromPhrase(r, title ? `The ${title}` : 'Natural Shield');
+  let resistanceEffect = 'Gray will fill this in when they spot the blank.';
+  if(r){
+    resistanceEffect = /rock|time|ground|solid/i.test(r)
+      ? `Rock-solid — immune to intimidation and pressure tactics. ${r} does not move you.`
+      : `Immune to ${r.toLowerCase()} — you shrug off what would bend others.`;
+  }
+
+  const extraMoves = strengths.filter(x => x !== s).slice(0, 2).map(str => ({
+    name: titleFromPhrase(str, 'Bonus Move'),
+    effect: `Channel ${str.toLowerCase()} — tactical edge when Gray needs it.`,
+  }));
+
   return {
-    ability: {
-      name: titleFromPhrase(s, 'Quiet Strength'),
-      effect: s
-        ? `Your ${s.toLowerCase()} is your edge — when the board gets heavy, you steady the room.`
-        : 'Gray will fill this in when they spot the blank.',
-    },
-    weakness: {
-      name: titleFromPhrase(w, 'Soft Spot'),
-      effect: w
-        ? `Double impact from ${w.toLowerCase()} — high-pressure days hit harder.`
-        : 'Gray will fill this in when they spot the blank.',
-    },
-    resistance: {
-      name: titleFromPhrase(r, 'Natural Shield'),
-      effect: r
-        ? `Immune to ${r.toLowerCase()} — you shrug off what would bend others.`
-        : 'Gray will fill this in when they spot the blank.',
-    },
+    ability: { name: abilityName, effect: abilityEffect },
+    weakness: { name: weaknessName, effect: weaknessEffect },
+    resistance: { name: resistanceName, effect: resistanceEffect },
+    extraMoves,
   };
 }
 
@@ -148,7 +172,7 @@ function tryPlayerLogin(name, key){
   if(normalizeCoderName(name) !== PLAYER_LOGIN_NAME) return false;
   if((key || '').trim() !== PLAYER_LOGIN_KEY) return false;
   if(typeof unlockAdmin === 'function'){
-    unlockAdmin({ toast: false, view: 'profile', welcome: true });
+    unlockAdmin({ toast: false, view: 'profile', welcome: false });
   }
   hideEntryGate();
   return true;
@@ -432,7 +456,7 @@ function buildCoderCardFromWizard(form, existing){
       vibe: form.vibe?.trim() || base.pokeCard?.vibe || '',
       subtitle: form.title?.trim() || base.pokeCard?.subtitle || '',
       abilities: [{ name: stats.ability.name, effect: stats.ability.effect }],
-      moves: [],
+      moves: stats.extraMoves || [],
       weakness: stats.weakness,
       resistance: stats.resistance,
       retreatCost: base.pokeCard?.retreatCost || '1',
@@ -625,6 +649,57 @@ function userVotedQuest(q, cardId){
   return !!(q.votes && cardId && q.votes[cardId]);
 }
 
+function getInstructionsHtml(){
+  if(state.instructionsHtml) return state.instructionsHtml;
+  return buildDefaultInstructionsHtml();
+}
+
+function buildDefaultInstructionsHtml(){
+  const guestNote = isGuest() ? `<p class="instructions-note">You're browsing as a <strong>guest</strong> — watch mode only.</p>` : '';
+  const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make My Card →</button>` : '';
+  const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : '';
+  const loginBtn = isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : '';
+  return `
+    <div class="instructions-panel sketch-card instructions-gray-voice">
+      <p class="instructions-kicker">Hi!</p>
+      <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
+      <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
+      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours. I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
+      <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
+      <h3 class="viewer-wizard-title">The sidebar</h3>
+      <ul class="instructions-nav-list">
+        <li><strong>Instructions</strong> — you're here. hello.</li>
+        <li><strong>Player Profile</strong> — me. my stats, mood, hero card.</li>
+        <li><strong>Coming To You Live</strong> — what I'm doing right now. to-do list + neon timeline.</li>
+        <li><strong>Daily Log</strong> — my days, steps, diary, reflections.</li>
+        <li><strong>Place Cards</strong> — places I visit in Shenzhen.</li>
+        <li><strong>Coder Cards</strong> — people in my orbit (the deck).</li>
+        <li><strong>Skill Cards</strong> — hobbies and skills I'm levelling.</li>
+        <li><strong>Media Log</strong> — films, shows, books.</li>
+        <li><strong>The Press</strong> — articles and writing.</li>
+        <li><strong>Photo Wall</strong> — photos with flip notes.</li>
+        <li><strong>Community</strong> — pinboard. log in to post; your card shows on your note.</li>
+        <li><strong>My Card</strong> — your Coders Card. make it, edit it, regenerate your look.</li>
+        <li><strong>Quests</strong> — send missions. guests can only watch.</li>
+        <li><strong>Video Log</strong> — my video notes.</li>
+      </ul>
+      <h3 class="viewer-wizard-title">Logging in</h3>
+      <p class="instructions-p">You don't <em>have</em> to log in — but if you don't, you can only see what I'm doing. No quests, no community posts, no voting. Watch-only.</p>
+      <p class="instructions-p">To interact: create <strong>My Card</strong> once (leave blanks if you want — I'll fill gaps when I spot them), pick a unique console key, then log in each visit with <strong>name + key</strong> or the console as <code>Name::key</code>.</p>
+      ${guestNote}
+      ${cardBtn}
+      ${questBtn}
+      ${loginBtn}
+    </div>`;
+}
+
+function bindInstructionsActions(host){
+  if(!host) return;
+  host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
+  host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToView('quests'));
+  host.querySelector('#instrGoLogin')?.addEventListener('click', () => returnToLogin());
+}
+
 const ViewerWorld = {
   inited: false,
   pendingVlogFile: null,
@@ -712,41 +787,51 @@ const ViewerWorld = {
   renderInstructions(){
     const host = document.getElementById('instructionsSpread');
     if(!host) return;
-    host.innerHTML = `
-      <div class="instructions-panel sketch-card instructions-gray-voice">
-        <p class="instructions-kicker">Hi!</p>
-        <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
-        <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
-        <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>5 XP</strong> when you send one, and <strong>50 XP</strong> when I complete yours. I hand out the rest of the XP myself — meet-ups, calls, birthdays, chaos, kindness, all that. I don't know what the reward is for the person with the most XP yet. Early days, okay.</p>
-        <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
-        <h3 class="viewer-wizard-title">The sidebar</h3>
-        <ul class="instructions-nav-list">
-          <li><strong>Instructions</strong> — you're here. hello.</li>
-          <li><strong>Player Profile</strong> — me. my stats, mood, hero card.</li>
-          <li><strong>Coming To You Live</strong> — what I'm doing right now. to-do list + neon timeline.</li>
-          <li><strong>Daily Log</strong> — my days, steps, diary, reflections.</li>
-          <li><strong>Place Cards</strong> — places I visit in Shenzhen.</li>
-          <li><strong>Coder Cards</strong> — people in my orbit (the deck).</li>
-          <li><strong>Skill Cards</strong> — hobbies and skills I'm levelling.</li>
-          <li><strong>Media Log</strong> — films, shows, books.</li>
-          <li><strong>The Press</strong> — articles and writing.</li>
-          <li><strong>Photo Wall</strong> — photos with flip notes.</li>
-          <li><strong>Community</strong> — pinboard. log in to post; your card shows on your note.</li>
-          <li><strong>My Card</strong> — your Coders Card. make it, edit it, regenerate your look.</li>
-          <li><strong>Quests</strong> — send missions. guests can only watch.</li>
-          <li><strong>Video Log</strong> — my video notes.</li>
-        </ul>
-        <h3 class="viewer-wizard-title">Logging in</h3>
-        <p class="instructions-p">You don't <em>have</em> to log in — but if you don't, you can only see what I'm doing. No quests, no community posts, no voting. Watch-only.</p>
-        <p class="instructions-p">To interact: create <strong>My Card</strong> once (leave blanks if you want — I'll fill gaps when I spot them), pick a unique console key, then log in each visit with <strong>name + key</strong> or the console as <code>Name::key</code>.</p>
-        ${isGuest() ? `<p class="instructions-note">You're browsing as a <strong>guest</strong> — watch mode only.</p>` : ''}
-        ${!getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make My Card →</button>` : ''}
-        ${getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : ''}
-        ${isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : ''}
-      </div>`;
-    host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
-    host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToView('quests'));
-    host.querySelector('#instrGoLogin')?.addEventListener('click', () => returnToLogin());
+    if(isAdmin()){
+      const draft = state.instructionsHtml || buildDefaultInstructionsHtml();
+      host.innerHTML = `
+        <div class="player-mode-banner sketch-card">
+          <span class="player-mode-banner-dot" aria-hidden="true"></span>
+          <div>
+            <p class="player-mode-banner-kicker">Player Gray mode</p>
+            <p class="player-mode-banner-text">You're running the board. Edit instructions below — coders see your preview. Quest Inbox, coder XP, and card edits are in <strong>Quest Inbox</strong> and <strong>Coder Cards</strong>.</p>
+          </div>
+        </div>
+        <div class="instructions-admin-edit sketch-card">
+          <h3 class="viewer-wizard-title">Edit instructions</h3>
+          <p class="field-hint">HTML allowed. Save updates what coders read. Reset restores the default draft.</p>
+          <textarea id="instructionsEditor" class="instructions-editor" rows="18">${esc(draft)}</textarea>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="resetInstructions">Reset to default</button>
+            <button type="button" class="btn primary" id="saveInstructions">Save instructions</button>
+          </div>
+        </div>
+        <div id="instructionsPreview">${getInstructionsHtml()}</div>`;
+      host.querySelector('#saveInstructions')?.addEventListener('click', () => {
+        state.instructionsHtml = document.getElementById('instructionsEditor')?.value || '';
+        saveState();
+        const preview = host.querySelector('#instructionsPreview');
+        if(preview){
+          preview.innerHTML = getInstructionsHtml();
+          bindInstructionsActions(preview);
+        }
+      });
+      host.querySelector('#resetInstructions')?.addEventListener('click', () => {
+        state.instructionsHtml = '';
+        saveState();
+        const editor = document.getElementById('instructionsEditor');
+        if(editor) editor.value = buildDefaultInstructionsHtml();
+        const preview = host.querySelector('#instructionsPreview');
+        if(preview){
+          preview.innerHTML = getInstructionsHtml();
+          bindInstructionsActions(preview);
+        }
+      });
+      bindInstructionsActions(host.querySelector('#instructionsPreview'));
+      return;
+    }
+    host.innerHTML = getInstructionsHtml();
+    bindInstructionsActions(host);
   },
 
   renderViewerCard(){
@@ -923,6 +1008,7 @@ const ViewerWorld = {
       saveState();
       await postVisitorData('updateCharacter', state.viewerCharacters[idx]);
       back.classList.add('hidden');
+      if(typeof renderCharacters === 'function') renderCharacters();
       this.renderQuests();
     });
     formHost.querySelector('#peditRegenPortrait')?.addEventListener('click', async () => {
@@ -970,6 +1056,7 @@ const ViewerWorld = {
     await postVisitorData('createCharacter', card);
     unlockCoderSession(card.id);
     if(btn) btn.disabled = false;
+    if(typeof renderCharacters === 'function') renderCharacters();
     this.renderViewerCard();
     alert('My Card created! Regenerate your look anytime. Remember your name and console key.');
   },

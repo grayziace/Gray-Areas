@@ -392,6 +392,9 @@ function openCardEditor(fig){
   const id = fig.dataset.cardId;
   if(t === 'player') openContentEditor('player', 'player', false);
   else if(t === 'place') openContentEditor('place', id, false);
+  else if(typeof getCoderById === 'function' && getCoderById(id) && typeof isAdmin === 'function' && isAdmin() && typeof ViewerWorld !== 'undefined'){
+    ViewerWorld.openPlayerCoderEdit(id);
+  }
   else openContentEditor('character', id, false);
 }
 
