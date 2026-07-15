@@ -151,6 +151,12 @@ body{
   margin:10px 0 0;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;
   color:var(--neon-cyan);opacity:0.85;
 }
+.loading-url{
+  margin:8px 0 0;font-size:10px;letter-spacing:0.04em;text-transform:none;opacity:0;
+  transition:opacity 0.5s ease;
+}
+.loading-url a{color:var(--neon-cyan);text-decoration:none;border-bottom:1px dashed rgba(58,214,224,0.35);}
+.loading-brand.in .loading-url{opacity:0.75;}
 .intro-enter-btn{
   margin-top:18px;letter-spacing:0.14em;text-transform:uppercase;font-size:12px;
   opacity:0;pointer-events:none;transition:opacity 0.4s ease;
