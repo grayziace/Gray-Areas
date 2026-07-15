@@ -35,7 +35,7 @@ const SITE_STATE = {
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 3,
+      "points": 6,
       "questsSent": 0,
       "questsCompleted": 0,
       "loginCount": 0,
@@ -79,7 +79,16 @@ const SITE_STATE = {
       "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive Ã¢ÂÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art Ã¢ÂÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia Ã¢ÂÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid Ã¢ÂÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
       "imageFocusX": 50,
       "imageFocusY": 50,
-      "type": "Person"
+      "type": "Person",
+      "xpHistory": [
+        {
+          "id": "xp-1784136599406-b9ty",
+          "at": "2026-07-15T17:29:59.406Z",
+          "amount": 3,
+          "reason": "login",
+          "label": "Daily login"
+        }
+      ]
     },
     {
       "id": "coder-1784136277276-1f50",
@@ -122,17 +131,17 @@ const SITE_STATE = {
         "abilities": [
           {
             "name": "Big D*ck",
-            "effect": "Big d*ck is your edge — when the board gets heavy, you steady the room."
+            "effect": "Big d*ck is your edge Ã¢ÂÂ when the board gets heavy, you steady the room."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Too Cool",
-          "effect": "Too Cool — double damage from too cool; high-pressure days hit harder."
+          "effect": "Too Cool Ã¢ÂÂ double damage from too cool; high-pressure days hit harder."
         },
         "resistance": {
           "name": "Anesthetic",
-          "effect": "Immune to anesthetic — you shrug off what would bend others."
+          "effect": "Immune to anesthetic Ã¢ÂÂ you shrug off what would bend others."
         },
         "retreatCost": "1",
         "quote": "Sup Slags",
