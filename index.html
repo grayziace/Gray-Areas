@@ -1,17 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colouring Gray Areas: Project Shenzhen</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="hero-character"></div>
-    <div class="ui-frame">
-        <h1 style="color:var(--electric-cyan)">PLAYER: GRAY</h1>
-        <nav>
-            <button class="nav-btn">SYNC // LOGS</button>
-            <button class="nav-btn">ATLAS // MAP</button>
-            <button class="nav-btn">IDENTITY // MODULES</button>
-        </nav>
+ 
+<svg id="skyline" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+  <rect x="40" y="180" width="60" height="220" fill="#241a3a"/>
+  <rect x="120" y="140" width="40" height="260" fill="#1e1330"/>
+  <rect x="180" y="200" width="50" height="200" fill="#241a3a"/>
+  <rect x="900" y="150" width="55" height="250" fill="#1e1330"/>
+  <rect x="970" y="190" width="45" height="210" fill="#241a3a"/>
+  <rect x="1040" y="120" width="60" height="280" fill="#1e1330"/>
+  <g fill="#3ad6e0" opacity="0.5">
+    <rect x="55" y="200" width="4" height="6"/><rect x="70" y="200" width="4" height="6"/>
+    <rect x="55" y="230" width="4" height="6"/><rect x="70" y="260" width="4" height="6"/>
+    <rect x="915" y="180" width="4" height="6"/><rect x="930" y="210" width="4" height="6"/>
+    <rect x="1055" y="150" width="4" height="6"/><rect x="1070" y="180" width="4" height="6"/>
+  </g>
+</svg>
+ 
+<!-- Loading sequence -->
+<div id="loading" class="phase-london">
+  <div class="loading-label" id="loadingLabel">London</div>
+  <div class="loading-title" id="loadingTitle">Departure</div>
+  <div class="plane-track"><div class="plane-dot"></div></div>
+  <button class="skip-btn" id="skipLoading">Skip intro</button>
+</div>
+ 
+<div id="app">
+ 
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <div class="name">Colouring Gray Areas</div>
+        <div class="sub">PROJECT SHENZHEN</div>
+      </div>
     </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="sync" class="active">Sync Station</button>
+      <button data-view="ledger">Chronos Ledger</button>
+      <button data-view="atlas">Atlas</button>
+      <button data-view="characters">Characters</button>
+      <button data-view="archive">Archive</button>
+      <button data-view="comm">Comm-Link</button>
+    </nav>
+  </header>
+ 
+  <!-- Sync Station -->
+  <section class="view active" id="view-sync">
+    <h2 class="view-title">Sync Station</h2>
+    <p class="view-sub">A peaceful overview for anyone checking in from home.</p>
+    <div class="grid-2col">
+      <div class="card">
+        <h3 style="margin-top:0;font-size:15px;">Recent discoveries</h3>
+        <div id="discoveryTicker"></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-size:15px;">Vitals</h3>
+        <div class="vital">
+          <div class="vital-label"><span>Current mood</span><span id="moodLabel">Good</span></div>
+          <div class="vital-bar"><div class="vital-fill" id="moodFill" style="width:70%"></div></div>
+        </div>
+        <div class="vital">
+          <div class="vital-label"><span>Steps this week</span><span id="stepsLabel">0</span></div>
+          <div class="vital-bar"><div class="vital-fill" id="stepsFill" style="width:0%"></div></div>
+        </div>
+        <div class="bell">🔔 <span id="bellText">No new updates yet — log a day to get started.</span></div>
+      </div>
+    </div>
+  </section>
+ 
+  <!-- Chronos Ledger -->
+  <section class="view" id="view-ledger">
+    <h2 class="view-title">Chronos Ledger</h2>
+    <p class="view-sub" id="monthLabel"></p>
+    <div class="card">
+      <div class="month-grid" id="monthGrid"></div>
+    </div>
+  </section>
+ 
+  <!-- Atlas -->
+  <section class="view" id="view-atlas">
+    <h2 class="view-title">Atlas of Discoveries</h2>
+    <p class="view-sub">Unlock a zone whenever you log a new place in your daily entry.</p>
+    <div class="card">
+      <div class="atlas-grid" id="atlasGrid"></div>
+    </div>
+  </section>
+ 
+  <!-- Characters -->
+  <section class="view" id="view-characters">
+    <h2 class="view-title">Character Gallery</h2>
+    <p class="view-sub">Everyone you've met so far — people, cats, whoever counts.</p>
+    <div class="char-grid" id="charGrid"></div>
+  </section>
+ 
+  <!-- Archive -->
+  <section class="view" id="view-archive">
+    <h2 class="view-title">Archive of Interests</h2>
+    <p class="view-sub">Language progress, dramas, hobbies.</p>
+    <div class="grid-2col">
+      <div class="card">
+        <h3 style="margin-top:0;font-size:15px;">Mandarin module</h3>
+        <div class="skill-row">
+          <div class="vital-label"><span>Progress</span><span id="mandarinPct">0%</span></div>
+          <div class="vital-bar"><div class="vital-fill" id="mandarinFill" style="width:0%"></div></div>
+        </div>
+        <button class="btn" id="bumpMandarin">+ Log practice</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;font-size:15px;">CDrama database</h3>
+        <div class="drama-list" id="dramaList"></div>
+        <button class="btn" id="addDramaBtn" style="margin-top:10px;">+ Add drama</button>
+      </div>
+    </div>
+  </section>
+ 
+  <!-- Comm-Link -->
+  <section class="view" id="view-comm">
+    <h2 class="view-title">Comm-Link</h2>
+    <p class="view-sub">Encrypted comms from home.</p>
+    <div class="card">
+      <div class="terminal" id="terminal"></div>
+      <div class="comm-input">
+        <input type="text" id="commInput" placeholder="type a message to Shenzhen...">
+        <button class="btn primary" id="commSend">Send</button>
+      </div>
+    </div>
+  </section>
+ 
+</div>
+ 
+<!-- Day log modal -->
+<div class="modal-back hidden" id="dayModalBack">
+  <div class="modal">
+    <h3 id="dayModalTitle">Log this day</h3>
+    <div class="field-row">
+      <div class="field">
+        <label>Mood (1-10)</label>
+        <input type="number" id="logMood" min="1" max="10" value="7">
+      </div>
+      <div class="field">
+        <label>Steps</label>
+        <input type="number" id="logSteps" value="0">
+      </div>
+    </div>
+    <div class="field">
+      <label>New place visited (unlocks a zone)</label>
+      <select id="logZone">
+        <option value="">— none today —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>New person or animal met</label>
+      <input type="text" id="logPerson" placeholder="e.g. Coffee Shop Cat">
+    </div>
+    <div class="field">
+      <label>Hobby practiced</label>
+      <input type="text" id="logHobby" placeholder="e.g. sketching">
+    </div>
+    <div class="field">
+      <label>Late night thoughts</label>
+      <textarea id="logThoughts" placeholder="the deeper stuff..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelLog">Cancel</button>
+      <button class="btn primary" id="saveLog">Save entry</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Character add modal -->
+<div class="modal-back hidden" id="charModalBack">
+  <div class="modal">
+    <h3>New character</h3>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="charName" placeholder="e.g. Yuèlíng">
+    </div>
+    <div class="field">
+      <label>Class</label>
+      <input type="text" id="charClass" placeholder="e.g. Fellow Teacher">
+    </div>
+    <div class="field">
+      <label>Quote</label>
+      <input type="text" id="charQuote" placeholder="something they said">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelChar">Cancel</button>
+      <button class="btn primary" id="saveChar">Add to gallery</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Drama add modal -->
+<div class="modal-back hidden" id="dramaModalBack">
+  <div class="modal">
+    <h3>New drama</h3>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="dramaTitle" placeholder="drama title">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Genre</label>
+        <input type="text" id="dramaGenre" placeholder="e.g. wuxia">
+      </div>
+      <div class="field">
+        <label>Verdict (1-10)</label>
+        <input type="number" id="dramaVerdict" min="1" max="10" value="8">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelDrama">Cancel</button>
+      <button class="btn primary" id="saveDrama">Add</button>
+    </div>
+  </div>
+</div>
+ 
+<script src="script.js"></script>
 </body>
 </html>
+ 
