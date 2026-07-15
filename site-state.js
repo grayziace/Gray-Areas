@@ -1,51 +1,6 @@
 /* Exported from Gray Areas — commit this file and redeploy */
 const SITE_STATE = {
-  "entries": {
-    "2026-07-15": {
-      "currentMood": "focused",
-      "mood": "focused",
-      "steps": "0",
-      "workHours": "0",
-      "hobby": "",
-      "hobbyHours": "0",
-      "people": [],
-      "places": [],
-      "diary": "[15 Jul · 13:15:46] Film: The First Frost\n\n[15 Jul · 14:40:08] Mood: Mood → Focused",
-      "photos": [],
-      "stream": {
-        "startedAt": "2026-07-15T12:15:10.263Z",
-        "endedAt": "2026-07-15T13:41:40.296Z",
-        "nodes": [
-          {
-            "id": "n-wake-1784117710263",
-            "at": "2026-07-15T12:15:10.263Z",
-            "type": "wake",
-            "text": "Day started"
-          },
-          {
-            "id": "n-1784117746754-dknm",
-            "at": "2026-07-15T12:15:46.754Z",
-            "type": "film",
-            "text": "The First Frost"
-          },
-          {
-            "id": "n-auto-1784122808538-ydec",
-            "at": "2026-07-15T13:40:08.538Z",
-            "type": "mood",
-            "source": "mood",
-            "text": "Mood → Focused",
-            "auto": true
-          },
-          {
-            "id": "n-sleep-1784122900296",
-            "at": "2026-07-15T13:41:40.296Z",
-            "type": "sleep",
-            "text": "Day ended"
-          }
-        ]
-      }
-    }
-  },
+  "entries": {},
   "skillHours": {},
   "pinboard": [],
   "arrivalDate": "2026-08-21",
