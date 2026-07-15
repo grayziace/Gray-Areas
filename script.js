@@ -851,6 +851,11 @@ function fmtNodeTime(iso){
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function fmtNodeTimeFull(iso){
+  if(!iso) return '—:—:—';
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
 function streamDiaryDraft(nodes){
   return nodes
     .filter(n => n.type !== 'wake' && n.type !== 'sleep')
@@ -1539,27 +1544,46 @@ const HomeCheckIn = {
 
   renderTimeline(stream){
     if(!stream.nodes.length){
-      return '<p class="home-timeline-empty">No pulses yet. Start your day and drop song, book, film, or note updates.</p>';
+      return `<div class="live-rail-empty">
+        <div class="live-rail-spine"></div>
+        <p>Awaiting transmission. Start day, then pulse updates.</p>
+      </div>`;
     }
     const sorted = [...stream.nodes].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
-    return `<div class="home-timeline">${sorted.map((node, i) => {
-      const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
-      const next = sorted[i + 1];
-      const gap = next && node.at && next.at
-        ? Math.round((new Date(next.at) - new Date(node.at)) / 60000) + 'm'
-        : '';
-      return `<div class="home-node" style="--hn-neon:${meta.neon}">
-        <div class="home-node-rail"><span class="home-node-dot"></span><span class="home-node-line"></span></div>
-        <div class="home-node-body">
-          <div class="home-node-meta">
-            <span class="home-node-time">${fmtNodeTime(node.at)}</span>
-            <span class="home-node-type">${meta.icon} ${meta.label}</span>
-            ${gap ? `<span class="home-node-gap">+${gap}</span>` : ''}
-          </div>
-          <p class="home-node-text">${esc(node.text || '')}</p>
-        </div>
-      </div>`;
-    }).join('')}</div>`;
+    return `<div class="live-rail-track">
+      <div class="live-rail-spine" aria-hidden="true"></div>
+      <div class="live-rail-nodes">
+        ${sorted.map((node, i) => {
+          const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
+          const next = sorted[i + 1];
+          let gap = '';
+          if(next && node.at && next.at){
+            const mins = Math.round((new Date(next.at) - new Date(node.at)) / 60000);
+            if(mins >= 60) gap = Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+            else gap = mins + 'm';
+          }
+          return `<article class="live-node" style="--ln-neon:${meta.neon}">
+            <div class="live-node-marker" title="${meta.label}">
+              <span class="live-node-glow"></span>
+              <span class="live-node-core"></span>
+            </div>
+            <div class="live-node-card">
+              <div class="live-node-top">
+                <time class="live-node-time">${fmtNodeTimeFull(node.at)}</time>
+                <span class="live-node-type">${meta.icon} ${meta.label}</span>
+                ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
+              </div>
+              <p class="live-node-text">${esc(node.text || '')}</p>
+            </div>
+          </article>`;
+        }).join('')}
+      </div>
+    </div>`;
+  },
+
+  scrollRailToBottom(){
+    const rail = document.querySelector('.live-rail-scroll');
+    if(rail) rail.scrollTop = rail.scrollHeight;
   },
 
   dayStatus(stream){
@@ -1580,46 +1604,98 @@ function renderHomeCheckIn(){
   const last7 = last7Entries();
   const totalSteps = last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).steps)||0), 0);
   const avgMood = last7.length ? Math.round(last7.reduce((s,[,e]) => s + (Number(normalizeEntry(e).mood)||0), 0) / last7.length) : null;
+  const nodeCount = stream.nodes.length;
+  const onAir = stream.startedAt && !stream.endedAt;
 
   spread.innerHTML = `
-    <article class="manga-panel home-clock-panel" style="--panel-neon:#3ad6e0">
-      <div class="manga-section">Now</div>
-      <div class="home-clocks">
-        <div class="home-clock"><span class="home-clock-lbl">Shenzhen</span><span class="home-clock-val" id="clockShenzhen">--:--:--</span></div>
-        <div class="home-clock"><span class="home-clock-lbl">UK</span><span class="home-clock-val" id="clockUk">--:--:--</span></div>
+    <aside class="live-rail-col">
+      <div class="live-rail-head">
+        <span class="live-rail-label">Transmission log</span>
+        <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}</span>
       </div>
-      <p class="home-day-status">${esc(HomeCheckIn.dayStatus(stream))}</p>
-      ${admin ? `<div class="home-day-actions">
-        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>Start day</button>
-        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>End day</button>
+      <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream)}</div>
+    </aside>
+
+    <main class="live-stage-col">
+      <div class="live-on-air ${onAir ? 'is-live' : ''}">
+        <span class="live-on-air-dot"></span>
+        <span class="live-on-air-text">${onAir ? 'ON AIR' : 'OFF AIR'} · Coming To You Live</span>
+        <span class="live-on-air-date">${fmtDateLong(key)}</span>
+      </div>
+
+      <div class="live-clocks-row">
+        <div class="live-clock-card">
+          <span class="live-clock-city">Shenzhen</span>
+          <span class="live-clock-val" id="clockShenzhen">--:--:--</span>
+          <span class="live-clock-tz">Asia/Shanghai</span>
+        </div>
+        <div class="live-clock-card">
+          <span class="live-clock-city">United Kingdom</span>
+          <span class="live-clock-val" id="clockUk">--:--:--</span>
+          <span class="live-clock-tz">Europe/London</span>
+        </div>
+      </div>
+
+      <div class="live-status-bar">
+        <span>${esc(HomeCheckIn.dayStatus(stream))}</span>
+        ${stream.startedAt ? `<span>Wake ${fmtNodeTimeFull(stream.startedAt)}</span>` : ''}
+        ${stream.endedAt ? `<span>Sleep ${fmtNodeTimeFull(stream.endedAt)}</span>` : ''}
+      </div>
+
+      ${admin ? `<div class="live-controls admin-only">
+        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
+        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
       </div>` : ''}
-    </article>
 
-    ${admin ? `<article class="manga-panel home-pulse-panel admin-only" style="--panel-neon:#f472b6">
-      <div class="manga-section">Quick pulse</div>
-      <div class="home-pulse-grid">
-        <div class="home-pulse-row"><label>♫ Song</label><input type="text" id="homeSongInput" placeholder="track · artist"><button type="button" class="btn" id="homeAddSong">+</button></div>
-        <div class="home-pulse-row"><label>▣ Book</label><input type="text" id="homeBookInput" placeholder="title · progress"><button type="button" class="btn" id="homeAddBook">+</button></div>
-        <div class="home-pulse-row"><label>▶ Film</label><input type="text" id="homeFilmInput" placeholder="title · ep/scene"><button type="button" class="btn" id="homeAddFilm">+</button></div>
-        <div class="home-pulse-row"><label>◆ Note</label><input type="text" id="homeNoteInput" placeholder="quick thought"><button type="button" class="btn" id="homeAddNote">+</button></div>
-      </div>
-    </article>` : ''}
+      ${admin ? `<section class="live-pulse-board admin-only">
+        <h3 class="live-pulse-title">Drop a pulse</h3>
+        <p class="live-pulse-hint">Quick updates timestamped on the rail. Enter or + to send.</p>
+        <div class="live-pulse-grid">
+          <div class="live-pulse-row" style="--lp-neon:#f472b6">
+            <span class="live-pulse-icon">♫</span>
+            <input type="text" id="homeSongInput" placeholder="Song — track · artist">
+            <button type="button" class="btn" id="homeAddSong">+</button>
+          </div>
+          <div class="live-pulse-row" style="--lp-neon:#a78bfa">
+            <span class="live-pulse-icon">▣</span>
+            <input type="text" id="homeBookInput" placeholder="Book — title · chapter/page">
+            <button type="button" class="btn" id="homeAddBook">+</button>
+          </div>
+          <div class="live-pulse-row" style="--lp-neon:#f43f8e">
+            <span class="live-pulse-icon">▶</span>
+            <input type="text" id="homeFilmInput" placeholder="Film — title · scene/ep">
+            <button type="button" class="btn" id="homeAddFilm">+</button>
+          </div>
+          <div class="live-pulse-row" style="--lp-neon:#3ad6e0">
+            <span class="live-pulse-icon">◆</span>
+            <input type="text" id="homeNoteInput" placeholder="Note — thought, update, moment">
+            <button type="button" class="btn" id="homeAddNote">+</button>
+          </div>
+        </div>
+      </section>` : ''}
 
-    <article class="manga-panel home-timeline-panel wide" style="--panel-neon:#9b5cff">
-      <div class="manga-section">Today's stream</div>
-      ${HomeCheckIn.renderTimeline(stream)}
-    </article>
-
-    <article class="manga-panel hero home-hero" style="--panel-neon:${stableNeon('home-hero', 0)}">
-      <div class="manga-section">This week</div>
-      <h3 class="manga-headline">${avgMood ? moodWord(avgMood) : 'Quiet start'}</h3>
-      <div class="home-stat-row">
-        <div class="home-stat"><span class="hs-num">${totalSteps.toLocaleString()}</span><span class="hs-lbl">steps</span></div>
-        <div class="home-stat"><span class="hs-num">${today.mood || '—'}</span><span class="hs-lbl">mood today</span></div>
-      </div>
-    </article>`;
+      <section class="live-stats-panel">
+        <div class="live-stat">
+          <span class="live-stat-num">${totalSteps.toLocaleString()}</span>
+          <span class="live-stat-lbl">steps this week</span>
+        </div>
+        <div class="live-stat">
+          <span class="live-stat-num">${today.mood || '—'}</span>
+          <span class="live-stat-lbl">mood today</span>
+        </div>
+        <div class="live-stat">
+          <span class="live-stat-num">${avgMood || '—'}</span>
+          <span class="live-stat-lbl">avg mood 7d</span>
+        </div>
+        <div class="live-stat">
+          <span class="live-stat-num">${today.mandarinHours || 0}h</span>
+          <span class="live-stat-lbl">Mandarin today</span>
+        </div>
+      </section>
+    </main>`;
 
   HomeCheckIn.bindSpread(spread);
+  queueMicrotask(() => HomeCheckIn.scrollRailToBottom());
 }
 
 /* ---------- Daily Log — calendar ---------- */

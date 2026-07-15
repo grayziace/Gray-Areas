@@ -108,7 +108,7 @@
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
       <button data-view="profile" class="node-btn active" style="--nc:#ff4fd8"><span class="node-dot"></span><span>Player Profile</span></button>
-      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Home Check-In</span></button>
+      <button data-view="sync" class="node-btn" style="--nc:#3ad6e0"><span class="node-dot"></span><span>Coming To You Live</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
       <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Player Cards</span></button>
@@ -136,8 +136,20 @@
     </section>
 
     <section class="view neon-section" id="view-sync" style="--sec-neon:#3ad6e0">
-      <h2 class="view-title sketch-title">Home Check-In</h2>
-      <div class="manga-spread" id="homeSpread"></div>
+      <h2 class="view-title sketch-title">Coming To You Live</h2>
+      <div class="live-broadcast" id="homeSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-mind" style="--sec-neon:#71717a">
+      <div class="mind-channel-header">
+        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">← Leave channel</button>
+        <div class="mind-channel-title">
+          <span class="mind-channel-kicker">// private · encrypted locally</span>
+          <h2 class="view-title sketch-title">System Failure</h2>
+          <p class="mind-channel-sub">Mental health offload channel. Not on the public map.</p>
+        </div>
+      </div>
+      <div class="mind-channel-body" id="mindContent"></div>
     </section>
 
     <section class="view neon-section" id="view-ledger" style="--sec-neon:#9b5cff">
@@ -404,17 +416,10 @@
 
 <div class="modal-back hidden" id="overloadAuthBack">
   <div class="modal sketch-card overload-auth-modal">
-    <h3>System port</h3>
-    <p class="overload-auth-hint">Private channel. Passcode required.</p>
-    <div class="field"><label>Key</label><input type="password" id="overloadKeyInput" autocomplete="off"></div>
-    <div class="modal-actions"><button class="btn" id="cancelOverloadAuth">Cancel</button><button class="btn primary" id="confirmOverloadAuth">Open</button></div>
-  </div>
-</div>
-
-<div class="modal-back hidden" id="overloadBack">
-  <div class="modal overload-terminal-modal">
-    <button class="modal-close" id="closeOverload">×</button>
-    <div id="overloadContent"></div>
+    <h3>System Failure</h3>
+    <p class="overload-auth-hint">Private mental health channel. Passcode required.</p>
+    <div class="field"><label>Passcode</label><input type="password" id="overloadKeyInput" autocomplete="off" placeholder="systemfailure"></div>
+    <div class="modal-actions"><button class="btn" id="cancelOverloadAuth">Cancel</button><button class="btn primary" id="confirmOverloadAuth">Enter channel</button></div>
   </div>
 </div>
 
