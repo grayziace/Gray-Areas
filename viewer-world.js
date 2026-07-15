@@ -654,7 +654,7 @@ const ViewerWorld = {
       this.pendingQuestClips = [...(e.target.files || [])];
     });
     fetchVisitorData().then(() => {
-      if(!isSiteUnlocked()) showEntryGate({ force: true });
+      if(!isSiteUnlocked()) showEntryGate();
       ViewerWorld.renderAll();
     });
   },
@@ -699,7 +699,7 @@ const ViewerWorld = {
       if(!isAdmin()) navigateToView('instructions');
       return;
     }
-    alert('No match for that name and key. Continue as guest, create a card, or try Gray if you are the player.');
+    alert('No match for that name and key. Continue as guest or make My Card.');
   },
 
   renderAll(){

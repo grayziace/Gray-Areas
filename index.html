@@ -118,7 +118,7 @@
     </header>
     <div class="login-page-card sketch-card">
       <h2 class="login-page-heading">Who's connecting?</h2>
-      <p class="field-hint login-page-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests can watch only. Player: <strong>Gray</strong> / <strong>:)</strong></p>
+      <p class="field-hint login-page-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests can watch only.</p>
       <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
       <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
       <div class="login-page-actions">
@@ -621,7 +621,8 @@
   function loadNext(){
     if(i >= files.length){
       window.__gaScriptsDone = true;
-      if(!window.__grayAreasReady){
+      if(typeof bootApp === 'function') bootApp();
+      else if(!window.__grayAreasReady){
         window.__gaFinishBoot?.();
         console.error('Gray Areas did not start — check the browser console for errors.');
       }
