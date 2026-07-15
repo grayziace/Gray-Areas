@@ -898,6 +898,96 @@ const STREAM_NODE_META = {
   memory: { label: 'Memory', neon: '#fda4af', icon: '⌛' },
 };
 
+const PULSE_CARD_NEW = '__new__';
+
+function getPersonCardNames(){
+  return (typeof getCharacters === 'function' ? getCharacters() : []).map(c => c.name).filter(Boolean);
+}
+
+function getPlaceCardNames(){
+  return (typeof getPlaces === 'function' ? getPlaces() : []).map(p => p.name).filter(Boolean);
+}
+
+function getHobbyCardNames(){
+  if(typeof getSkills !== 'function') return [];
+  const names = getSkills().flatMap(s => typeof getHobbyNamesForSkill === 'function' ? getHobbyNamesForSkill(s) : [s.name]);
+  return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function cardPickOptions(entity){
+  if(entity === 'person') return getPersonCardNames();
+  if(entity === 'place') return getPlaceCardNames();
+  if(entity === 'hobby') return getHobbyCardNames();
+  return [];
+}
+
+function cardPickFieldHtml(field){
+  const id = `pulseField_${field.id}`;
+  const names = cardPickOptions(field.entity);
+  const opts = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const newPh = field.entity === 'person' ? 'New player name…'
+    : field.entity === 'place' ? 'New place name…' : 'New hobby name…';
+  return `<div class="field pulse-card-field">
+    <label>${field.label}</label>
+    <select id="${id}" class="pulse-card-select">
+      <option value="">— pick existing —</option>
+      ${opts}
+      <option value="${PULSE_CARD_NEW}">+ Create new card…</option>
+    </select>
+    <input type="text" id="${id}_new" class="pulse-card-new hidden" placeholder="${esc(newPh)}">
+    <p class="field-hint pulse-card-hint hidden" id="${id}_hint">New card will be created when you drop this pulse.</p>
+  </div>`;
+}
+
+function readCardPickValue(fieldId){
+  const sel = document.getElementById(`pulseField_${fieldId}`);
+  const newEl = document.getElementById(`pulseField_${fieldId}_new`);
+  if(!sel) return '';
+  if(sel.value === PULSE_CARD_NEW) return newEl?.value?.trim() || '';
+  return sel.value?.trim() || '';
+}
+
+function ensureCharacterCard(name){
+  if(!name) return null;
+  ensureContentState();
+  let c = state.content.characters.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+  if(!c){
+    c = {
+      id: uid('char'),
+      name,
+      pokeCard: { level: 1 },
+      cardDescription: '',
+    };
+    state.content.characters.push(c);
+    LiveSync?.cardUnlocked('player', name);
+    saveState();
+  }
+  return c;
+}
+
+function ensurePlaceCard(name){
+  if(!name) return null;
+  ensureContentState();
+  let p = state.content.places.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+  if(!p){
+    p = {
+      id: uid('place'),
+      name,
+      unlocked: true,
+      placeCard: { level: 1 },
+    };
+    state.content.places.push(p);
+    if(!state.unlockedZones.includes(name)) state.unlockedZones.push(name);
+    LiveSync?.cardUnlocked('place', name);
+    saveState();
+  } else if(!p.unlocked){
+    p.unlocked = true;
+    if(!state.unlockedZones.includes(name)) state.unlockedZones.push(name);
+    saveState();
+  }
+  return p;
+}
+
 const PULSE_TYPE_DEFS = {
   note: { fields: [
     { id: 'title', label: 'Headline', type: 'text', placeholder: 'Short label for the rail' },
@@ -924,13 +1014,13 @@ const PULSE_TYPE_DEFS = {
     { id: 'body', label: 'Notes', type: 'textarea', rows: 3 },
   ]},
   person: { fields: [
-    { id: 'name', label: 'Who', type: 'text', required: true, placeholder: 'Name or handle' },
+    { id: 'name', label: 'Who', type: 'card_pick', entity: 'person', required: true },
     { id: 'context', label: 'Context', type: 'text', placeholder: 'How you met, relationship, vibe…' },
     { id: 'where', label: 'Where', type: 'text' },
     { id: 'body', label: 'Details', type: 'textarea', rows: 5, placeholder: 'Everything worth remembering' },
   ]},
   place: { fields: [
-    { id: 'name', label: 'Place', type: 'text', required: true },
+    { id: 'name', label: 'Place', type: 'card_pick', entity: 'place', required: true },
     { id: 'area', label: 'Area / address', type: 'text' },
     { id: 'body', label: 'Discovery notes', type: 'textarea', rows: 5, placeholder: 'What you found, why it matters' },
   ]},
@@ -1006,7 +1096,7 @@ const PULSE_TYPE_DEFS = {
     { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
   ]},
   hobby: { fields: [
-    { id: 'what', label: 'Hobby', type: 'text', required: true },
+    { id: 'what', label: 'Hobby', type: 'card_pick', entity: 'hobby', required: true },
     { id: 'hours', label: 'Hours', type: 'number', min: 0, step: 0.5 },
     { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
   ]},
@@ -1651,6 +1741,13 @@ function renderAbout(){
           ${isAdmin() ? `<div id="profileMoodPicker" class="profile-mood-edit"></div>` : ''}
         </div>`}
         ${isAdmin() ? `<div class="about-arrival-edit field"><label>Arrival date</label><input type="date" id="arrivalDateInput" value="${esc(getArrivalDate())}"><button type="button" class="btn" id="saveArrivalBtn">Save</button></div>` : ''}
+        ${`<div class="profile-console-wrap">
+          <label class="profile-console-label" for="profileConsoleInput">// console</label>
+          <div class="profile-console-row">
+            <span class="profile-console-prompt">&gt;</span>
+            <input type="text" class="profile-console-input" id="profileConsoleInput" placeholder=":)" autocomplete="off" spellcheck="false" aria-label="Profile console">
+          </div>
+        </div>`}
         ${`<button class="btn primary about-edit-btn edit-when-editing" id="editAboutBtn">Edit player card</button>`}
       </div>
     </div>
@@ -1721,6 +1818,24 @@ function renderAbout(){
     el.addEventListener('click', () => document.querySelector(`.node-btn[data-view="${el.dataset.goto}"]`)?.click());
   });
   bindFlipPlayerCards(spread);
+  spread.querySelector('#profileConsoleInput')?.addEventListener('keydown', e => {
+    if(e.key !== 'Enter') return;
+    const v = e.target.value.trim();
+    e.target.value = '';
+    if(v === ':)'){
+      unlockAdmin({ toast: true });
+      return;
+    }
+    if(v === ':('){
+      if(typeof OverloadLog !== 'undefined'){
+        if(typeof OverloadLog.triggerPageCrack === 'function'){
+          OverloadLog.triggerPageCrack(() => OverloadLog.showGlitchIntro());
+        } else {
+          OverloadLog.enterChannel();
+        }
+      }
+    }
+  });
   if(isAdmin()) mountMoodPicker('profileMoodPicker', getCurrentMood(), { name: 'profileMood', compact: true, onChange: id => { setCurrentMood(id); renderAbout(); renderHomeCheckIn(); } });
 }
 
@@ -1818,6 +1933,7 @@ const HomeCheckIn = {
     }
     root.innerHTML = def.fields.map(field => {
       const id = `pulseField_${field.id}`;
+      if(field.type === 'card_pick') return cardPickFieldHtml(field);
       if(field.type === 'textarea'){
         return `<div class="field"><label>${field.label}</label><textarea id="${id}" rows="${field.rows || 4}" placeholder="${esc(field.placeholder || '')}"></textarea></div>`;
       }
@@ -1840,6 +1956,19 @@ const HomeCheckIn = {
     def.fields.forEach(field => {
       const el = document.getElementById(`pulseField_${field.id}`);
       if(!el) return;
+      if(field.type === 'card_pick'){
+        const newEl = document.getElementById(`pulseField_${field.id}_new`);
+        const hint = document.getElementById(`pulseField_${field.id}_hint`);
+        const sync = () => {
+          const isNew = el.value === PULSE_CARD_NEW;
+          newEl?.classList.toggle('hidden', !isNew);
+          hint?.classList.toggle('hidden', !isNew);
+          if(!isNew) newEl && (newEl.value = '');
+        };
+        el.addEventListener('change', sync);
+        sync();
+        return;
+      }
       if(field.type === 'range'){
         const valEl = document.getElementById(`pulseField_${field.id}_val`);
         el.addEventListener('input', () => { if(valEl) valEl.textContent = el.value; });
@@ -1865,10 +1994,13 @@ const HomeCheckIn = {
     const data = {};
     if(!def) return data;
     def.fields.forEach(field => {
-      const el = document.getElementById(`pulseField_${field.id}`);
-      if(!el) return;
       if(field.type === 'photo') data.photo = this.pulsePhotoData;
-      else data[field.id] = el.value?.trim?.() ?? el.value;
+      else if(field.type === 'card_pick') data[field.id] = readCardPickValue(field.id);
+      else {
+        const el = document.getElementById(`pulseField_${field.id}`);
+        if(!el) return;
+        data[field.id] = el.value?.trim?.() ?? el.value;
+      }
     });
     return data;
   },
@@ -1879,6 +2011,12 @@ const HomeCheckIn = {
     for(const field of def.fields){
       if(!field.required) continue;
       if(field.type === 'photo' && !data.photo) return `Add a ${field.label.toLowerCase()}.`;
+      if(field.type === 'card_pick'){
+        const sel = document.getElementById(`pulseField_${field.id}`);
+        if(!sel?.value) return `Pick or create a ${field.label.toLowerCase()}.`;
+        if(sel.value === PULSE_CARD_NEW && !data[field.id]) return `Enter a name for the new ${field.label.toLowerCase()}.`;
+        continue;
+      }
       if(field.type !== 'photo' && !data[field.id]) return `Fill in ${field.label.toLowerCase()}.`;
     }
     return '';
@@ -1917,12 +2055,19 @@ const HomeCheckIn = {
     const metaKey = ensureStreamForDate(dateStr);
     const entry = normalizeEntry(state.entries[metaKey]);
     const patch = {};
-    if(this.pulseType === 'person' && data.name && !entry.people.includes(data.name)){
-      patch.people = [...entry.people, data.name];
+    if(this.pulseType === 'person' && data.name){
+      ensureCharacterCard(data.name);
+      if(!entry.people.includes(data.name)) patch.people = [...entry.people, data.name];
+      LiveSync?.playerMet(data.name);
     }
-    if(this.pulseType === 'place' && data.name && !entry.places.includes(data.name)){
-      patch.places = [...entry.places, data.name];
+    if(this.pulseType === 'place' && data.name){
+      ensurePlaceCard(data.name);
+      if(!entry.places.includes(data.name)) patch.places = [...entry.places, data.name];
       if(!state.unlockedZones.includes(data.name)) state.unlockedZones.push(data.name);
+      LiveSync?.placeVisited(data.name);
+    }
+    if(this.pulseType === 'hobby' && data.what){
+      LiveSync?.hobbyLogged(data.what, data.hours);
     }
     if(this.pulseType === 'mood' && data.mood) patch.mood = data.mood;
     if(this.pulseType === 'photo' && data.photo) patch.photos = [...entry.photos, data.photo];
@@ -1933,6 +2078,8 @@ const HomeCheckIn = {
     renderHomeCheckIn();
     renderLogCalendar();
     safeRender(renderAbout);
+    if(this.pulseType === 'person') renderCharacters();
+    if(this.pulseType === 'place') renderPlaces();
   },
 
   startClock(){
@@ -2145,7 +2292,7 @@ function renderHomeCheckIn(){
         <div class="live-pulse-head">
           <div>
             <h3 class="live-pulse-title">Drop a pulse</h3>
-            <p class="live-pulse-hint">Photos, moods, food, people, places, long messages — set date &amp; time when it didn't happen just now.</p>
+            <p class="live-pulse-hint">Person, place, and hobby pulses use your card library — pick existing or create new on the spot.</p>
           </div>
           <button type="button" class="btn primary" id="homeOpenPulse">+ Compose pulse</button>
         </div>
@@ -2377,6 +2524,7 @@ function saveSkillEditor(){
   renderSkillSkyline();
   renderAbout();
   renderHomeCheckIn();
+  if(typeof renderSkillCardDeck === 'function') renderSkillCardDeck();
 }
 
 function deleteSkillEditor(){
@@ -2396,6 +2544,7 @@ function deleteSkillEditor(){
   renderSkillSkyline();
   renderAbout();
   renderHomeCheckIn();
+  if(typeof renderSkillCardDeck === 'function') renderSkillCardDeck();
 }
 
 function renderSkillControls(){
@@ -3234,6 +3383,7 @@ function renderAll(){
     renderPlaces,
     renderCharacters,
     renderTierLegend,
+    renderSkillCardDeck,
     renderSkillSkyline,
     renderDramaDeck,
     renderPress,

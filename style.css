@@ -2031,6 +2031,40 @@ body.mind-channel-open .sidebar{opacity:0.35;filter:saturate(0.6);}
 .ol-classify-accept{margin-top:4px;}
 .pc-card-actions{margin:10px 0;padding-top:8px;border-top:1px dashed color-mix(in srgb,var(--pc-accent) 30%,transparent);}
 .pc-card-actions .btn{font-size:11px;width:100%;}
+.pulse-card-new{margin-top:8px;}
+.pulse-card-new.hidden{display:none!important;}
+.pulse-card-hint.hidden{display:none;}
+.pulse-card-select{width:100%;}
+
+.profile-console-wrap{
+  margin-top:14px;padding:12px 14px;
+  border:1px dashed color-mix(in srgb,var(--neon-cyan) 35%,var(--border-glass));
+  background:rgba(0,0,0,0.35);
+  font-family:var(--font-data);
+}
+.profile-console-label{display:block;font-size:9px;letter-spacing:0.16em;color:var(--neon-cyan);margin-bottom:8px;}
+.profile-console-row{display:flex;align-items:center;gap:8px;}
+.profile-console-prompt{color:var(--neon-pink);font-weight:700;}
+.profile-console-input{
+  flex:1;background:transparent;border:none;border-bottom:1px solid color-mix(in srgb,var(--neon-cyan) 40%,transparent);
+  color:var(--text-hi);font-family:var(--font-data);font-size:13px;padding:6px 4px;outline:none;
+}
+.profile-console-input:focus{border-bottom-color:var(--neon-cyan);box-shadow:0 2px 0 color-mix(in srgb,var(--neon-cyan) 30%,transparent);}
+
+.skill-card-deck{margin-bottom:20px;}
+.skc-front .skc-art{
+  display:flex;align-items:center;justify-content:center;min-height:120px;margin:8px 0;
+}
+.skc-glyph{
+  font-family:var(--font-display);font-size:56px;font-weight:800;
+  color:var(--pc-accent);text-shadow:0 0 20px color-mix(in srgb,var(--pc-accent) 45%,transparent);
+}
+.skc-tier-name{margin:0 0 4px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-mid);text-align:center;}
+.skc-hours{margin:0;font-family:var(--font-data);font-size:10px;color:var(--text-low);text-align:center;}
+.skc-hobbies{margin-top:10px;padding-top:8px;border-top:1px dashed color-mix(in srgb,var(--pc-accent) 25%,transparent);}
+.skc-hobbies-label{display:block;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-low);margin-bottom:4px;}
+.skc-hobbies p{margin:0;font-size:10px;line-height:1.4;color:var(--text-mid);}
+.skill-flip .skill-open-journey{width:100%;margin-top:10px;font-size:11px;}
 .ol-term-line.ol-line-divider{opacity:0.35;margin:6px 0;}
 .ol-term-line.ol-line-divider .ol-term-tag{color:var(--text-low);}
 .ol-term-line.ol-line-problem p{color:var(--neon-pink);font-weight:600;}

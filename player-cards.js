@@ -347,9 +347,6 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
     ${block('Resistance', pc.resistance?.name, pc.resistance?.effect)}
     ${row('Retreat', pc.retreatCost)}
     ${pc.quote ? `<div class="pc-quote">"${esc(pc.quote)}"</div>` : ''}
-    <div class="pc-card-actions">
-      <button type="button" class="btn card-meet-btn" data-meet-name="${esc(item.name)}">◎ Met up today</button>
-    </div>
     <div class="pc-admin-row edit-when-editing">
       <button type="button" class="btn flip-edit-btn">Edit</button>
       ${cardType !== 'player' && cardId ? `<button type="button" class="btn admin-delete flip-del-btn" data-del-type="${esc(cardType)}" data-del-id="${esc(cardId)}">Delete</button>` : ''}
@@ -396,15 +393,6 @@ function bindFlipPlayerCards(container){
       if(delBtn.dataset.delId && typeof deleteContentItem === 'function'){
         deleteContentItem(delBtn.dataset.delType, delBtn.dataset.delId);
       }
-      return;
-    }
-    const meetBtn = e.target.closest('.card-meet-btn');
-    if(meetBtn){
-      e.preventDefault();
-      e.stopPropagation();
-      if(typeof recordPlayerMeetup === 'function') recordPlayerMeetup(meetBtn.dataset.meetName);
-      meetBtn.textContent = '✓ logged';
-      meetBtn.disabled = true;
       return;
     }
     const visitBtn = e.target.closest('.card-visit-btn');

@@ -112,7 +112,7 @@
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span>Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span>Place Cards</span></button>
       <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span>Player Cards</span></button>
-      <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>Skill Towers</span></button>
+      <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span>Skill Cards</span></button>
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span>Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
@@ -222,7 +222,9 @@
     </section>
 
     <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
-      <h2 class="view-title sketch-title">Skill Towers</h2>
+      <h2 class="view-title sketch-title">Skill Cards</h2>
+      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Towers below are the skyline view.</p>
+      <div class="card-deck skill-card-deck" id="skillDeck"></div>
       <div class="tier-legend" id="tierLegend"></div>
       <div class="skill-skyline-wrap">
         <div class="skill-skyline" id="skillSkyline"></div>
@@ -481,7 +483,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
