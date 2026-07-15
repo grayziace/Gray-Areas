@@ -158,7 +158,7 @@ function buildSiteStateSource(){
     unlockedZones: state.unlockedZones || [],
     dramaState: state.dramaState || {},
     hiddenDramas: state.hiddenDramas || [],
-    overloadLogs: state.overloadLogs || [],
+    /* overloadLogs, privateBodyLog, privateVentLogs stay in localStorage only — never exported */
     currentMood: state.currentMood || '',
     moodCatalog: state.moodCatalog || [],
     viewerCharacters: state.viewerCharacters || [],

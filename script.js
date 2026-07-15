@@ -131,6 +131,8 @@ function defaultState(){
     calendarView: null,
     content: null,
     overloadLogs: [],
+    privateBodyLog: [],
+    privateVentLogs: [],
     currentMood: '',
     moodCatalog: [],
     viewerCharacters: [],
@@ -168,7 +170,7 @@ function mergeSiteStateFromFile(){
   if(s.unlockedZones) state.unlockedZones = s.unlockedZones;
   if(s.dramaState) state.dramaState = s.dramaState;
   if(s.hiddenDramas) state.hiddenDramas = s.hiddenDramas;
-  if(Array.isArray(s.overloadLogs)) state.overloadLogs = s.overloadLogs;
+  /* private vault: overloadLogs, privateBodyLog, privateVentLogs — localStorage only */
   if(s.currentMood) state.currentMood = s.currentMood;
   if(Array.isArray(s.moodCatalog)) state.moodCatalog = s.moodCatalog;
   if(Array.isArray(s.viewerCharacters)) state.viewerCharacters = s.viewerCharacters;

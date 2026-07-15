@@ -57,6 +57,42 @@ const OVERLOAD_EMOTIONS = [
   { id: 'melancholy', label: 'Melancholy', icon: '☾', neon: '#818cf8' },
 ];
 
+const OVERLOAD_TOPICS = [
+  { id: 'relationships', label: 'Relationships', neon: '#f472b6', hint: 'People, love, conflict, boundaries' },
+  { id: 'family', label: 'Family', neon: '#fb923c', hint: 'Parents, siblings, home history' },
+  { id: 'work', label: 'Work & life', neon: '#60a5fa', hint: 'Job, money, logistics, future' },
+  { id: 'health', label: 'Health & body', neon: '#4ade80', hint: 'Physical health — use Body log for numbers' },
+  { id: 'anxiety', label: 'Anxiety & overwhelm', neon: '#a78bfa', hint: 'Spirals, panic, too much at once' },
+  { id: 'grief', label: 'Grief & loss', neon: '#94a3b8', hint: 'Missing, endings, what was' },
+  { id: 'identity', label: 'Identity & self', neon: '#fcd34d', hint: 'Who you are, shame, becoming' },
+  { id: 'random', label: 'Staff / random', neon: '#38bdf8', hint: 'Unsorted dump — no fix required' },
+];
+
+const OVERLOAD_CHANNELS = {
+  solve: {
+    id: 'solve',
+    label: 'Problem solver',
+    icon: '⚙',
+    desc: 'Rant → gentle logic parse → one small command. For threads you want to work through.',
+  },
+  vent: {
+    id: 'vent',
+    label: 'Staff / vent',
+    icon: '◎',
+    desc: 'Just get it out. Archive when empty. No parse, no homework.',
+  },
+  body: {
+    id: 'body',
+    label: 'Body & private log',
+    icon: '◈',
+    desc: 'Weight, calories, body-checking notes. Never leaves this vault.',
+  },
+};
+
+function overloadTopic(id){
+  return OVERLOAD_TOPICS.find(t => t.id === id) || OVERLOAD_TOPICS.find(t => t.id === 'random');
+}
+
 const OVERLOAD_PROMPTS = {
   overwhelmed: 'Identify the single highest-priority task. Decompose into two executable subtasks.',
   anxious: 'State worst-case scenario. Assign probability percentage. State best-case. Compare.',
@@ -490,6 +526,9 @@ const OverloadLog = {
   parseCurrentLineEl: null,
   _parseBoot: false,
   embedded: false,
+  archiveFilter: 'all',
+  readSource: 'solve',
+  bodyEditingId: null,
 
   getRenderRoot(){
     if(this.embedded){
@@ -501,9 +540,9 @@ const OverloadLog = {
             <header class="vlog-overload-head">
               <span class="vlog-overload-dot" aria-hidden="true"></span>
               <div>
-                <p class="vlog-overload-kicker">Player Gray only · safe offload zone</p>
+                <p class="vlog-overload-kicker">Gray only · private vault · never on Coming To You Live</p>
                 <h3 class="vlog-overload-title">System Overload</h3>
-                <p class="vlog-overload-sub">When you're not feeling well — dump the buffer here. No performance required. One thread at a time.</p>
+                <p class="vlog-overload-sub">Your private space — problem solver, staff vent, body log. Rants and tracking stay here. Nothing broadcasts to viewers.</p>
               </div>
             </header>
             <div id="vlogOverloadContent" class="vlog-overload-content mind-channel-body sys-broken"></div>
@@ -532,6 +571,8 @@ const OverloadLog = {
       document.getElementById('vlogOverloadHost')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   },
+
+  emptyDraft(mode = 'solve'){
     return {
       date: typeof todayKey === 'function' ? todayKey() : '',
       title: '',
@@ -540,6 +581,8 @@ const OverloadLog = {
       transcript: [],
       diagnostics: {},
       command: '',
+      mode,
+      category: '',
     };
   },
 
@@ -640,9 +683,45 @@ const OverloadLog = {
     if(!Array.isArray(state.overloadLogs)) state.overloadLogs = [];
   },
 
+  ensureBodyLog(){
+    if(!Array.isArray(state.privateBodyLog)) state.privateBodyLog = [];
+  },
+
+  ensureVentLogs(){
+    if(!Array.isArray(state.privateVentLogs)) state.privateVentLogs = [];
+    const legacy = (state.overloadLogs || []).filter(l => l.mode === 'vent');
+    if(legacy.length){
+      state.privateVentLogs.push(...legacy);
+      state.overloadLogs = state.overloadLogs.filter(l => l.mode !== 'vent');
+      saveState();
+    }
+  },
+
   sortedLogs(){
     this.ensureLogs();
     return [...state.overloadLogs].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  sortedVentLogs(){
+    this.ensureVentLogs();
+    return [...state.privateVentLogs].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  sortedBodyLog(){
+    this.ensureBodyLog();
+    return [...state.privateBodyLog].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  renderCategoryChips(selected, inputName = 'olCategory'){
+    return `<div class="ol-topic-matrix">${OVERLOAD_TOPICS.map(t => `
+      <label class="ol-topic-chip" style="--olt-neon:${t.neon}" title="${esc(t.hint)}">
+        <input type="radio" name="${inputName}" class="ol-topic-radio" value="${t.id}" ${selected === t.id ? 'checked' : ''}>
+        <span class="ol-topic-label">${t.label}</span>
+      </label>`).join('')}</div>`;
+  },
+
+  getSelectedCategory(root){
+    return root?.querySelector('.ol-topic-radio:checked')?.value || '';
   },
 
   spawnMindGlitchBars(){
@@ -702,18 +781,31 @@ const OverloadLog = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
-  newLog(){
+  newLog(mode = 'solve'){
     this.view = 'session';
     this.editingId = null;
     this.sessionPhase = 'emotions';
-    this.sessionDraft = this.emptyDraft();
+    this.sessionDraft = this.emptyDraft(mode);
     this.diagnosticQueue = [];
     this.diagnosticIndex = 0;
     this.render();
   },
 
-  editLog(id){
-    const log = state.overloadLogs.find(l => l.id === id);
+  openBodyLog(){
+    this.view = 'body';
+    this.editingId = null;
+    this.sessionDraft = null;
+    this.render();
+  },
+
+  editLog(id, source = 'solve'){
+    let log;
+    if(source === 'vent'){
+      this.ensureVentLogs();
+      log = state.privateVentLogs.find(l => l.id === id);
+    } else {
+      log = state.overloadLogs.find(l => l.id === id);
+    }
     if(!log) return;
     this.view = 'session';
     this.editingId = id;
@@ -726,25 +818,38 @@ const OverloadLog = {
       transcript: [...(log.transcript || [])],
       diagnostics: { ...(log.diagnostics || {}) },
       command: log.command || '',
+      mode: log.mode || source,
+      category: log.category || '',
     };
     this.render();
   },
 
-  viewLog(id){
+  viewLog(id, source = 'solve'){
     this.view = 'read';
     this.editingId = id;
+    this.readSource = source;
     this.render();
   },
 
-  deleteLog(id){
-    if(!confirm('Delete this overload log permanently?')) return;
-    this.ensureLogs();
-    state.overloadLogs = state.overloadLogs.filter(l => l.id !== id);
+  deleteLog(id, source = 'solve'){
+    const label = source === 'vent' ? 'vent entry' : source === 'body' ? 'body log entry' : 'overload log';
+    if(!confirm(`Delete this ${label} permanently?`)) return;
+    if(source === 'vent'){
+      this.ensureVentLogs();
+      state.privateVentLogs = state.privateVentLogs.filter(l => l.id !== id);
+    } else if(source === 'body'){
+      this.ensureBodyLog();
+      state.privateBodyLog = state.privateBodyLog.filter(l => l.id !== id);
+    } else {
+      this.ensureLogs();
+      state.overloadLogs = state.overloadLogs.filter(l => l.id !== id);
+    }
     saveState();
-    this.view = 'hub';
-    this.editingId = null;
+    if(this.editingId === id){
+      this.view = 'hub';
+      this.editingId = null;
+    }
     this.render();
-    if(typeof renderAbout === 'function') renderAbout();
   },
 
   getSelectedEmotions(){
@@ -754,11 +859,14 @@ const OverloadLog = {
   runAutoParse(){
     const emotions = this.getSelectedEmotions();
     const rant = document.getElementById('olRant')?.value || '';
-    if(!emotions.length){ alert('Select at least one emotion flag.'); return; }
+    const category = this.getSelectedCategory(document.getElementById('mindContent') || document.getElementById('vlogOverloadContent'));
+    if(!category){ alert('Pick a category first — relationships, staff, health, etc.'); return; }
+    if(!emotions.length && (this.sessionDraft?.mode || 'solve') === 'solve'){ alert('Select at least one emotion flag.'); return; }
     if(!rant.trim()){ alert('Dump something in the rant buffer first.'); return; }
     if(!this.sessionDraft) this.sessionDraft = this.emptyDraft();
     this.sessionDraft.emotions = emotions;
     this.sessionDraft.rant = rant;
+    this.sessionDraft.category = category;
     this.sessionDraft.date = document.getElementById('olDate')?.value || this.sessionDraft.date;
     this.sessionDraft.title = document.getElementById('olTitle')?.value?.trim() || this.sessionDraft.title || ('overload ' + (this.sessionDraft.date || todayKey()));
 
@@ -1050,10 +1158,12 @@ const OverloadLog = {
   saveSession(){
     const command = document.getElementById('olCommand')?.value?.trim() || this.sessionDraft?.suggestedCommand || '';
     if(!command){ alert('Issue one terminal command before closing the session.'); return; }
-    if(!this.sessionDraft) this.sessionDraft = this.emptyDraft();
+    if(!this.sessionDraft) this.sessionDraft = this.emptyDraft('solve');
     this.sessionDraft.command = command;
+    const category = this.sessionDraft.category || this.getSelectedCategory(document.getElementById('mindContent') || document.getElementById('vlogOverloadContent'));
     if(!this.sessionDraft.title?.trim()){
-      this.sessionDraft.title = 'overload ' + (this.sessionDraft.date || todayKey());
+      const topic = overloadTopic(category);
+      this.sessionDraft.title = (topic?.label || 'overload') + ' · ' + (this.sessionDraft.date || todayKey());
     }
 
     this.ensureLogs();
@@ -1067,6 +1177,8 @@ const OverloadLog = {
       diagnostics: this.sessionDraft.diagnostics || {},
       solutions: this.sessionDraft.solutions || [],
       command,
+      mode: 'solve',
+      category: category || 'random',
       createdAt: this.editingId
         ? (state.overloadLogs.find(l => l.id === this.editingId)?.createdAt || new Date().toISOString())
         : new Date().toISOString(),
@@ -1080,13 +1192,111 @@ const OverloadLog = {
 
     saveState();
     if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(12, 'overload_session');
-    if(typeof LiveSync !== 'undefined') LiveSync.overloadArchived(payload.title, payload.emotions);
     this.view = 'hub';
     this.editingId = null;
     this.sessionDraft = null;
     this.sessionPhase = 'emotions';
     this.render();
     if(typeof renderAbout === 'function') renderAbout();
+  },
+
+  saveVent(){
+    const emotions = this.getSelectedEmotions();
+    const rant = document.getElementById('olRant')?.value?.trim() || '';
+    const category = this.getSelectedCategory(document.getElementById('mindContent') || document.getElementById('vlogOverloadContent'));
+    if(!category){ alert('Pick a category — where does this rant live?'); return; }
+    if(!rant){ alert('Write something first. Even a single line counts.'); return; }
+    if(!this.sessionDraft) this.sessionDraft = this.emptyDraft('vent');
+    this.sessionDraft.emotions = emotions;
+    this.sessionDraft.rant = rant;
+    this.sessionDraft.category = category;
+    this.sessionDraft.date = document.getElementById('olDate')?.value || this.sessionDraft.date || todayKey();
+    this.sessionDraft.title = document.getElementById('olTitle')?.value?.trim()
+      || this.sessionDraft.title
+      || `${overloadTopic(category).label} · ${this.sessionDraft.date}`;
+
+    this.ensureVentLogs();
+    const payload = {
+      id: this.editingId || ('vent-' + Date.now()),
+      date: this.sessionDraft.date,
+      title: this.sessionDraft.title.trim(),
+      emotions,
+      rant,
+      mode: 'vent',
+      category,
+      createdAt: this.editingId
+        ? (state.privateVentLogs.find(l => l.id === this.editingId)?.createdAt || new Date().toISOString())
+        : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const idx = state.privateVentLogs.findIndex(l => l.id === payload.id);
+    const isNew = idx < 0;
+    if(idx >= 0) state.privateVentLogs[idx] = payload;
+    else state.privateVentLogs.push(payload);
+
+    saveState();
+    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(8, 'vent_archived');
+    this.view = 'hub';
+    this.editingId = null;
+    this.sessionDraft = null;
+    this.render();
+  },
+
+  convertVentToSolve(){
+    if(!this.sessionDraft) this.sessionDraft = this.emptyDraft('vent');
+    this.sessionDraft.mode = 'solve';
+    this.sessionDraft.rant = document.getElementById('olRant')?.value || this.sessionDraft.rant || '';
+    this.sessionDraft.emotions = this.getSelectedEmotions();
+    this.sessionDraft.category = this.getSelectedCategory(document.getElementById('mindContent') || document.getElementById('vlogOverloadContent')) || this.sessionDraft.category;
+    if(!this.sessionDraft.rant.trim()){ alert('Write your rant first.'); return; }
+    if(!this.sessionDraft.category){ alert('Pick a category first.'); return; }
+    if(this.editingId?.startsWith('vent-')) this.editingId = null;
+    this.runAutoParse();
+  },
+
+  saveBodyEntry(){
+    const date = document.getElementById('olBodyDate')?.value || todayKey();
+    const weightRaw = document.getElementById('olBodyWeight')?.value?.trim();
+    const caloriesRaw = document.getElementById('olBodyCalories')?.value?.trim();
+    const bodyCheck = document.getElementById('olBodyCheck')?.value?.trim() || '';
+    const note = document.getElementById('olBodyNote')?.value?.trim() || '';
+    const weight = weightRaw ? parseFloat(weightRaw) : null;
+    const calories = caloriesRaw ? parseInt(caloriesRaw, 10) : null;
+    if(weight == null && calories == null && !bodyCheck && !note){
+      alert('Add at least one field — weight, calories, body-check note, or general note.');
+      return;
+    }
+
+    this.ensureBodyLog();
+    const id = this.bodyEditingId || ('body-' + Date.now());
+    const existing = state.privateBodyLog.find(e => e.id === id);
+    const payload = {
+      id,
+      date,
+      weight: Number.isFinite(weight) ? weight : null,
+      calories: Number.isFinite(calories) ? calories : null,
+      bodyCheck,
+      note,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const idx = state.privateBodyLog.findIndex(e => e.id === id);
+    const isNew = idx < 0;
+    if(idx >= 0) state.privateBodyLog[idx] = payload;
+    else state.privateBodyLog.push(payload);
+
+    saveState();
+    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(5, 'body_log');
+    this.bodyEditingId = null;
+    this.render();
+  },
+
+  editBodyEntry(id){
+    this.bodyEditingId = id;
+    this.view = 'body';
+    this.render();
   },
 
   renderEmotionChecks(selected){
@@ -1099,80 +1309,231 @@ const OverloadLog = {
   },
 
   renderHub(){
-    const logs = this.sortedLogs();
+    const solveLogs = this.sortedLogs();
+    const ventLogs = this.sortedVentLogs();
+    const bodyLogs = this.sortedBodyLog();
+    const filter = this.archiveFilter || 'all';
+    const channelCards = Object.values(OVERLOAD_CHANNELS).map(ch => `
+      <button type="button" class="ol-channel-card sys-panel" data-ol-channel="${ch.id}">
+        <span class="ol-channel-icon" aria-hidden="true">${ch.icon}</span>
+        <div>
+          <h4>${ch.label}</h4>
+          <p>${ch.desc}</p>
+        </div>
+      </button>`).join('');
+
+    const renderArchiveCard = (log, source) => {
+      const topic = overloadTopic(log.category);
+      const emTags = (log.emotions || []).slice(0, 4).map(id => {
+        const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
+        return em ? `<span class="ol-tag" style="--olt-neon:${em.neon}"><span class="ol-tag-glyph">${em.icon}</span>${em.label}</span>` : '';
+      }).join('');
+      const modeBadge = source === 'vent'
+        ? '<span class="ol-mode-badge vent">staff</span>'
+        : '<span class="ol-mode-badge solve">solver</span>';
+      return `<article class="ol-archive-card sys-panel">
+        <div class="ol-card-meta">
+          <time>${esc(log.date || '')}</time>
+          ${modeBadge}
+          <span class="ol-card-id">${esc(log.id.slice(-6))}</span>
+        </div>
+        <span class="ol-topic-pill" style="--olt-neon:${topic.neon}">${esc(topic.label)}</span>
+        <h4>${esc(log.title || 'UNTITLED')}</h4>
+        <div class="ol-card-tags">${emTags}</div>
+        <p class="ol-card-snippet">${esc((log.rant || '').slice(0, 200))}${(log.rant || '').length > 200 ? '…' : ''}</p>
+        ${log.command ? `<p class="ol-card-cmd">&gt; ${esc(log.command)}</p>` : ''}
+        <div class="ol-card-actions">
+          <button type="button" class="btn ol-open-btn" data-ol-open="${esc(log.id)}" data-ol-source="${source}">OPEN</button>
+          <button type="button" class="btn ol-edit-btn" data-ol-edit="${esc(log.id)}" data-ol-source="${source}">EDIT</button>
+        </div>
+      </article>`;
+    };
+
+    let archiveHtml = '';
+    if(filter === 'solve'){
+      archiveHtml = solveLogs.length
+        ? solveLogs.map(l => renderArchiveCard(l, 'solve')).join('')
+        : '<p class="ol-empty sys-flicker">// no problem-solver sessions yet</p>';
+    } else if(filter === 'vent'){
+      archiveHtml = ventLogs.length
+        ? ventLogs.map(l => renderArchiveCard(l, 'vent')).join('')
+        : '<p class="ol-empty sys-flicker">// no staff vents archived yet — just write and save</p>';
+    } else if(filter === 'body'){
+      archiveHtml = bodyLogs.length
+        ? bodyLogs.map(e => `
+          <article class="ol-archive-card sys-panel ol-body-card">
+            <div class="ol-card-meta"><time>${esc(e.date)}</time></div>
+            <div class="ol-body-stats">
+              ${e.weight != null ? `<span><strong>${e.weight}</strong> kg</span>` : ''}
+              ${e.calories != null ? `<span><strong>${e.calories}</strong> kcal</span>` : ''}
+            </div>
+            ${e.bodyCheck ? `<p class="ol-card-snippet">${esc(e.bodyCheck.slice(0, 160))}${e.bodyCheck.length > 160 ? '…' : ''}</p>` : ''}
+            ${e.note ? `<p class="ol-card-note">${esc(e.note)}</p>` : ''}
+            <div class="ol-card-actions">
+              <button type="button" class="btn ol-edit-btn" data-ol-body-edit="${esc(e.id)}">EDIT</button>
+              <button type="button" class="btn ol-del-btn" data-ol-body-del="${esc(e.id)}">DELETE</button>
+            </div>
+          </article>`).join('')
+        : '<p class="ol-empty sys-flicker">// body log empty — track weight, calories, body-checking here</p>';
+    } else {
+      const combined = [
+        ...solveLogs.map(l => ({ log: l, source: 'solve' })),
+        ...ventLogs.map(l => ({ log: l, source: 'vent' })),
+      ].sort((a, b) => (b.log.date || '').localeCompare(a.log.date || '') || (b.log.createdAt || '').localeCompare(a.log.createdAt || ''));
+      archiveHtml = combined.length
+        ? combined.map(({ log, source }) => renderArchiveCard(log, source)).join('')
+        : '<p class="ol-empty sys-flicker">// vault empty — pick a channel above</p>';
+    }
+
     return `
-      <div class="mind-terminal-layout">
-        <aside class="mind-side-panel">
-          <div class="mind-protocol-card sys-panel sys-corrupt">
-            <div class="mind-panel-head"><span class="mind-panel-id">0x7F</span><h3>OFFLOAD_PROTOCOL</h3></div>
-            <ol class="mind-protocol-steps">
-              <li><span>01</span> FLAG emotions</li>
-              <li><span>02</span> RANT until empty</li>
-              <li><span>03</span> LOGIC parse (one thread at a time)</li>
-              <li><span>04</span> TERMINAL command</li>
-            </ol>
+      <div class="ol-vault-layout">
+        <div class="ol-privacy-banner sys-panel">
+          <span class="ol-privacy-lock" aria-hidden="true">◈</span>
+          <div>
+            <strong>Gray-only private vault</strong>
+            <p>Staff vents and body logs never sync to the site or Coming To You Live. Problem-solver sessions stay in your archive only.</p>
           </div>
-          <div class="mind-archive-stats sys-flicker">
-            <div><strong>${logs.length}</strong><span>archived sessions</span></div>
-            <div><strong>∞</strong><span>rant capacity</span></div>
-          </div>
-        </aside>
+        </div>
+        <div class="ol-channel-grid">${channelCards}</div>
         <main class="mind-main-panel sys-panel">
           <header class="ol-header">
             <div>
-              <p class="ol-kicker sys-flicker">// buffer_archive · persistent</p>
-              <h3 class="ol-title">SESSION LOG</h3>
+              <p class="ol-kicker sys-flicker">// private archive · local</p>
+              <h3 class="ol-title">YOUR VAULT</h3>
             </div>
-            <button type="button" class="btn ol-btn-new" id="olNewBtn">+ NEW SESSION</button>
+            <div class="ol-filter-tabs">
+              <button type="button" class="ol-filter-tab ${filter === 'all' ? 'active' : ''}" data-ol-filter="all">All</button>
+              <button type="button" class="ol-filter-tab ${filter === 'solve' ? 'active' : ''}" data-ol-filter="solve">Solver</button>
+              <button type="button" class="ol-filter-tab ${filter === 'vent' ? 'active' : ''}" data-ol-filter="vent">Staff</button>
+              <button type="button" class="ol-filter-tab ${filter === 'body' ? 'active' : ''}" data-ol-filter="body">Body</button>
+            </div>
           </header>
-          <div class="ol-archive-grid">
-            ${logs.length ? logs.map(log => {
-              const emTags = (log.emotions || []).slice(0, 6).map(id => {
-                const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
-                return em ? `<span class="ol-tag" style="--olt-neon:${em.neon}"><span class="ol-tag-glyph">${em.icon}</span>${em.label}</span>` : '';
-              }).join('');
-              const more = (log.emotions || []).length > 6 ? `<span class="ol-tag-more">+${log.emotions.length - 6}</span>` : '';
-              return `<article class="ol-archive-card sys-panel">
-                <div class="ol-card-meta">
-                  <time>${esc(log.date || '')}</time>
-                  <span class="ol-card-id">${esc(log.id.slice(-6))}</span>
-                </div>
-                <h4>${esc(log.title || 'UNTITLED')}</h4>
-                <div class="ol-card-tags">${emTags}${more}</div>
-                <p class="ol-card-snippet">${esc((log.rant || '').slice(0, 200))}${(log.rant || '').length > 200 ? '…' : ''}</p>
-                ${log.command ? `<p class="ol-card-cmd">&gt; ${esc(log.command)}</p>` : ''}
-                <div class="ol-card-actions">
-                  <button type="button" class="btn ol-open-btn" data-ol-open="${esc(log.id)}">OPEN</button>
-                  <button type="button" class="btn ol-edit-btn" data-ol-edit="${esc(log.id)}">EDIT</button>
-                </div>
-              </article>`;
-            }).join('') : '<p class="ol-empty sys-flicker">// no sessions archived — initiate when buffer overflows</p>'}
+          <div class="mind-archive-stats sys-flicker ol-vault-stats">
+            <div><strong>${solveLogs.length}</strong><span>solver</span></div>
+            <div><strong>${ventLogs.length}</strong><span>staff vents</span></div>
+            <div><strong>${bodyLogs.length}</strong><span>body entries</span></div>
           </div>
+          <div class="ol-archive-grid">${archiveHtml}</div>
         </main>
+      </div>`;
+  },
+
+  renderBody(){
+    const entries = this.sortedBodyLog();
+    const editing = this.bodyEditingId ? entries.find(e => e.id === this.bodyEditingId) : null;
+    const weights = entries.filter(e => e.weight != null).slice(0, 14);
+    const maxW = weights.length ? Math.max(...weights.map(e => e.weight)) : 0;
+    const minW = weights.length ? Math.min(...weights.map(e => e.weight)) : 0;
+    const range = maxW - minW || 1;
+    const chartBars = [...weights].reverse().map(e => {
+      const pct = Math.round(((e.weight - minW) / range) * 100);
+      return `<span class="ol-weight-bar" style="--h:${Math.max(8, pct)}%" title="${esc(e.date)}: ${e.weight} kg"></span>`;
+    }).join('');
+
+    return `
+      <div class="ol-body-layout">
+        <header class="ol-header">
+          <div>
+            <p class="ol-kicker sys-flicker">// body & private log · never exported</p>
+            <h3 class="ol-title">BODY LOG</h3>
+            <p class="ol-sub">Weight, calories, body-checking — for your journey only. Stays on this device.</p>
+          </div>
+          <button type="button" class="btn" id="olBackHub">← VAULT</button>
+        </header>
+        ${weights.length > 1 ? `<div class="ol-weight-chart sys-panel" aria-label="Recent weight trend">${chartBars}</div>` : ''}
+        <section class="ol-panel sys-panel">
+          <header class="ol-panel-head"><span>◈</span><h4>${editing ? 'EDIT ENTRY' : 'NEW ENTRY'}</h4></header>
+          <div class="ol-meta-row">
+            <div class="field"><label>DATE</label><input type="date" id="olBodyDate" class="sys-input" value="${esc(editing?.date || todayKey())}"></div>
+            <div class="field"><label>WEIGHT (kg)</label><input type="number" step="0.1" min="0" id="olBodyWeight" class="sys-input" value="${editing?.weight != null ? editing.weight : ''}" placeholder="optional"></div>
+            <div class="field"><label>CALORIES</label><input type="number" min="0" id="olBodyCalories" class="sys-input" value="${editing?.calories != null ? editing.calories : ''}" placeholder="optional"></div>
+          </div>
+          <div class="field"><label>BODY CHECKING</label><textarea id="olBodyCheck" class="sys-input ol-rant" rows="5" placeholder="Mirror checks, measurements, urges, what you noticed…">${esc(editing?.bodyCheck || '')}</textarea></div>
+          <div class="field"><label>NOTE</label><textarea id="olBodyNote" class="sys-input" rows="3" placeholder="Anything else — meals, sleep, how you felt…">${esc(editing?.note || '')}</textarea></div>
+          <div class="ol-rant-actions">
+            ${editing ? `<button type="button" class="btn" id="olBodyCancelEdit">CANCEL</button>` : ''}
+            <button type="button" class="btn ol-btn-finished" id="olSaveBody">${editing ? 'UPDATE' : 'SAVE'} ENTRY</button>
+          </div>
+        </section>
+        <section class="ol-panel sys-panel">
+          <header class="ol-panel-head"><span>◎</span><h4>HISTORY</h4></header>
+          <div class="ol-body-history">
+            ${entries.length ? entries.map(e => `
+              <article class="ol-body-row">
+                <time>${esc(e.date)}</time>
+                <div class="ol-body-row-stats">
+                  ${e.weight != null ? `<span>${e.weight} kg</span>` : ''}
+                  ${e.calories != null ? `<span>${e.calories} kcal</span>` : ''}
+                </div>
+                ${e.bodyCheck ? `<p>${esc(e.bodyCheck.slice(0, 120))}${e.bodyCheck.length > 120 ? '…' : ''}</p>` : ''}
+                <div class="ol-card-actions">
+                  <button type="button" class="btn ol-edit-btn" data-ol-body-edit="${esc(e.id)}">EDIT</button>
+                  <button type="button" class="btn ol-del-btn" data-ol-body-del="${esc(e.id)}">DELETE</button>
+                </div>
+              </article>`).join('') : '<p class="ol-empty">No entries yet.</p>'}
+          </div>
+        </section>
+      </div>`;
+  },
+
+  renderVentSession(draft){
+    return `
+      <div class="mind-session-layout vent">
+        <div class="mind-session-progress vent">
+          <span class="active">CATEGORY</span>
+          <span class="active">VENT</span>
+        </div>
+        <div class="ol-session-grid">
+          <section class="ol-panel sys-panel">
+            <header class="ol-panel-head"><span>◎</span><h4>STAFF / VENT</h4></header>
+            <p class="field-hint">No parse required. Pick where this lives, write it out, archive when done.</p>
+            <div class="field"><label>CATEGORY</label>${this.renderCategoryChips(draft.category)}</div>
+            <p class="field-hint">Emotions optional for staff vents.</p>
+            <div id="olEmotionGrid">${this.renderEmotionChecks(draft.emotions)}</div>
+          </section>
+          <section class="ol-panel sys-panel ol-rant-panel">
+            <header class="ol-panel-head"><span>02</span><h4>GET IT OUT</h4></header>
+            <div class="ol-meta-row">
+              <div class="field"><label>DATE</label><input type="date" id="olDate" class="sys-input" value="${esc(draft.date || todayKey())}"></div>
+              <div class="field"><label>LABEL</label><input type="text" id="olTitle" class="sys-input" value="${esc(draft.title)}" placeholder="optional"></div>
+            </div>
+            <textarea id="olRant" class="ol-rant sys-input" rows="18" placeholder="Relationships, family, random spiral — no structure needed. Just empty the buffer.">${esc(draft.rant)}</textarea>
+            <div class="ol-rant-actions">
+              <button type="button" class="btn" id="olBackHub">← VAULT</button>
+              <button type="button" class="btn" id="olVentToSolve">WORK THROUGH WITH LOGIC →</button>
+              <button type="button" class="btn ol-btn-finished" id="olSaveVent">■ ARCHIVE VENT</button>
+            </div>
+          </section>
+        </div>
       </div>`;
   },
 
   renderSession(){
     const draft = this.sessionDraft || this.emptyDraft();
+    if(draft.mode === 'vent') return this.renderVentSession(draft);
     if(this.sessionPhase === 'parse') return this.renderParse(draft);
     if(this.sessionPhase === 'command') return this.renderCommand(draft);
 
     return `
       <div class="mind-session-layout">
         <div class="mind-session-progress">
-          <span class="active">01 FLAGS</span>
-          <span class="active">02 RANT</span>
-          <span>03 PARSE</span>
-          <span>04 CMD</span>
+          <span class="active">01 TOPIC</span>
+          <span class="active">02 FLAGS</span>
+          <span class="active">03 RANT</span>
+          <span>04 PARSE</span>
+          <span>05 CMD</span>
         </div>
         <div class="ol-session-grid">
           <section class="ol-panel sys-panel">
-            <header class="ol-panel-head"><span>01</span><h4>EMOTION FLAGS</h4></header>
-            <p class="field-hint">Select all active signals. No limit.</p>
+            <header class="ol-panel-head"><span>01</span><h4>CATEGORY</h4></header>
+            <p class="field-hint">What is this thread about?</p>
+            ${this.renderCategoryChips(draft.category)}
+            <header class="ol-panel-head ol-panel-sub"><span>02</span><h4>EMOTION FLAGS</h4></header>
+            <p class="field-hint">Select all active signals.</p>
             <div id="olEmotionGrid">${this.renderEmotionChecks(draft.emotions)}</div>
           </section>
           <section class="ol-panel sys-panel ol-rant-panel">
-            <header class="ol-panel-head"><span>02</span><h4>RANT BUFFER</h4></header>
+            <header class="ol-panel-head"><span>03</span><h4>RANT BUFFER</h4></header>
             <p class="field-hint">Unfiltered dump. Keep going until empty.</p>
             <div class="ol-meta-row">
               <div class="field"><label>DATE</label><input type="date" id="olDate" class="sys-input" value="${esc(draft.date || todayKey())}"></div>
@@ -1180,7 +1541,7 @@ const OverloadLog = {
             </div>
             <textarea id="olRant" class="ol-rant sys-input" rows="18" placeholder="Type everything. Do not stop for grammar, logic, or shame.">${esc(draft.rant)}</textarea>
             <div class="ol-rant-actions">
-              <button type="button" class="btn" id="olBackHub">← ARCHIVE</button>
+              <button type="button" class="btn" id="olBackHub">← VAULT</button>
               <button type="button" class="btn ol-btn-finished" id="olFinishedRant">■ FINISHED RANT — RUN PARSE</button>
             </div>
           </section>
@@ -1244,8 +1605,16 @@ const OverloadLog = {
   },
 
   renderRead(){
-    const log = state.overloadLogs.find(l => l.id === this.editingId);
+    const source = this.readSource || 'solve';
+    let log;
+    if(source === 'vent'){
+      this.ensureVentLogs();
+      log = state.privateVentLogs.find(l => l.id === this.editingId);
+    } else {
+      log = state.overloadLogs.find(l => l.id === this.editingId);
+    }
     if(!log) return this.renderHub();
+    const topic = overloadTopic(log.category);
     const emTags = (log.emotions || []).map(id => {
       const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
       return em ? `<span class="ol-tag" style="--olt-neon:${em.neon}"><span class="ol-tag-glyph">${em.icon}</span>${em.label}</span>` : '';
@@ -1259,15 +1628,16 @@ const OverloadLog = {
       const em = OVERLOAD_EMOTIONS.find(e => e.id === id);
       return `<div class="ol-read-prompt sys-panel"><div class="ol-read-prompt-label">${esc((em?.label || id).toUpperCase())}</div><p>${esc(val)}</p></div>`;
     }).join('');
+    const modeLabel = source === 'vent' ? 'staff vent' : 'problem solver';
     return `
       <div class="mind-read-layout sys-panel">
         <header class="ol-header">
           <div>
-            <p class="ol-kicker sys-flicker">// session_read · ${esc(log.id.slice(-8))}</p>
+            <p class="ol-kicker sys-flicker">// ${modeLabel} · ${esc(log.id.slice(-8))}</p>
             <h3 class="ol-title">${esc(log.title)}</h3>
-            <p class="ol-sub">${esc(log.date || '')}</p>
+            <p class="ol-sub">${esc(log.date || '')} · <span class="ol-topic-pill inline" style="--olt-neon:${topic.neon}">${esc(topic.label)}</span></p>
           </div>
-          <button type="button" class="btn" id="olBackHub">← ARCHIVE</button>
+          <button type="button" class="btn" id="olBackHub">← VAULT</button>
         </header>
         <div class="ol-card-tags">${emTags}</div>
         <section class="ol-section sys-panel"><h4>RANT BUFFER</h4><pre class="ol-read-rant">${esc(log.rant || '')}</pre></section>
@@ -1275,8 +1645,8 @@ const OverloadLog = {
         ${legacyPrompts ? `<section class="ol-section"><h4>LEGACY FLAGS</h4>${legacyPrompts}</section>` : ''}
         ${log.command ? `<section class="ol-section sys-panel"><h4>TERMINAL COMMAND</h4><p class="ol-read-cmd">&gt; ${esc(log.command)}</p></section>` : ''}
         <div class="modal-actions">
-          <button type="button" class="btn" id="olEditCurrent">EDIT SESSION</button>
-          <button type="button" class="btn ol-del-btn" data-ol-del="${esc(log.id)}">DELETE</button>
+          <button type="button" class="btn" id="olEditCurrent">EDIT</button>
+          <button type="button" class="btn ol-del-btn" data-ol-del="${esc(log.id)}" data-ol-source="${source}">DELETE</button>
         </div>
       </div>`;
   },
@@ -1285,13 +1655,27 @@ const OverloadLog = {
     const root = this.getRenderRoot();
     if(!root) return;
     if(this.view === 'session' && this.sessionPhase === 'parse') this.stopParseTypewriter();
-    if(this.view === 'session') root.innerHTML = this.renderSession();
+    if(this.view === 'body') root.innerHTML = this.renderBody();
+    else if(this.view === 'session') root.innerHTML = this.renderSession();
     else if(this.view === 'read') root.innerHTML = this.renderRead();
     else root.innerHTML = this.renderHub();
 
-    root.querySelector('#olNewBtn')?.addEventListener('click', () => this.newLog());
-    root.querySelector('#olBackHub')?.addEventListener('click', () => { this.stopParseTypewriter(); this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.render(); });
+    root.querySelectorAll('[data-ol-channel]').forEach(btn => btn.addEventListener('click', () => {
+      const ch = btn.dataset.olChannel;
+      if(ch === 'body') this.openBodyLog();
+      else if(ch === 'vent') this.newLog('vent');
+      else this.newLog('solve');
+    }));
+    root.querySelectorAll('[data-ol-filter]').forEach(btn => btn.addEventListener('click', () => {
+      this.archiveFilter = btn.dataset.olFilter;
+      this.render();
+    }));
+    root.querySelector('#olBackHub')?.addEventListener('click', () => { this.stopParseTypewriter(); this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.bodyEditingId = null; this.render(); });
     root.querySelector('#olFinishedRant')?.addEventListener('click', () => this.runAutoParse());
+    root.querySelector('#olSaveVent')?.addEventListener('click', () => this.saveVent());
+    root.querySelector('#olVentToSolve')?.addEventListener('click', () => this.convertVentToSolve());
+    root.querySelector('#olSaveBody')?.addEventListener('click', () => this.saveBodyEntry());
+    root.querySelector('#olBodyCancelEdit')?.addEventListener('click', () => { this.bodyEditingId = null; this.render(); });
     root.querySelector('#olContinueCommand')?.addEventListener('click', () => { this.sessionPhase = 'command'; this.render(); });
     root.querySelector('#olBackToParse')?.addEventListener('click', () => {
       this.parseComplete = true;
@@ -1301,10 +1685,12 @@ const OverloadLog = {
     });
     root.querySelector('#olBackToRant')?.addEventListener('click', () => { this.stopParseTypewriter(); this.sessionPhase = 'emotions'; this.render(); });
     root.querySelector('#olSaveSession')?.addEventListener('click', () => this.saveSession());
-    root.querySelector('#olEditCurrent')?.addEventListener('click', () => this.editLog(this.editingId));
-    root.querySelectorAll('[data-ol-open]').forEach(btn => btn.addEventListener('click', () => this.viewLog(btn.dataset.olOpen)));
-    root.querySelectorAll('[data-ol-edit]').forEach(btn => btn.addEventListener('click', () => this.editLog(btn.dataset.olEdit)));
-    root.querySelectorAll('[data-ol-del]').forEach(btn => btn.addEventListener('click', () => this.deleteLog(btn.dataset.olDel)));
+    root.querySelector('#olEditCurrent')?.addEventListener('click', () => this.editLog(this.editingId, this.readSource || 'solve'));
+    root.querySelectorAll('[data-ol-open]').forEach(btn => btn.addEventListener('click', () => this.viewLog(btn.dataset.olOpen, btn.dataset.olSource || 'solve')));
+    root.querySelectorAll('[data-ol-edit]').forEach(btn => btn.addEventListener('click', () => this.editLog(btn.dataset.olEdit, btn.dataset.olSource || 'solve')));
+    root.querySelectorAll('[data-ol-del]').forEach(btn => btn.addEventListener('click', () => this.deleteLog(btn.dataset.olDel, btn.dataset.olSource || 'solve')));
+    root.querySelectorAll('[data-ol-body-edit]').forEach(btn => btn.addEventListener('click', () => this.editBodyEntry(btn.dataset.olBodyEdit)));
+    root.querySelectorAll('[data-ol-body-del]').forEach(btn => btn.addEventListener('click', () => this.deleteLog(btn.dataset.olBodyDel, 'body')));
 
     if(this.view === 'session' && this.sessionPhase === 'parse' && this._parseBoot){
       this._parseBoot = false;
@@ -1322,6 +1708,8 @@ const OverloadLog = {
   init(){
     this.checkUrl();
     this.ensureLogs();
+    this.ensureVentLogs();
+    this.ensureBodyLog();
     document.getElementById('oglEnterBtn')?.addEventListener('click', e => { e.stopPropagation(); this.completeGlitchTransition(); });
     document.getElementById('overloadGlitchScreen')?.addEventListener('click', () => this.completeGlitchTransition());
     const exitBtn = document.getElementById('mindExitBtn');

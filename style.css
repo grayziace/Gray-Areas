@@ -2660,6 +2660,62 @@ body.coder-notify-open .coder-notify-drawer{transform:translateX(0);}
 .vlog-overload-content{padding:16px 14px 20px;}
 .vlog-overload-content .mind-terminal-layout{grid-template-columns:1fr;}
 .vlog-overload-content .ol-btn-new,.vlog-overload-content .btn.ol-btn-new{color:#fff!important;background:rgba(244,63,142,0.25)!important;border-color:#f43f8e!important;}
+
+/* Private vault — System Overload */
+.ol-vault-layout{display:grid;gap:18px;}
+.ol-privacy-banner{
+  display:flex;gap:14px;align-items:flex-start;padding:14px 16px;
+  border:1px dashed rgba(244,63,142,0.35);background:rgba(244,63,142,0.06);
+}
+.ol-privacy-lock{font-size:20px;color:#f9a8d4;flex-shrink:0;margin-top:2px;}
+.ol-privacy-banner strong{display:block;font-family:var(--font-voice);font-size:14px;margin-bottom:4px;}
+.ol-privacy-banner p{margin:0;font-size:12px;line-height:1.5;color:var(--text-mid);}
+.ol-channel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.ol-channel-card{
+  display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px 16px;cursor:pointer;
+  border:1px solid var(--border-glass);background:rgba(0,0,0,0.2);transition:border-color .2s,background .2s;
+}
+.ol-channel-card:hover{border-color:#f43f8e;background:rgba(244,63,142,0.08);}
+.ol-channel-icon{font-size:22px;color:#f9a8d4;flex-shrink:0;}
+.ol-channel-card h4{margin:0 0 6px;font-family:var(--font-voice);font-size:15px;}
+.ol-channel-card p{margin:0;font-size:11px;line-height:1.45;color:var(--text-mid);}
+.ol-filter-tabs{display:flex;flex-wrap:wrap;gap:6px;}
+.ol-filter-tab{
+  font-family:var(--font-data);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;
+  padding:6px 10px;border:1px solid var(--border-glass);background:transparent;color:var(--text-mid);cursor:pointer;
+}
+.ol-filter-tab.active,.ol-filter-tab:hover{border-color:#f43f8e;color:#f9a8d4;}
+.ol-vault-stats{display:flex;gap:20px;margin-bottom:14px;}
+.ol-topic-matrix{display:flex;flex-wrap:wrap;gap:8px;}
+.ol-topic-chip{
+  display:inline-flex;align-items:center;padding:6px 12px;border:1px solid color-mix(in srgb,var(--olt-neon,#f43f8e) 35%,transparent);
+  border-radius:4px;cursor:pointer;font-size:11px;transition:background .15s;
+}
+.ol-topic-chip:has(input:checked){background:color-mix(in srgb,var(--olt-neon,#f43f8e) 18%,transparent);border-color:var(--olt-neon,#f43f8e);}
+.ol-topic-chip input{position:absolute;opacity:0;pointer-events:none;}
+.ol-topic-pill{
+  display:inline-block;font-family:var(--font-data);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
+  padding:3px 8px;border:1px solid color-mix(in srgb,var(--olt-neon,#f43f8e) 40%,transparent);color:var(--olt-neon,#f9a8d4);
+}
+.ol-topic-pill.inline{margin-left:6px;}
+.ol-mode-badge{font-family:var(--font-data);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;}
+.ol-mode-badge.vent{background:rgba(56,189,248,0.15);color:#38bdf8;}
+.ol-mode-badge.solve{background:rgba(167,139,250,0.15);color:#a78bfa;}
+.ol-body-layout{display:grid;gap:16px;}
+.ol-weight-chart{display:flex;align-items:flex-end;gap:4px;height:80px;padding:12px 14px;}
+.ol-weight-bar{
+  flex:1;min-width:6px;max-width:24px;height:var(--h,20%);background:linear-gradient(to top,#f43f8e,rgba(244,63,142,0.35));
+  border-radius:2px 2px 0 0;align-self:flex-end;
+}
+.ol-body-history{display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto;}
+.ol-body-row{padding:10px 12px;border:1px dashed var(--border-glass);display:grid;gap:6px;}
+.ol-body-row time{font-family:var(--font-data);font-size:10px;color:var(--text-low);}
+.ol-body-row-stats{display:flex;gap:12px;font-family:var(--font-data);font-size:12px;}
+.ol-body-row-stats span strong{color:#f9a8d4;}
+.ol-body-card .ol-body-stats{display:flex;gap:12px;font-size:12px;}
+.ol-card-note{font-size:11px;color:var(--text-low);margin:0;}
+.ol-panel-sub{margin-top:16px;}
+.mind-session-layout.vent .mind-session-progress span{flex:1;}
 body.is-player-gray #view-sync .view-title::after{
   content:' · edit mode';font-size:11px;color:#ff4fd8;font-family:var(--font-data);margin-left:8px;
 }
