@@ -2,9 +2,19 @@
 const SITE_STATE = {
   "entries": {
     "2026-07-15": {
+      "currentMood": "focused",
+      "mood": "focused",
+      "steps": "0",
+      "workHours": "0",
+      "hobby": "",
+      "hobbyHours": "0",
+      "people": [],
+      "places": [],
+      "diary": "[15 Jul · 13:15:46] Film: The First Frost\n\n[15 Jul · 14:40:08] Mood: Mood → Focused",
+      "photos": [],
       "stream": {
         "startedAt": "2026-07-15T12:15:10.263Z",
-        "endedAt": null,
+        "endedAt": "2026-07-15T13:41:40.296Z",
         "nodes": [
           {
             "id": "n-wake-1784117710263",
@@ -25,6 +35,12 @@ const SITE_STATE = {
             "source": "mood",
             "text": "Mood → Focused",
             "auto": true
+          },
+          {
+            "id": "n-sleep-1784122900296",
+            "at": "2026-07-15T13:41:40.296Z",
+            "type": "sleep",
+            "text": "Day ended"
           }
         ]
       }
