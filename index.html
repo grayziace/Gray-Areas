@@ -132,7 +132,6 @@
     <section class="view active neon-section" id="view-profile" style="--sec-neon:#ff4fd8">
       <h2 class="view-title sketch-title" id="profileTitle">Player Profile</h2>
       <div class="about-root" id="aboutSpread"></div>
-      <button type="button" class="overload-port" id="overloadPort" title="" aria-label="System port">·</button>
     </section>
 
     <section class="view neon-section" id="view-sync" style="--sec-neon:#3ad6e0">
@@ -140,16 +139,21 @@
       <div class="live-broadcast" id="homeSpread"></div>
     </section>
 
-    <section class="view neon-section" id="view-mind" style="--sec-neon:#71717a">
-      <div class="mind-channel-header">
-        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">← Leave channel</button>
+    <section class="view neon-section mind-view" id="view-mind" style="--sec-neon:#f43f8e">
+      <div class="mind-channel-header sys-broken">
+        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">[ ESC ] disconnect</button>
         <div class="mind-channel-title">
-          <span class="mind-channel-kicker">// private · encrypted locally</span>
-          <h2 class="view-title sketch-title">System Failure</h2>
-          <p class="mind-channel-sub">Mental health offload channel. Not on the public map.</p>
+          <span class="mind-channel-kicker sys-flicker">// CHANNEL_0x7F · OFFLOAD_PROTOCOL</span>
+          <h2 class="view-title sketch-title mind-glitch-title">SYSTEM FAILURE</h2>
+          <p class="mind-channel-sub">Cognitive buffer dump zone. Corrupted but functional. Not indexed.</p>
+        </div>
+        <div class="mind-sys-bar" aria-hidden="true">
+          <span>MEM: ████░░ 78%</span>
+          <span>STACK: overflow</span>
+          <span>STATUS: degraded</span>
         </div>
       </div>
-      <div class="mind-channel-body" id="mindContent"></div>
+      <div class="mind-channel-body sys-broken" id="mindContent"></div>
     </section>
 
     <section class="view neon-section" id="view-ledger" style="--sec-neon:#9b5cff">
@@ -406,20 +410,31 @@
 
 <div id="editToast" class="edit-toast hidden" aria-live="polite">Editing.</div>
 
+<div id="overloadGlitchScreen" class="overload-glitch-screen hidden" aria-hidden="true">
+  <div class="ogl-scanlines" aria-hidden="true"></div>
+  <div class="ogl-noise" aria-hidden="true"></div>
+  <div class="ogl-vignette" aria-hidden="true"></div>
+  <div class="ogl-content">
+    <p class="ogl-kicker sys-flicker">// KERNEL_PANIC · 0xDEAD</p>
+    <h1 class="ogl-title" aria-label="System Overload">
+      <span class="ogl-title-line">SYSTEM</span>
+      <span class="ogl-title-line ogl-title-glitch">OVERLOAD</span>
+    </h1>
+    <p class="ogl-sub">cognitive buffer exceeded · emotional stack trace corrupted</p>
+    <div class="ogl-error-feed" id="oglErrorFeed">
+      <div class="ogl-err">&gt; ERR_MEM_STACK_OVERFLOW at 0x7FFE</div>
+      <div class="ogl-err">&gt; WARN: affect.regulators offline</div>
+      <div class="ogl-err">&gt; routing to offload channel...</div>
+    </div>
+    <button type="button" class="ogl-enter-btn" id="oglEnterBtn">[ ENTER CHANNEL ]</button>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="adminModalBack">
   <div class="modal sketch-card">
     <h3>Unlock editing</h3>
     <div class="field"><label>Key</label><input type="password" id="adminKeyInput"></div>
     <div class="modal-actions"><button class="btn" id="cancelAdmin">Cancel</button><button class="btn primary" id="confirmAdmin">Go</button></div>
-  </div>
-</div>
-
-<div class="modal-back hidden" id="overloadAuthBack">
-  <div class="modal sketch-card overload-auth-modal">
-    <h3>System Failure</h3>
-    <p class="overload-auth-hint">Private mental health channel. Passcode required.</p>
-    <div class="field"><label>Passcode</label><input type="password" id="overloadKeyInput" autocomplete="off" placeholder="systemfailure"></div>
-    <div class="modal-actions"><button class="btn" id="cancelOverloadAuth">Cancel</button><button class="btn primary" id="confirmOverloadAuth">Enter channel</button></div>
   </div>
 </div>
 
