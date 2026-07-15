@@ -161,6 +161,9 @@ function buildSiteStateSource(){
     overloadLogs: state.overloadLogs || [],
     currentMood: state.currentMood || '',
     moodCatalog: state.moodCatalog || [],
+    viewerCharacters: state.viewerCharacters || [],
+    quests: state.quests || [],
+    videoDiary: state.videoDiary || [],
   };
   return `/* Exported from Gray Areas — commit this file and redeploy */\nconst SITE_STATE = ${jsLiteral(payload, 0)};\n`;
 }

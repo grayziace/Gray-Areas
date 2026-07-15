@@ -15,11 +15,21 @@ function isAdmin(){ return sessionStorage.getItem('ga-admin') === '1'; }
 function applyAdminUI(){
   const admin = isAdmin();
   document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
+  document.querySelectorAll('.player-only').forEach(el => el.classList.toggle('hidden', !admin));
   document.getElementById('adminBar')?.classList.toggle('hidden', !admin);
   document.getElementById('adminUnlock')?.classList.toggle('hidden', admin);
   document.body.classList.toggle('is-editing', admin);
+  document.body.classList.toggle('is-player', admin);
+  document.body.classList.toggle('is-viewer', !admin);
+  const qt = document.getElementById('questViewTitle');
+  const qh = document.getElementById('questViewHint');
+  if(qt) qt.textContent = admin ? 'Quest Inbox' : 'Quests';
+  if(qh) qh.textContent = admin
+    ? 'Accept, complete, or decline viewer missions. Completing quests levels up their cards.'
+    : 'Give Gray missions — places, food, comfort, Press pieces, meetups.';
   if(admin && typeof DailyLog !== 'undefined') DailyLog.onAdminReady();
   else if(admin) renderSkillControls();
+  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
 }
 
 function lockAdmin(){
@@ -87,6 +97,9 @@ function defaultState(){
     overloadLogs: [],
     currentMood: '',
     moodCatalog: [],
+    viewerCharacters: [],
+    quests: [],
+    videoDiary: [],
   };
 }
 
@@ -118,6 +131,9 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.overloadLogs)) state.overloadLogs = s.overloadLogs;
   if(s.currentMood) state.currentMood = s.currentMood;
   if(Array.isArray(s.moodCatalog)) state.moodCatalog = s.moodCatalog;
+  if(Array.isArray(s.viewerCharacters)) state.viewerCharacters = s.viewerCharacters;
+  if(Array.isArray(s.quests)) state.quests = s.quests;
+  if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
   saveState();
 }
 mergeSiteStateFromFile();
@@ -1534,9 +1550,12 @@ function navigateToView(view){
   if(!view) return;
   document.body.classList.remove('mind-channel-open', 'mind-repair-active');
   document.querySelectorAll('.node-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.node-btn[data-view="${view}"]`)?.classList.add('active');
+  document.querySelectorAll(`.node-btn[data-view="${view}"]`).forEach(b => b.classList.add('active'));
   document.querySelectorAll('section.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view)?.classList.add('active');
+  if(view === 'viewer-card' || view === 'quests' || view === 'vlog'){
+    if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
+  }
 }
 
 function bootApp(){
@@ -1557,6 +1576,7 @@ function bootApp(){
   try{ if(typeof GoogleSteps !== 'undefined') GoogleSteps.init(); }catch(err){ console.error('Google steps init failed:', err); }
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
+  try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;
@@ -3636,6 +3656,7 @@ function renderAll(){
     renderPress,
     renderGallery,
     renderPinboard,
+    () => { if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll(); },
   ].forEach(safeRender);
   applyAdminUI();
 }

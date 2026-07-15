@@ -117,6 +117,9 @@
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span>The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span>Photo Wall</span></button>
       <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span>Community</span></button>
+      <button data-view="viewer-card" class="node-btn" style="--nc:#fcd34d"><span class="node-dot"></span><span>My Card</span></button>
+      <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span>Quests</span></button>
+      <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span>Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
         <div class="sidebar-console-row">
@@ -282,6 +285,24 @@
         </form>
         <div class="pin-wall" id="pinWall"></div>
       </div>
+    </section>
+
+    <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
+      <h2 class="view-title sketch-title">My Character</h2>
+      <p class="gallery-hint viewer-hint">Create your viewer card once, then send quests to Gray. You level up when missions complete.</p>
+      <div id="viewerCardSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-quests" style="--sec-neon:#4ade80">
+      <h2 class="view-title sketch-title" id="questViewTitle">Quests</h2>
+      <p class="gallery-hint viewer-hint" id="questViewHint">Give Gray missions — places, food, comfort, Press pieces, meetups.</p>
+      <div id="questSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">
+      <h2 class="view-title sketch-title">Video Log</h2>
+      <p class="gallery-hint">Vlog notes and short clips with English subtitles.</p>
+      <div id="vlogSpread"></div>
     </section>
 
   </div>
@@ -516,7 +537,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){

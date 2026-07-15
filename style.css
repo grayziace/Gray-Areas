@@ -2376,3 +2376,45 @@ body.mind-repair-active #view-mind{
   .live-rail-col{max-height:42vh;}
   .mind-hub{grid-template-columns:1fr;}
 }
+
+/* ===== Viewer world ===== */
+body.is-viewer .sidebar{border-right:1px solid color-mix(in srgb,#38bdf8 25%,transparent);}
+body.is-viewer .brand .name{filter:hue-rotate(-8deg);}
+body.is-player .main-col{--viewer-accent:transparent;}
+body.is-viewer #view-profile .view-title::after{
+  content:' · watch mode';font-size:11px;color:var(--text-low);font-family:var(--font-data);margin-left:8px;
+}
+.viewer-wizard-title{font-family:var(--font-display);font-size:18px;margin:0 0 10px;color:var(--text-hi);}
+.viewer-card-hero{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.viewer-fire-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 14px;
+  border:2px solid color-mix(in srgb,var(--vfb-neon) 45%,var(--border-glass));
+  background:rgba(0,0,0,0.35);box-shadow:0 0 18px color-mix(in srgb,var(--vfb-neon) 20%,transparent);
+}
+.viewer-fire-val{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--vfb-neon);}
+.viewer-fire-label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-low);}
+.viewer-level-pill{font-size:11px;color:var(--neon-cyan);font-family:var(--font-data);}
+.viewer-card-stats{margin-top:16px;padding:14px;}
+.vcs-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.06);font-size:12px;}
+.viewer-card-deck{margin:12px 0;}
+.quest-compose,.quest-inbox,.viewer-wizard{margin-bottom:20px;}
+.quest-list{display:flex;flex-direction:column;gap:12px;}
+.quest-card{
+  padding:14px 16px;border:2px solid color-mix(in srgb,var(--qc-neon) 35%,var(--border-glass));
+  background:rgba(0,0,0,0.28);border-left:4px solid var(--qc-neon);
+}
+.quest-card-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:10px;}
+.quest-type{letter-spacing:0.1em;text-transform:uppercase;color:var(--qc-neon);}
+.quest-status{color:var(--qs-neon);font-family:var(--font-data);}
+.quest-title{margin:0 0 6px;font-family:var(--font-voice);font-size:17px;}
+.quest-from,.quest-meta{font-size:11px;color:var(--text-mid);margin:4px 0;}
+.quest-body{font-size:13px;line-height:1.5;margin:8px 0;}
+.quest-note{font-size:12px;color:var(--neon-cyan);margin-top:8px;font-style:italic;}
+.quest-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.vlog-grid{display:flex;flex-direction:column;gap:18px;}
+.vlog-entry{padding:16px;}
+.vlog-entry-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px;}
+.vlog-entry h4{margin:0;font-family:var(--font-voice);}
+.vlog-player{width:100%;max-height:420px;border:2px solid color-mix(in srgb,#f97316 35%,var(--border-glass));background:#000;}
+.vlog-notes{font-size:12px;color:var(--text-mid);margin-top:10px;}
+.vlog-upload{margin-bottom:22px;}
