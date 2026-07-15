@@ -11,6 +11,12 @@ const SITE_STATE = {
             "at": "2026-07-15T12:15:10.263Z",
             "type": "wake",
             "text": "Day started"
+          },
+          {
+            "id": "n-1784117746754-dknm",
+            "at": "2026-07-15T12:15:46.754Z",
+            "type": "film",
+            "text": "The First Frost"
           }
         ]
       }
