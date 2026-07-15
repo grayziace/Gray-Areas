@@ -97,6 +97,7 @@ function loadState(){
 
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  if(typeof queueGitSync === 'function') queueGitSync();
 }
 
 let state = loadState();

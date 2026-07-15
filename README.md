@@ -18,14 +18,25 @@ If you see `ERR_CONNECTION_RESET` or “can’t be reached”, **GitHub Pages is
 
 Optional: **Custom domains** in Cloudflare Pages after you buy a domain.
 
-### Saving edits permanently (Export to code)
+### Saving edits permanently (auto-sync)
 
-In **editing mode**, click **Export to code** in the sidebar. That downloads:
+On your **Cloudflare Pages** URL, edits in **editing mode** auto-save to GitHub after a few seconds. The sidebar shows **Saving to git…** then **Saved to git**. Cloudflare redeploys and everyone sees your changes — no export or push needed.
+
+**One-time setup** (Cloudflare dashboard → your Pages project → **Settings** → **Environment variables**):
+
+| Variable | Value |
+|----------|--------|
+| `GITHUB_TOKEN` | GitHub Personal Access Token with **Contents: Read and write** on this repo ([create one](https://github.com/settings/tokens?type=beta)) |
+| `GITHUB_REPO` | `grayziace/Gray-Areas` (optional — this is the default) |
+
+Add both for **Production** (and Preview if you use preview deploys). Redeploy once after adding them.
+
+Auto-sync only runs on the Cloudflare URL (not `file://` or GitHub Pages). **Export to code** in the sidebar is still there as a manual fallback.
+
+**What gets saved:**
 
 - `content.js` — player cards, places, photos, articles, skills, dramas
 - `site-state.js` — daily log, pinboard, skill hours, drama episode ratings
-
-Replace both files in your repo, commit, and push. Cloudflare/GitHub redeploys and **everyone** sees your changes.
 
 ## For visitors
 

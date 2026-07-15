@@ -185,9 +185,9 @@ async function exportEditsToCodeFiles(){
     setTimeout(() => downloadTextFile('site-state.js', siteStateJs), 400);
     alert(
       'Downloaded content.js and site-state.js.\n\n' +
+      'On Cloudflare Pages, edits usually auto-sync to git — use this only as a fallback.\n\n' +
       '1. Replace both files in your Gray-Areas repo folder\n' +
-      '2. Commit and push to GitHub (Cloudflare redeploys automatically)\n\n' +
-      'Everyone will then see your edits on the live site.'
+      '2. Commit and push to GitHub'
     );
   }catch(err){
     console.error(err);

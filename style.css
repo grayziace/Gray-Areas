@@ -291,6 +291,11 @@ body.is-editing .card-edit-front.edit-when-editing{display:inline-block !importa
 @keyframes adminPulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
 .admin-bar-top{display:flex;align-items:center;gap:8px;}
 .admin-bar-label{font-family:var(--font-data);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--neon-cyan);}
+.sync-status{font-family:var(--font-data);font-size:9px;letter-spacing:0.06em;min-height:12px;color:var(--text-dim,#888);}
+.sync-status--pending{color:#e8c547;}
+.sync-status--busy{color:var(--neon-cyan);}
+.sync-status--ok{color:#6ee7a0;}
+.sync-status--err{color:var(--neon-pink);}
 .admin-exit{width:100%;border-color:var(--neon-pink)!important;color:var(--neon-pink)!important;font-size:12px!important;}
 .admin-exit:hover{background:rgba(255,79,216,0.12)!important;}
 body.is-editing .main-col{outline:1px dashed rgba(58,214,224,0.12);outline-offset:4px;border-radius:4px;}
