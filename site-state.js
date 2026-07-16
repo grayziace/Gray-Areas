@@ -400,6 +400,54 @@ const SITE_STATE = {
   "instructionsRevision": 0,
   "coderActivity": [
     {
+      "id": "act-1784149184320-fwhw",
+      "at": "2026-07-15T20:59:44.320Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +3 XP · Daily login",
+      "amount": 3,
+      "reason": "login"
+    },
+    {
+      "id": "act-1784139493423-l3mg",
+      "at": "2026-07-15T18:18:13.423Z",
+      "type": "quest_sent",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick sent quest: I miss you"
+    },
+    {
+      "id": "act-1784139493388-dxmv",
+      "at": "2026-07-15T18:18:13.388Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +5 XP · Quest sent",
+      "amount": 5,
+      "reason": "quest_submit"
+    },
+    {
+      "id": "act-1784139459019-pb39",
+      "at": "2026-07-15T18:17:39.019Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +3 XP · Daily login",
+      "amount": 3,
+      "reason": "login"
+    },
+    {
+      "id": "act-1784136392674-oln1",
+      "at": "2026-07-15T17:26:32.674Z",
+      "type": "xp_award",
+      "coderId": "coder-1784136277276-1f50",
+      "name": "Rena",
+      "detail": "Rena +45 XP · Helped Gray practically",
+      "amount": 45,
+      "reason": "practical_help"
+    },
+    {
       "id": "act-1784221220831-xl0w",
       "at": "2026-07-16T17:00:20.831Z",
       "type": "account_deleted",
@@ -468,58 +516,17 @@ const SITE_STATE = {
       "coderId": "coder-1784136277276-1f50",
       "name": "Rena",
       "detail": "Rena updated their card"
-    },
-    {
-      "id": "act-1784149184320-fwhw",
-      "at": "2026-07-15T20:59:44.320Z",
-      "type": "xp_award",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick +3 XP · Daily login",
-      "amount": 3,
-      "reason": "login"
-    },
-    {
-      "id": "act-1784139493423-l3mg",
-      "at": "2026-07-15T18:18:13.423Z",
-      "type": "quest_sent",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick sent quest: I miss you"
-    },
-    {
-      "id": "act-1784139493388-dxmv",
-      "at": "2026-07-15T18:18:13.388Z",
-      "type": "xp_award",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick +5 XP · Quest sent",
-      "amount": 5,
-      "reason": "quest_submit"
-    },
-    {
-      "id": "act-1784139459019-pb39",
-      "at": "2026-07-15T18:17:39.019Z",
-      "type": "xp_award",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick +3 XP · Daily login",
-      "amount": 3,
-      "reason": "login"
-    },
-    {
-      "id": "act-1784136392674-oln1",
-      "at": "2026-07-15T17:26:32.674Z",
-      "type": "xp_award",
-      "coderId": "coder-1784136277276-1f50",
-      "name": "Rena",
-      "detail": "Rena +45 XP · Helped Gray practically",
-      "amount": 45,
-      "reason": "practical_help"
     }
   ],
-  "playerPoints": 29,
+  "playerPoints": 34,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784226475059-ws3e",
+      "at": "2026-07-16T18:27:55.059Z",
+      "amount": 5,
+      "reason": "login",
+      "label": "Daily login"
+    },
     {
       "id": "gxp-1784206467405-owyc",
       "at": "2026-07-16T12:54:27.405Z",
