@@ -30,6 +30,20 @@ const SITE_STATE = {
             "source": "mood",
             "text": "Mood → Neutral",
             "auto": true
+          },
+          {
+            "id": "n-todo-1784197276204",
+            "at": "2026-07-16T10:21:16.204Z",
+            "type": "todo",
+            "text": "Gotta Tidy the Room before people arrive tomorrow",
+            "body": ""
+          },
+          {
+            "id": "n-todo-1784197277762",
+            "at": "2026-07-16T10:21:17.762Z",
+            "type": "todo",
+            "text": "Linkedin Posts",
+            "body": ""
           }
         ]
       },
@@ -472,8 +486,22 @@ const SITE_STATE = {
       "reason": "practical_help"
     }
   ],
-  "playerPoints": 14,
+  "playerPoints": 24,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784197277763-y6r9",
+      "at": "2026-07-16T10:21:17.763Z",
+      "amount": 5,
+      "reason": "todo_done",
+      "label": "To-do ticked off"
+    },
+    {
+      "id": "gxp-1784197276204-1uck",
+      "at": "2026-07-16T10:21:16.204Z",
+      "amount": 5,
+      "reason": "todo_done",
+      "label": "To-do ticked off"
+    },
     {
       "id": "gxp-1784195251680-f9zw",
       "at": "2026-07-16T09:47:31.680Z",
