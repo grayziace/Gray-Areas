@@ -1195,6 +1195,25 @@ function ensureStreamForDate(dateStr){
   return key;
 }
 
+function findPulseNode(nodeId){
+  if(!nodeId) return null;
+  for(const [key, raw] of Object.entries(state.entries || {})){
+    const nodes = raw?.stream?.nodes;
+    if(!Array.isArray(nodes)) continue;
+    const index = nodes.findIndex(n => n.id === nodeId);
+    if(index >= 0) return { key, node: nodes[index], index };
+  }
+  return null;
+}
+
+function getPulsePhotoDetails(node){
+  const d = node?.data || {};
+  return {
+    caption: d.caption || node?.body || '',
+    place: d.place || d.where || d.area || '',
+  };
+}
+
 const STREAM_NODE_META = {
   glitch: { label: 'System Glitch', neon: '#f43f8e', icon: '⚡' },
   press: { label: 'The Press', neon: '#fca5a5', icon: '▤' },
@@ -3031,6 +3050,8 @@ const HomeCheckIn = {
   inited: false,
   pulseType: 'note',
   pulsePhotoData: '',
+  editingNodeId: null,
+  editingStreamKey: null,
 
   init(){
     if(this.inited) return;
@@ -3062,19 +3083,24 @@ const HomeCheckIn = {
     spread.querySelectorAll('[data-live-node-del]').forEach(btn => {
       btn.addEventListener('click', () => this.deleteStreamNode(btn.dataset.liveNodeDel));
     });
+    spread.querySelectorAll('[data-live-node-edit]').forEach(btn => {
+      btn.addEventListener('click', () => this.openPulseEditor(btn.dataset.liveNodeEdit));
+    });
   },
 
   deleteStreamNode(nodeId){
     if(!isAdmin() || !nodeId) return;
-    const key = todayKey();
-    const stream = getDayStream(key);
-    const node = stream.nodes.find(n => n.id === nodeId);
-    if(!node || node.type === 'wake' || node.type === 'sleep') return;
+    const found = findPulseNode(nodeId);
+    if(!found) return;
+    const { key, node } = found;
+    if(node.type === 'wake' || node.type === 'sleep') return;
     if(!confirm(`Remove this pulse from the transmission log?\n\n${node.text || node.type}`)) return;
+    const stream = getDayStream(key);
     stream.nodes = stream.nodes.filter(n => n.id !== nodeId);
     if(state.entries[key]) state.entries[key].stream = stream;
     saveState();
     renderHomeCheckIn();
+    if(typeof renderLedger === 'function') renderLedger();
   },
 
   requireActiveDay(){
@@ -3093,18 +3119,90 @@ const HomeCheckIn = {
   openPulseComposer(type){
     if(!isAdmin()) return;
     if(!this.requireActiveDay()) return;
+    this.editingNodeId = null;
+    this.editingStreamKey = null;
     this.pulseType = type && PULSE_TYPE_DEFS[type] ? type : (type || this.pulseType || 'note');
     this.pulsePhotoData = '';
     document.getElementById('pulseDate').value = todayKey();
     document.getElementById('pulseTime').value = nowTimeInputValue();
     this.renderPulseTypeGrid();
     this.renderPulseFields();
+    this.updatePulseComposerChrome();
     document.getElementById('pulseComposerBack')?.classList.remove('hidden');
+  },
+
+  openPulseEditor(nodeId, streamKey){
+    if(!isAdmin() || !nodeId) return;
+    const found = findPulseNode(nodeId);
+    if(!found) return;
+    const { key, node } = found;
+    if(node.type === 'wake' || node.type === 'sleep') return;
+    this.editingNodeId = nodeId;
+    this.editingStreamKey = streamKey || key;
+    this.pulseType = PULSE_TYPE_DEFS[node.type] ? node.type : 'note';
+    this.pulsePhotoData = node.photo || node.data?.photo || '';
+    if(node.at){
+      const d = new Date(node.at);
+      if(!Number.isNaN(d.getTime())){
+        document.getElementById('pulseDate').value = d.toISOString().slice(0, 10);
+        document.getElementById('pulseTime').value = d.toTimeString().slice(0, 8);
+      }
+    }
+    this.renderPulseTypeGrid();
+    this.renderPulseFields();
+    this.fillPulseForm(node);
+    this.updatePulseComposerChrome();
+    document.getElementById('pulseComposerBack')?.classList.remove('hidden');
+  },
+
+  fillPulseForm(node){
+    const def = PULSE_TYPE_DEFS[this.pulseType];
+    const data = node?.data || {};
+    if(!def) return;
+    def.fields.forEach(field => {
+      if(field.type === 'photo'){
+        if(this.pulsePhotoData){
+          const prev = document.getElementById(`pulseField_${field.id}_preview`);
+          if(prev) prev.innerHTML = `<img src="${this.pulsePhotoData}" alt="">`;
+        }
+        return;
+      }
+      if(field.type === 'card_pick'){
+        const sel = document.getElementById(`pulseField_${field.id}`);
+        const name = data[field.id] || '';
+        if(sel && name){
+          const has = [...sel.options].some(o => o.value === name);
+          if(!has){
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+          }
+          sel.value = name;
+        }
+        return;
+      }
+      const el = document.getElementById(`pulseField_${field.id}`);
+      if(!el) return;
+      const val = data[field.id];
+      if(val != null && val !== '') el.value = val;
+    });
+  },
+
+  updatePulseComposerChrome(){
+    const title = document.querySelector('#pulseComposerBack h3');
+    const saveBtn = document.getElementById('savePulseComposer');
+    const editing = !!this.editingNodeId;
+    if(title) title.textContent = editing ? 'Edit pulse' : 'Drop a pulse';
+    if(saveBtn) saveBtn.textContent = editing ? 'Save changes' : 'Drop pulse';
   },
 
   closePulseComposer(){
     document.getElementById('pulseComposerBack')?.classList.add('hidden');
     this.pulsePhotoData = '';
+    this.editingNodeId = null;
+    this.editingStreamKey = null;
+    this.updatePulseComposerChrome();
   },
 
   renderPulseTypeGrid(){
@@ -3214,7 +3312,14 @@ const HomeCheckIn = {
     if(!def) return 'Unknown pulse type.';
     for(const field of def.fields){
       if(!field.required) continue;
-      if(field.type === 'photo' && !data.photo) return `Add a ${field.label.toLowerCase()}.`;
+      if(field.type === 'photo'){
+        if(!data.photo && this.editingNodeId){
+          const found = findPulseNode(this.editingNodeId);
+          if(found?.node?.photo) data.photo = found.node.photo;
+        }
+        if(!data.photo) return `Add a ${field.label.toLowerCase()}.`;
+        continue;
+      }
       if(field.type === 'card_pick'){
         const sel = document.getElementById(`pulseField_${field.id}`);
         if(!sel?.value) return `Pick or create a ${field.label.toLowerCase()}.`;
@@ -3228,7 +3333,8 @@ const HomeCheckIn = {
 
   async submitPulse(){
     if(!isAdmin()) return;
-    if(!this.requireActiveDay()) return;
+    const editing = !!this.editingNodeId;
+    if(!editing && !this.requireActiveDay()) return;
     const data = this.readPulseForm();
     const err = this.validatePulseForm(data);
     if(err){ alert(err); return; }
@@ -3238,23 +3344,39 @@ const HomeCheckIn = {
     const at = composePulseAt(dateStr, timeStr);
     const text = buildPulseSummary(this.pulseType, data);
     const body = data.body || data.caption || data.message || data.text || '';
-    const node = {
-      id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    const nodePatch = {
       at,
       type: this.pulseType,
       text,
       body: body || undefined,
       data: { ...data },
     };
-    if(data.photo) node.photo = data.photo;
-    if(data.mood) node.mood = Number(data.mood);
-    if(data.intensity) node.intensity = Number(data.intensity);
-    if(data.rating) node.rating = Number(data.rating);
+    if(data.photo) nodePatch.photo = data.photo;
+    if(data.mood) nodePatch.mood = Number(data.mood);
+    if(data.intensity) nodePatch.intensity = Number(data.intensity);
+    if(data.rating) nodePatch.rating = Number(data.rating);
 
-    const streamKey = ensureTodayStream();
-    const stream = getDayStream(streamKey);
-    stream.nodes.push(node);
-    state.entries[streamKey].stream = stream;
+    let isNew = true;
+    if(editing){
+      const found = findPulseNode(this.editingNodeId);
+      if(!found) return;
+      const streamKey = this.editingStreamKey || found.key;
+      const stream = getDayStream(streamKey);
+      const idx = stream.nodes.findIndex(n => n.id === this.editingNodeId);
+      if(idx < 0) return;
+      stream.nodes[idx] = { ...stream.nodes[idx], ...nodePatch };
+      state.entries[streamKey].stream = stream;
+      isNew = false;
+    } else {
+      const node = {
+        id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        ...nodePatch,
+      };
+      const streamKey = ensureTodayStream();
+      const stream = getDayStream(streamKey);
+      stream.nodes.push(node);
+      state.entries[streamKey].stream = stream;
+    }
 
     const metaKey = ensureStreamForDate(dateStr);
     const entry = normalizeEntry(state.entries[metaKey]);
@@ -3274,7 +3396,7 @@ const HomeCheckIn = {
       LiveSync?.hobbyLogged(data.what, data.hours);
     }
     if(this.pulseType === 'mood' && data.mood) patch.mood = data.mood;
-    if(this.pulseType === 'photo' && data.photo) patch.photos = [...entry.photos, data.photo];
+    if(isNew && this.pulseType === 'photo' && data.photo) patch.photos = [...entry.photos, data.photo];
     if(this.pulseType === 'quote' && data.text && data.who){
       addCoderQuoteByName(data.who, data.text, data.context);
     }
@@ -3282,7 +3404,7 @@ const HomeCheckIn = {
 
     saveState();
     this.closePulseComposer();
-    awardGrayPoints(GRAY_XP_AWARDS.pulse.xp, 'pulse');
+    if(isNew) awardGrayPoints(GRAY_XP_AWARDS.pulse.xp, 'pulse');
     renderHomeCheckIn();
     renderLedger();
     safeRender(renderAbout);
@@ -3467,7 +3589,9 @@ const HomeCheckIn = {
           const body = node.body && node.body !== headline ? node.body : (node.data?.body && node.data.body !== headline ? node.data.body : '');
           const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 280 ? body.slice(0, 280) + '…' : body)}</p>` : '';
           const canDel = admin && node.type !== 'wake' && node.type !== 'sleep' && !node.isPlanned;
+          const canEdit = canDel;
           const delBtn = canDel ? `<button type="button" class="live-node-del" data-live-node-del="${esc(node.id)}" title="Remove pulse">×</button>` : '';
+          const editBtn = canEdit ? `<button type="button" class="live-node-edit" data-live-node-edit="${esc(node.id)}" title="Edit pulse">✎</button>` : '';
           const plannedTag = node.isPlanned ? `<span class="live-node-planned">planned</span>` : '';
           return `<article class="live-node${canDel ? ' is-editable' : ''}${node.isPlanned ? ' is-planned' : ''}${headline && body ? ' has-writing' : ''}" style="--ln-neon:${meta.neon}">
             <div class="live-node-marker" title="${meta.label}">
@@ -3481,6 +3605,7 @@ const HomeCheckIn = {
                 ${plannedTag}
                 ${moodBadge}
                 ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
+                ${editBtn}
                 ${delBtn}
               </div>
               <p class="live-node-text">${esc(headline)}</p>
@@ -4115,8 +4240,10 @@ function buildScrapbookChrome(key, nav = {}){
 function getScrapbookWallItems(key, e, stream){
   const n = normalizeEntry(e);
   const pulses = stream.nodes.filter(nd => nd.type !== 'wake' && nd.type !== 'sleep');
+  const pulsePhotoSrcs = new Set();
   const items = [];
   pulses.forEach((node, idx) => {
+    if(node.photo) pulsePhotoSrcs.add(node.photo);
     items.push({
       id: node.id || `pulse-${key}-${idx}`,
       kind: 'pulse',
@@ -4126,12 +4253,13 @@ function getScrapbookWallItems(key, e, stream){
   });
   (n.photos || []).forEach((p, idx) => {
     const src = typeof p === 'string' ? p : p.src;
-    if(!src) return;
+    if(!src || pulsePhotoSrcs.has(src)) return;
     items.push({
       id: `dayphoto-${key}-${idx}`,
       kind: 'photo',
       src,
-      caption: 'Photo of the day',
+      caption: '',
+      place: '',
       at: stream.endedAt || stream.startedAt || '',
     });
   });
@@ -4151,6 +4279,27 @@ function getScrapbookWallItems(key, e, stream){
   return items;
 }
 
+function buildScrapbookPhotoPost(item, index, key, opts = {}){
+  const layout = resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
+  const wideClass = ' layout-wide';
+  const sizeClass = ` size-${layout.size}`;
+  const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;`;
+  const neon = stableNeon(item.id, index);
+  const when = item.at ? fmtNodeStamp(item.at, key) : '';
+  const adminEdit = isAdmin() && opts.nodeId
+    ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(opts.nodeId)}" data-scrap-key="${esc(key)}">Edit</button>`
+    : '';
+  return `<figure class="scrap-photo-post scrap-item${wideClass}${sizeClass}" style="${style}--scrap-neon:${neon}" data-scrap-id="${esc(item.id)}">
+    <div class="scrap-photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
+    <figcaption class="scrap-photo-meta">
+      ${when ? `<time class="scrap-photo-time">${esc(when)}</time>` : ''}
+      ${item.caption ? `<p class="scrap-photo-desc">${esc(item.caption)}</p>` : ''}
+      ${item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : ''}
+      ${adminEdit}
+    </figcaption>
+  </figure>`;
+}
+
 function buildScrapbookWallItem(item, index, key){
   const layout = resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
   const wideClass = layout.gridWide ? ' layout-wide' : '';
@@ -4158,24 +4307,7 @@ function buildScrapbookWallItem(item, index, key){
   const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;`;
 
   if(item.kind === 'photo'){
-    const neon = stableNeon(item.id, index);
-    return `<figure class="photo-flip scrap-item${wideClass}${sizeClass}" style="${style}--flip-neon:${neon}" data-scrap-id="${esc(item.id)}">
-      <div class="photo-flip-scene">
-        <div class="photo-flip-inner">
-          <div class="photo-flip-face photo-flip-front">
-            <div class="photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
-            <figcaption class="photo-caption">${esc(item.caption || 'Photo')}</figcaption>
-          </div>
-          <div class="photo-flip-face photo-flip-back">
-            <div class="flip-back-inner">
-              <h3 class="flip-caption">${esc(item.caption || 'Photo of the day')}</h3>
-              ${item.at ? `<p class="flip-place">${esc(fmtNodeStamp(item.at, key))}</p>` : ''}
-              <span class="flip-hint-back">tap to flip back</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </figure>`;
+    return buildScrapbookPhotoPost(item, index, key);
   }
 
   if(item.kind === 'diary'){
@@ -4201,6 +4333,20 @@ function buildScrapbookWallItem(item, index, key){
   const text = body || (node.text && node.text !== title ? node.text : '');
   const isWriting = ['note', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (text && text.length > 80);
   const writeWide = isWriting ? ' layout-wide' : wideClass;
+  const adminEdit = isAdmin()
+    ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
+    : '';
+
+  if(node.type === 'photo' && node.photo){
+    const photoDetails = getPulsePhotoDetails(node);
+    return buildScrapbookPhotoPost({
+      id: item.id,
+      src: node.photo,
+      caption: photoDetails.caption,
+      place: photoDetails.place,
+      at: node.at,
+    }, index, key, { nodeId: node.id });
+  }
 
   if(node.photo){
     return `<figure class="photo-flip scrap-item${writeWide}${sizeClass}" style="${style}--flip-neon:${neon}" data-scrap-id="${esc(item.id)}">
@@ -4231,6 +4377,7 @@ function buildScrapbookWallItem(item, index, key){
         <span class="scrap-pulse-type">${meta.icon} ${meta.label}</span>
         ${title ? `<h3 class="scrap-pulse-title">${esc(title)}</h3>` : ''}
         ${text ? `<p class="scrap-pulse-body">${esc(text)}</p>` : ''}
+        ${adminEdit}
       </div>
     </div>
   </figure>`;
@@ -4304,10 +4451,18 @@ function bindScrapbookNav(host){
       if(typeof DailyLog !== 'undefined') DailyLog.selectDay(btn.dataset.scrapEditDay);
     });
   });
+  host.querySelectorAll('[data-scrap-pulse-edit]').forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if(typeof HomeCheckIn !== 'undefined') HomeCheckIn.openPulseEditor(btn.dataset.scrapPulseEdit, btn.dataset.scrapKey);
+    });
+  });
   const wall = host.querySelector('.scrapbook-wall');
   if(wall && !wall._scrapHandler){
     wall._scrapHandler = e => {
-      if(e.target.closest('.scrapbook-edit-day, [data-scrap-day]')) return;
+      if(e.target.closest('.scrapbook-edit-day, [data-scrap-day], .scrap-pulse-edit')) return;
       const fig = e.target.closest('.photo-flip');
       if(!fig || !wall.contains(fig)) return;
       const wasFlipped = fig.classList.contains('is-flipped');

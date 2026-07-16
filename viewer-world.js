@@ -458,6 +458,9 @@ function renderInboxMedia(m){
 }
 
 function getInboxableCoders(){
+  if(typeof getRankedCoderCards === 'function'){
+    return getRankedCoderCards().filter(c => c?.id && c.active !== false);
+  }
   const seen = new Set();
   const out = [];
   (state.viewerCharacters || []).forEach(c => {
@@ -473,6 +476,16 @@ function getInboxableCoders(){
     });
   }
   return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
+
+function getInboxHosts(){
+  const page = document.getElementById('inboxSpread');
+  const drawer = document.getElementById('inboxDrawerSpread');
+  const drawerOpen = document.body.classList.contains('inbox-drawer-open');
+  const onInboxView = document.body.dataset.activeView === 'inbox';
+  if(onInboxView && page) return [page];
+  if(drawerOpen && drawer) return [drawer];
+  return [page || drawer].filter(Boolean);
 }
 
 function getXpRequestOptionsHtml(selected){
@@ -1394,7 +1407,7 @@ function userVotedQuest(q, cardId){
   return !!(q.votes && cardId && q.votes[cardId]);
 }
 
-const INSTRUCTIONS_REVISION = 2;
+const INSTRUCTIONS_REVISION = 3;
 
 function getInstructionsHtml(){
   const rev = state.instructionsRevision || 0;
@@ -1404,7 +1417,8 @@ function getInstructionsHtml(){
 
 function buildDefaultInstructionsHtml(){
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, photos, and <strong>Community Animals</strong> (flip cards of creatures coders have spotted or pets they own). No login needed. (Yes, it's a whole thing.)</p></div>`;
+    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, photos, and <strong>Community Animals</strong> (flip cards of creatures coders have spotted or pets they own). No login needed. (Yes, it's a whole thing.)</p>
+    <p class="instructions-p field-hint">On your phone: use <strong>Add to Home Screen</strong> to open it like an app.</p></div>`;
   }
   const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make my profile →</button>` : '';
   const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send me a quest →</button>` : '';
@@ -1412,52 +1426,54 @@ function buildDefaultInstructionsHtml(){
   return `
     <div class="instructions-panel sketch-card instructions-gray-voice instructions-full">
       <p class="instructions-kicker">Hey — it's Gray</p>
-      <p class="instructions-p">This started as something really small. A log, a vibe, a place to stick photos. It's becoming something really big — and you're invited. I'm the <strong>Player</strong> (my life is the game world). You're a <strong>Coder</strong> (you play alongside with your own profile, collection, and missions to me). Browse my world first. When you're ready, log in and use the neon sidebar.</p>
+      <p class="instructions-p">This started as something really small — a way for my parents to see what I'm up to. I don't really know how to do moderation, so it's spiralled slightly out of control and become something very big. You're invited anyway.</p>
+      <p class="instructions-p">I'm the <strong>Player</strong> — my life is the game world. You're a <strong>Coder</strong> — you play alongside with your own profile, your own collections, and requests you can send me. You can see exactly what I'm up to at any time. When you're ready, log in and use the sidebar to explore properly.</p>
+      <p class="instructions-p field-hint">Quick access: on your phone, tap <strong>Add to Home Screen</strong> — it opens like a little app without building a whole new one.</p>
 
       <h3 class="viewer-wizard-title">First visit</h3>
       <ol class="instructions-steps">
-        <li><strong>Make my profile</strong> — summon your coder card (character + spirit animal). Pick a console key only you know. Don't lose it. I can't recover it for you. (I wish I could.)</li>
-        <li><strong>Log in</strong> each time with name + key, or type <code>Name::key</code> in the console at the bottom of the sidebar.</li>
-        <li>Flip through my Scrapbook, watch Coming To You Live, poke my decks — then play properly from <strong>My Profile</strong>.</li>
+        <li><strong>Make my profile</strong> — summon your coder card (your character + spirit animal). Pick a console key only you know. Don't lose it — I can't recover it for you.</li>
+        <li><strong>Log in</strong> each time with your name and console key, or type <code>Name::key</code> in the console at the bottom of the sidebar.</li>
+        <li>Browse first: flip through my <strong>Scrapbook</strong>, watch <strong>Coming To You Live</strong>, poke my decks — places I've been, skills I'm developing, media I'm watching, photos I'm posting.</li>
       </ol>
 
       <h3 class="viewer-wizard-title">My Profile (your home base)</h3>
-      <p class="instructions-p">Everything personal lives here — not scattered in the sidebar. When you add or edit something, <strong>you stay on that tab</strong> — I won't throw you back to Updates. The neon banners on the right:</p>
+      <p class="instructions-p">Everything personal lives in your profile — not scattered in the sidebar. When you add or edit something, <strong>you stay on that tab</strong>.</p>
       <ul class="instructions-nav-list">
-        <li><strong>Updates</strong> — drop public posts (Community + chat) or private notes straight to my inbox. Say <em>message me</em>, not "message Gray". You're talking to me.</li>
-        <li><strong>Photos</strong> — your photo wall. Add, flip, edit <em>right on this tab</em> — doesn't have to go through Updates.</li>
-        <li><strong>Friends</strong> — collect other coders' cards from Coder Cards. No inventing people — only real accounts.</li>
-        <li><strong>Skills</strong> — same idea as my Skill Cards: flip cards, skyline towers, log hours, add milestones. Edit from the card or the tower. Hit <strong>Send to me</strong> when you want me to try something.</li>
-        <li><strong>Media</strong> — TV, film, books, albums, songs. Full shelves, episode reviews, posters, rankings. <strong>Send to me</strong> when you've got a rec.</li>
-        <li><strong>Places</strong> — vibe / experience / utility ranks plus your actual stories from being there. <strong>Send to me</strong> for places you want me to visit.</li>
-        <li><strong>Animals</strong> — two types: <strong>Spotted in the wild</strong> (public creatures you've met) or <strong>My pet</strong> (animals you own). Labels change with the type — where you saw them vs where they live. Upload or AI-generate a photo, write the <strong>animal story</strong> (how you met, personality, the whole bit), pick a <strong>card colour</strong> (glow preview updates live as you choose). Flip the card for the full story. Also on <strong>Community → Community Animals</strong>. The little <strong>circle</strong> on each card is whoever posted it — click to visit their profile. <strong>+8 XP</strong>.</li>
-        <li><strong>Press</strong> — write articles for The Press with photos, layout, and tags. I read everything; I publish what sings.</li>
-        <li><strong>Quests</strong> — <em>only here now</em>, not in the sidebar. Send me missions: visit somewhere, eat something, comfort me, or <strong>update the website</strong> with a feature you want coded in.</li>
+        <li><strong>Updates</strong> — public posts to the community (they also show in chat)</li>
+        <li><strong>Photos</strong> — post whatever you'd like</li>
+        <li><strong>Friends</strong> — collect other coders' cards from Coder Cards</li>
+        <li><strong>Skills</strong> — track your skills and milestones; <strong>Send to me</strong> when you want me to try something</li>
+        <li><strong>Media</strong> — what you're watching, reading, or listening to; review it; <strong>recommend to me</strong></li>
+        <li><strong>Places</strong> — places you've been that you like; <strong>recommend for me</strong> too</li>
+        <li><strong>Animals</strong> — spotted in the wild, or your pets. Also in <strong>Community → Community Animals</strong></li>
+        <li><strong>Press</strong> — write for the journalism panel; I read it and decide if I want to post it</li>
+        <li><strong>Quests</strong> — send me missions (get me a matcha, visit somewhere, comfort me, code a feature…). If I complete it I post about it and you get XP</li>
       </ul>
 
-      <h3 class="viewer-wizard-title">Game sidebar (the rest)</h3>
+      <h3 class="viewer-wizard-title">Sidebar</h3>
       <ul class="instructions-nav-list">
-        <li><strong>Messages</strong> — DM me or friends you've collected. Private <strong>Send to me</strong> picks (places, skills, media) land in my <strong>Recommendations</strong> tab when I'm logged in.</li>
-        <li><strong>Chat</strong> — live room; your public updates echo here</li>
-        <li><strong>Community</strong> — <strong>Community Board</strong> for pin notes, polls, and media. <strong>Community Animals</strong> tab: every coder's animal flip cards in one deck — <strong>Spotted</strong> vs <strong>My pet</strong> badges on the front, <strong>animal story</strong> on the back, coder portrait circle on each card.</li>
-        <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, birthdays, calls, recs I actually consumed, being a legend)</li>
+        <li><strong>Messages</strong> — DM me or friends privately</li>
+        <li><strong>Chat</strong> — live room; public updates echo here</li>
+        <li><strong>Community</strong> — board for notes, polls, media; <strong>Community Animals</strong> deck</li>
+        <li><strong>Bonus XP</strong> — request XP if you've done something off-site you think deserves it; I'll review</li>
       </ul>
 
       <h3 class="viewer-wizard-title">My world (everyone can browse)</h3>
       <ul class="instructions-nav-list">
         <li><strong>Player Profile</strong> — my hero card and stats</li>
-        <li><strong>Coming To You Live</strong> — live transmission; when I seal the day it becomes the log</li>
+        <li><strong>Coming To You Live</strong> — live transmission; sealed days land in the scrapbook</li>
         <li><strong>Scrapbook</strong> — pulses, photos, writing stuck on like stickers</li>
-        <li><strong>Place / Coder / Skill / Media Cards</strong> — my decks; click any coder to view their profile</li>
-        <li><strong>The Press</strong> — published articles (submit from your profile's Press tab)</li>
+        <li><strong>Place / Coder / Skill / Media Cards</strong> — my decks</li>
+        <li><strong>The Press</strong> — published articles</li>
         <li><strong>Photo Wall</strong> — my flip photos</li>
         <li><strong>Video Log</strong> — my video notes</li>
       </ul>
 
-      <h3 class="viewer-wizard-title">XP &amp; levelling</h3>
-      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection (places, skills, media, animals…), and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually. (I'm not joking.)</p>
+      <h3 class="viewer-wizard-title">XP</h3>
+      <p class="instructions-p">XP has no grand value — it's just a scoreboard. I'll presumably give something to whoever has the most, but I'm not sure what yet. Posts, quests, messages, collections, and card edits all earn XP.</p>
 
-      <p class="instructions-note">Rules of thumb: build your collection in My Profile, send quests from My Profile, write Press from My Profile, flip every card at least once, and when in doubt — <strong>Send to me</strong>.</p>
+      <p class="instructions-note">When in doubt: build your collection, send quests from My Profile, flip every card at least once, and <strong>Send to me</strong>.</p>
       ${cardBtn}
       ${questBtn}
       ${loginBtn}
@@ -2106,6 +2122,7 @@ const ViewerWorld = {
     if(!pts) return;
     awardCoderPoints(coderId, pts, awardKey);
     this.renderQuests();
+    this.renderXpRequests();
     if(typeof renderCharacters === 'function') renderCharacters();
   },
 
@@ -2705,12 +2722,53 @@ const ViewerWorld = {
     await postVisitorData('resolveXpRequest', req);
     this.renderInbox();
     this.renderQuests();
+    this.renderXpRequests();
     if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   },
 
   renderXpRequests(){
     const host = document.getElementById('xpRequestSpread');
     if(!host) return;
+
+    if(isAdmin()){
+      const coders = typeof getRankedCoderCards === 'function' ? getRankedCoderCards() : getAwardableCoders();
+      const pending = getPendingXpRequests();
+      host.innerHTML = `
+        <div class="xp-page-wrap xp-page-neon" style="--xp-neon:#fbbf24">
+          <header class="xp-page-hero sketch-card xp-page-hero-glow">
+            <p class="xp-page-kicker">// player gray</p>
+            <h3 class="viewer-wizard-title">Bonus XP</h3>
+            <p class="field-hint">Award XP to any coder card, or review requests they've sent in.</p>
+          </header>
+          ${pending.length ? `<section class="xp-request-board sketch-card">
+            <h3 class="viewer-wizard-title">Pending requests</h3>
+            <div class="xp-request-list">${pending.map(r => `<div class="xp-request-row">
+              <div><strong>${esc(r.coderName)}</strong> · ${esc(r.reasonLabel)} (+${r.suggestedXp || 0} XP)</div>
+              <p>${esc(r.description)}</p>
+              <div class="quest-actions">
+                <button type="button" class="btn primary" data-xp-approve="${esc(r.id)}">Approve</button>
+                <button type="button" class="btn" data-xp-deny="${esc(r.id)}">Decline</button>
+              </div>
+            </div>`).join('')}</div>
+          </section>` : ''}
+          <section class="coder-admin-panel sketch-card">
+            <h3 class="viewer-wizard-title">Award coder XP</h3>
+            <p class="field-hint">Every coder card in the deck — pick a reason and award.</p>
+            <div class="coder-admin-list">${coders.length
+              ? coders.map(c => this.coderAdminRow(c)).join('')
+              : '<p class="empty-hint">No coder cards yet.</p>'}</div>
+          </section>
+        </div>`;
+      host.querySelectorAll('[data-xp-approve]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpApprove, 'approve')));
+      host.querySelectorAll('[data-xp-deny]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpDeny, 'deny')));
+      host.querySelectorAll('[data-award-go]').forEach(btn => btn.addEventListener('click', () => {
+        const sel = btn.closest('.coder-admin-row')?.querySelector('.coder-award-select');
+        this.adminAwardPoints(btn.dataset.awardGo, sel?.value);
+      }));
+      host.querySelectorAll('[data-coder-edit]').forEach(btn => btn.addEventListener('click', () => this.openPlayerCoderEdit(btn.dataset.coderEdit)));
+      return;
+    }
+
     const mine = getMyCoderCard();
     if(!mine){
       host.innerHTML = `<p class="empty-hint">Log in to request bonus XP.</p>`;
@@ -2753,11 +2811,12 @@ const ViewerWorld = {
   },
 
   renderInbox(){
-    const host = document.getElementById('inboxDrawerSpread') || document.getElementById('inboxSpread');
-    if(!host) return;
+    const hosts = getInboxHosts();
+    if(!hosts.length) return;
     const userId = getInboxUserId();
     if(!userId){
-      host.innerHTML = `<p class="empty-hint">Log in to message me and your coder friends.</p>`;
+      const empty = `<p class="empty-hint">Log in to message me and your coder friends.</p>`;
+      hosts.forEach(host => { host.innerHTML = empty; });
       return;
     }
     const mine = getMyCoderCard();
@@ -2768,7 +2827,9 @@ const ViewerWorld = {
     const friendIds = new Set(friends.map(f => f.id));
     const otherCoders = coders.filter(c => !friendIds.has(c.id) && c.id !== userId);
     const recipientOptions = isAdmin()
-      ? coders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
+      ? (coders.length
+        ? coders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
+        : '<option value="" disabled selected>No coders yet</option>')
       : [`<option value="${GRAY_INBOX_ID}">Me (Player)</option>`,
         ...friends.map(c => `<option value="${esc(c.id)}">★ ${esc(c.name)}</option>`),
         ...otherCoders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`),
@@ -2810,6 +2871,20 @@ const ViewerWorld = {
         </section>`
       : `<section class="inbox-friends-panel sketch-card"><p class="field-hint">No friends yet — collect coder cards in <strong>My Profile → Collection</strong>.</p></section>`;
 
+    const adminCodersHtml = isAdmin() && coders.length
+      ? `<section class="inbox-friends-panel sketch-card">
+          <h4 class="inbox-friends-title">Coders</h4>
+          <div class="inbox-friends-list">${coders.map(c => {
+            const thumb = typeof pinCoderThumb === 'function' ? pinCoderThumb(c.id) : `<span>${esc(c.name)}</span>`;
+            return `<button type="button" class="inbox-friend-chip" data-inbox-to="${esc(c.id)}" style="--if-neon:${esc(c.cardColor || '#c084fc')}">
+              ${thumb}
+              <span class="inbox-friend-name">${esc(c.name)}</span>
+            </button>`;
+          }).join('')}</div>
+          <p class="field-hint">Tap a coder to message them.</p>
+        </section>`
+      : '';
+
     let adminXpPanel = '';
     let adminRecPanel = '';
     let adminTabs = '';
@@ -2836,7 +2911,7 @@ const ViewerWorld = {
       </nav>`;
     }
 
-    host.innerHTML = `
+    const html = `
       <div class="inbox-hub" style="--inbox-neon:#c084fc">
         <header class="inbox-hub-head">
           <p class="inbox-hub-kicker">// coder messages</p>
@@ -2845,7 +2920,7 @@ const ViewerWorld = {
         </header>
         <div class="inbox-page-layout">
           <aside class="inbox-sidebar">
-            ${friendsHtml}
+            ${isAdmin() ? adminCodersHtml : friendsHtml}
             <section class="inbox-page-compose sketch-card">
               <h4 class="viewer-wizard-title">Compose</h4>
               <form id="inboxComposeForm">
@@ -2869,26 +2944,29 @@ const ViewerWorld = {
         </div>
       </div>`;
 
-    host.querySelector('#inboxComposeForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitInboxMessage(); });
-    host.querySelector('#markInboxReadBtn')?.addEventListener('click', () => markInboxRead(userId, unread.map(m => m.id)));
-    host.querySelectorAll('[data-inbox-to]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sel = host.querySelector('#inboxTo');
-        if(sel) sel.value = btn.dataset.inboxTo;
-        host.querySelector('#inboxBody')?.focus();
+    hosts.forEach(host => {
+      host.innerHTML = html;
+      host.querySelector('#inboxComposeForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitInboxMessage(); });
+      host.querySelector('#markInboxReadBtn')?.addEventListener('click', () => markInboxRead(userId, unread.map(m => m.id)));
+      host.querySelectorAll('[data-inbox-to]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sel = host.querySelector('#inboxTo');
+          if(sel) sel.value = btn.dataset.inboxTo;
+          host.querySelector('#inboxBody')?.focus();
+        });
       });
-    });
-    host.querySelectorAll('[data-xp-approve]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpApprove, 'approve')));
-    host.querySelectorAll('[data-xp-deny]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpDeny, 'deny')));
-    host.querySelectorAll('[data-inbox-admin-tab]').forEach(tab => {
-      tab.addEventListener('click', () => {
-        host.querySelectorAll('[data-inbox-admin-tab]').forEach(t => t.classList.remove('is-active'));
-        host.querySelectorAll('[data-inbox-admin-pane]').forEach(p => p.classList.remove('is-active'));
-        tab.classList.add('is-active');
-        host.querySelector(`[data-inbox-admin-pane="${tab.dataset.inboxAdminTab}"]`)?.classList.add('is-active');
+      host.querySelectorAll('[data-xp-approve]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpApprove, 'approve')));
+      host.querySelectorAll('[data-xp-deny]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpDeny, 'deny')));
+      host.querySelectorAll('[data-inbox-admin-tab]').forEach(tab => {
+        tab.addEventListener('click', () => {
+          host.querySelectorAll('[data-inbox-admin-tab]').forEach(t => t.classList.remove('is-active'));
+          host.querySelectorAll('[data-inbox-admin-pane]').forEach(p => p.classList.remove('is-active'));
+          tab.classList.add('is-active');
+          host.querySelector(`[data-inbox-admin-pane="${tab.dataset.inboxAdminTab}"]`)?.classList.add('is-active');
+        });
       });
+      if(typeof bindGrayRecommendations === 'function') bindGrayRecommendations(host);
     });
-    if(typeof bindGrayRecommendations === 'function') bindGrayRecommendations(host);
   },
 };
 
