@@ -419,17 +419,17 @@ GameHub.renderCollectionSection = function(coderId, section){
   if(section === 'places'){
     const deck = col.places.map((p, i) => buildCollectionPlaceFlip(p, i)).join('');
     const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add place</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div><div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div><button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button></div></details>` : '';
-    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No place cards yet.')}</div>${add}</div>`;
+    return `<div class="profile-deck-view"><p class="gallery-hint">Click a card to flip it over.</p><div class="card-deck profile-place-deck">${deck || empty('No place cards yet.')}</div>${add}</div>`;
   }
   if(section === 'skills'){
     const deck = col.skills.map((s, i) => buildCollectionSkillFlip({ ...s, hours: parseFloat(s.hours) || 0, color: s.color || '#7c4dff' }, i)).join('');
     const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add skill</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div><div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div><button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button></div></details>` : '';
-    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No skill cards yet.')}</div>${add}</div>`;
+    return `<div class="profile-deck-view"><p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones.</p><div class="card-deck skill-card-deck profile-skill-deck">${deck || empty('No skill cards yet.')}</div>${add}</div>`;
   }
   if(section === 'media'){
-    const deck = col.media.map((m, i) => buildCollectionMediaFlip(m, i)).join('');
+    const deck = col.media.map((m, i) => typeof buildCoderMediaDramaCard === 'function' ? buildCoderMediaDramaCard(m, i) : buildCollectionMediaFlip(m, i)).join('');
     const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add media</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div><div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div><div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div><div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div><button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button></div></details>` : '';
-    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No media logged yet.')}</div>${add}</div>`;
+    return `<div class="profile-deck-view"><p class="gallery-hint">TV, film, books, albums — your media log shelf.</p><div class="drama-deck media-type-deck profile-media-deck">${deck || empty('No media logged yet.')}</div>${add}</div>`;
   }
   if(section === 'friends'){
     const friendDeck = col.friends.map((fid, i) => {
