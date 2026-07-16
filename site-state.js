@@ -348,13 +348,6 @@ const SITE_STATE = {
         "note": ""
       },
       {
-        "id": "quest_complete",
-        "label": "Quest completed for a coder",
-        "xp": 20,
-        "category": "social",
-        "note": ""
-      },
-      {
         "id": "todo_done",
         "label": "Live to-do ticked off",
         "xp": 3,
