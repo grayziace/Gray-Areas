@@ -1,0 +1,17 @@
+{
+  "name": "Gray Areas",
+  "short_name": "Gray Areas",
+  "description": "Gray's life-log game — coders, quests, live board, daily log.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0612",
+  "theme_color": "#9b5cff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://gray-areas.pages.dev/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

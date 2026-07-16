@@ -87,6 +87,12 @@ const OVERLOAD_CHANNELS = {
     icon: '◈',
     desc: 'Weight, calories, body-checking notes. Never leaves this vault.',
   },
+  offline: {
+    id: 'offline',
+    label: 'Coming To You Offline',
+    icon: '◌',
+    desc: 'Secret daily stream — same pulses as live, but nobody else can see.',
+  },
 };
 
 function overloadTopic(id){
@@ -568,6 +574,7 @@ const OverloadLog = {
 
   enterMindView(){
     if(!isAdmin()) return;
+    this.awardVaultLoginXp();
     this.embedded = false;
     if(typeof navigateToView === 'function') navigateToView('mind');
     else {
@@ -720,6 +727,155 @@ const OverloadLog = {
   sortedBodyLog(){
     this.ensureBodyLog();
     return [...state.privateBodyLog].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  },
+
+  ensureVaultDays(){
+    if(!state.privateVaultDays || typeof state.privateVaultDays !== 'object') state.privateVaultDays = {};
+  },
+
+  ensureMeals(){
+    if(!Array.isArray(state.privateMeals)) state.privateMeals = [];
+  },
+
+  getVaultDay(key){
+    this.ensureVaultDays();
+    const k = key || (typeof todayKey === 'function' ? todayKey() : '');
+    if(!state.privateVaultDays[k]) state.privateVaultDays[k] = { stream: { nodes: [] }, secretLog: '' };
+    if(!state.privateVaultDays[k].stream) state.privateVaultDays[k].stream = { nodes: [] };
+    if(!Array.isArray(state.privateVaultDays[k].stream.nodes)) state.privateVaultDays[k].stream.nodes = [];
+    return state.privateVaultDays[k];
+  },
+
+  awardVaultLoginXp(){
+    if(typeof awardGrayPoints !== 'function' || !isAdmin()) return;
+    try{
+      const today = typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
+      if(sessionStorage.getItem('ga-vault-login:' + today)) return;
+      sessionStorage.setItem('ga-vault-login:' + today, '1');
+      awardGrayPoints(typeof GRAY_XP_AWARDS !== 'undefined' ? GRAY_XP_AWARDS.vault_login.xp : 5, 'vault_login');
+    }catch(e){}
+  },
+
+  renderWeightLineGraph(entries){
+    const pts = entries.filter(e => e.weight != null).slice(0, 24).reverse();
+    if(pts.length < 2) return '';
+    const w = 300, h = 110, pad = 14;
+    const weights = pts.map(p => p.weight);
+    const min = Math.min(...weights), max = Math.max(...weights);
+    const range = max - min || 1;
+    const coords = pts.map((p, i) => {
+      const x = pad + (i / (pts.length - 1)) * (w - pad * 2);
+      const y = h - pad - ((p.weight - min) / range) * (h - pad * 2);
+      return { x, y, weight: p.weight, date: p.date };
+    });
+    const line = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const nodes = coords.map(c =>
+      `<circle class="ol-weight-node" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="5" style="--wn-neon:#f43f8e"><title>${esc(c.date)}: ${c.weight} kg</title></circle>`
+    ).join('');
+    return `<div class="ol-weight-line-wrap sys-panel">
+      <h4 class="ol-subhead">Weight line · neon nodes</h4>
+      <svg class="ol-weight-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Weight trend">
+        <polyline class="ol-weight-line" points="${line}" fill="none"/>
+        ${nodes}
+      </svg>
+    </div>`;
+  },
+
+  todayMeals(){
+    this.ensureMeals();
+    const k = typeof todayKey === 'function' ? todayKey() : '';
+    return state.privateMeals.filter(m => (m.date || m.at?.slice(0, 10)) === k).sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+  },
+
+  todayMealCalories(){
+    return this.todayMeals().reduce((sum, m) => sum + (Number(m.calories) || 0), 0);
+  },
+
+  pushVaultPulse(type, text, body){
+    const key = typeof todayKey === 'function' ? todayKey() : '';
+    const day = this.getVaultDay(key);
+    day.stream.nodes.push({
+      id: 'vp-' + Date.now(),
+      at: new Date().toISOString(),
+      type: type || 'note',
+      text: text || '',
+      body: body || '',
+    });
+    saveState();
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(typeof GRAY_XP_AWARDS !== 'undefined' ? GRAY_XP_AWARDS.vault_pulse.xp : 5, 'vault_pulse');
+  },
+
+  renderVaultTimeline(dayKey){
+    const day = this.getVaultDay(dayKey);
+    const nodes = [...(day.stream?.nodes || [])].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+    if(!nodes.length) return '<p class="ol-empty sys-flicker">// no offline pulses yet — drop one below</p>';
+    return `<div class="ol-vault-rail">${nodes.map(node => {
+      const time = node.at ? new Date(node.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+      return `<article class="ol-vault-node" style="--vn-neon:#f43f8e">
+        <time>${esc(time)}</time>
+        <span class="ol-vault-type">${esc(node.type)}</span>
+        <p>${esc(node.text || '')}</p>
+        ${node.body ? `<p class="ol-vault-body">${esc(node.body)}</p>` : ''}
+      </article>`;
+    }).join('')}</div>`;
+  },
+
+  openOffline(){
+    this.view = 'offline';
+    this.render();
+  },
+
+  renderOffline(){
+    const key = typeof todayKey === 'function' ? todayKey() : '';
+    const day = this.getVaultDay(key);
+    const meals = this.todayMeals();
+    const mealTotal = this.todayMealCalories();
+    const pulseOpts = ['note', 'rant', 'mood', 'food', 'anxiety', 'health', 'event', 'gratitude', 'dream', 'memory']
+      .map(t => `<option value="${t}">${t}</option>`).join('');
+    const mealRows = meals.map(m => `<li class="ol-meal-row"><time>${esc((m.at || '').slice(11, 16) || '—')}</time><strong>${esc(m.food || 'Food')}</strong><span>${m.calories || 0} kcal</span></li>`).join('');
+    return `<div class="ol-offline-layout">
+      <button type="button" class="btn" id="olBackHub">← VAULT HUB</button>
+      <header class="ol-offline-hero sys-panel">
+        <p class="ol-kicker sys-flicker">// wish I could log this in the dark · belly of everything · never leaves the vault</p>
+        <h3 class="ol-title">COMING TO YOU OFFLINE</h3>
+        <p class="ol-sub">Same energy as Coming To You Live — secret transmission. Rants, moods, food, chaos. <strong>Nobody else can see this.</strong> Not even on the public daily log.</p>
+        <p class="ol-offline-date">${typeof fmtDateLong === 'function' ? fmtDateLong(key) : key}</p>
+      </header>
+      <div class="ol-offline-grid">
+        <aside class="ol-offline-rail sys-panel">
+          <h4>Offline transmission</h4>
+          <div class="ol-offline-scroll">${this.renderVaultTimeline(key)}</div>
+        </aside>
+        <main class="ol-offline-main">
+          <section class="sys-panel ol-pulse-compose">
+            <h4>Drop offline pulse</h4>
+            <div class="field-row">
+              <div class="field"><label>Type</label><select id="olVaultPulseType">${pulseOpts}</select></div>
+              <div class="field"><label>Headline</label><input type="text" id="olVaultPulseText" class="sys-input" placeholder="What happened?"></div>
+            </div>
+            <div class="field"><label>Detail</label><textarea id="olVaultPulseBody" rows="2" class="sys-input" placeholder="Optional — full rant"></textarea></div>
+            <button type="button" class="btn primary" id="olVaultPulseSave">Transmit offline</button>
+          </section>
+          <section class="sys-panel ol-secret-log">
+            <h4>Secret daily log</h4>
+            <p class="ol-sub">Separate from your public Daily Log — vault only.</p>
+            <textarea id="olSecretLog" rows="5" class="sys-input" placeholder="How the day actually felt…">${esc(day.secretLog || '')}</textarea>
+            <button type="button" class="btn" id="olSaveSecretLog">Save secret log</button>
+          </section>
+          <section class="sys-panel ol-meal-log">
+            <h4>Calorie tracker · today</h4>
+            <p class="ol-meal-total">Running total: <strong>${mealTotal}</strong> kcal · ${meals.length} item${meals.length === 1 ? '' : 's'}</p>
+            <ul class="ol-meal-list">${mealRows || '<li class="ol-empty">No meals logged yet today.</li>'}</ul>
+            <div class="field-row">
+              <div class="field"><label>Food</label><input type="text" id="olMealFood" class="sys-input" placeholder="What did you eat?"></div>
+              <div class="field"><label>kcal</label><input type="number" min="0" id="olMealCal" class="sys-input" placeholder="0"></div>
+            </div>
+            <div class="field"><label>Note</label><input type="text" id="olMealNote" class="sys-input" placeholder="optional"></div>
+            <button type="button" class="btn primary" id="olMealAdd">Log meal</button>
+          </section>
+        </main>
+      </div>
+    </div>`;
   },
 
   renderCategoryChips(selected, inputName = 'olCategory'){
@@ -1245,7 +1401,7 @@ const OverloadLog = {
     else state.privateVentLogs.push(payload);
 
     saveState();
-    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(8, 'vent_archived');
+    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(typeof GRAY_XP_AWARDS !== 'undefined' ? GRAY_XP_AWARDS.vent_archived.xp : 8, 'vent_archived');
     this.view = 'hub';
     this.editingId = null;
     this.sessionDraft = null;
@@ -1297,7 +1453,7 @@ const OverloadLog = {
     else state.privateBodyLog.push(payload);
 
     saveState();
-    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(5, 'body_log');
+    if(isNew && typeof awardGrayPoints === 'function') awardGrayPoints(typeof GRAY_XP_AWARDS !== 'undefined' ? GRAY_XP_AWARDS.body_log.xp : 5, 'body_log');
     this.bodyEditingId = null;
     this.render();
   },
@@ -1322,7 +1478,7 @@ const OverloadLog = {
     const ventLogs = this.sortedVentLogs();
     const bodyLogs = this.sortedBodyLog();
     const filter = this.archiveFilter || 'all';
-    const channelCards = Object.values(OVERLOAD_CHANNELS).map(ch => `
+    const channelCards = Object.values(OVERLOAD_CHANNELS).filter(ch => ch.id !== 'offline').map(ch => `
       <button type="button" class="ol-channel-card sys-panel" data-ol-channel="${ch.id}">
         <span class="ol-channel-icon" aria-hidden="true">${ch.icon}</span>
         <div>
@@ -1399,10 +1555,18 @@ const OverloadLog = {
         <div class="ol-privacy-banner sys-panel">
           <span class="ol-privacy-lock" aria-hidden="true">◈</span>
           <div>
-            <strong>Gray-only private vault</strong>
-            <p>Staff vents and body logs never sync to the site or Coming To You Live. Problem-solver sessions stay in your archive only.</p>
+            <strong>Wish I could log this in the dark</strong>
+            <p>The belly of everything. Staff vents, body logs, and <em>Coming To You Offline</em> never sync — never on Coming To You Live, never in the public daily log.</p>
           </div>
         </div>
+        <button type="button" class="ol-offline-cta sys-panel" data-ol-channel="offline">
+          <span class="ol-channel-icon">◌</span>
+          <div>
+            <h4>Coming To You Offline</h4>
+            <p>Today's secret transmission · timed pulses · secret diary · meal calories</p>
+          </div>
+          <span class="ol-cta-arrow">→</span>
+        </button>
         <div class="ol-channel-grid">${channelCards}</div>
         <main class="mind-main-panel sys-panel">
           <header class="ol-header">
@@ -1449,7 +1613,8 @@ const OverloadLog = {
           </div>
           <button type="button" class="btn" id="olBackHub">← VAULT</button>
         </header>
-        ${weights.length > 1 ? `<div class="ol-weight-chart sys-panel" aria-label="Recent weight trend">${chartBars}</div>` : ''}
+        ${this.renderWeightLineGraph(entries)}
+        ${weights.length > 1 ? `<div class="ol-weight-chart sys-panel" aria-label="Recent weight bars">${chartBars}</div>` : ''}
         <section class="ol-panel sys-panel">
           <header class="ol-panel-head"><span>◈</span><h4>${editing ? 'EDIT ENTRY' : 'NEW ENTRY'}</h4></header>
           <div class="ol-meta-row">
@@ -1664,14 +1829,16 @@ const OverloadLog = {
     const root = this.getRenderRoot();
     if(!root) return;
     if(this.view === 'session' && this.sessionPhase === 'parse') this.stopParseTypewriter();
-    if(this.view === 'body') root.innerHTML = this.renderBody();
+    if(this.view === 'offline') root.innerHTML = this.renderOffline();
+    else if(this.view === 'body') root.innerHTML = this.renderBody();
     else if(this.view === 'session') root.innerHTML = this.renderSession();
     else if(this.view === 'read') root.innerHTML = this.renderRead();
     else root.innerHTML = this.renderHub();
 
     root.querySelectorAll('[data-ol-channel]').forEach(btn => btn.addEventListener('click', () => {
       const ch = btn.dataset.olChannel;
-      if(ch === 'body') this.openBodyLog();
+      if(ch === 'offline') this.openOffline();
+      else if(ch === 'body') this.openBodyLog();
       else if(ch === 'vent') this.newLog('vent');
       else this.newLog('solve');
     }));
@@ -1679,6 +1846,42 @@ const OverloadLog = {
       this.archiveFilter = btn.dataset.olFilter;
       this.render();
     }));
+    root.querySelector('#olVaultPulseSave')?.addEventListener('click', () => {
+      const type = document.getElementById('olVaultPulseType')?.value || 'note';
+      const text = document.getElementById('olVaultPulseText')?.value?.trim();
+      const body = document.getElementById('olVaultPulseBody')?.value?.trim();
+      if(!text){ alert('Add a headline.'); return; }
+      this.pushVaultPulse(type, text, body);
+      document.getElementById('olVaultPulseText').value = '';
+      document.getElementById('olVaultPulseBody').value = '';
+      this.render();
+    });
+    root.querySelector('#olSaveSecretLog')?.addEventListener('click', () => {
+      const key = typeof todayKey === 'function' ? todayKey() : '';
+      const day = this.getVaultDay(key);
+      day.secretLog = document.getElementById('olSecretLog')?.value || '';
+      saveState();
+      this.render();
+    });
+    root.querySelector('#olMealAdd')?.addEventListener('click', () => {
+      const food = document.getElementById('olMealFood')?.value?.trim();
+      const calories = Number(document.getElementById('olMealCal')?.value) || 0;
+      const note = document.getElementById('olMealNote')?.value?.trim();
+      if(!food && !calories){ alert('Add food name or calories.'); return; }
+      this.ensureMeals();
+      const now = new Date().toISOString();
+      state.privateMeals.unshift({
+        id: 'meal-' + Date.now(),
+        at: now,
+        date: now.slice(0, 10),
+        food: food || 'Snack',
+        calories,
+        note,
+      });
+      saveState();
+      if(typeof awardGrayPoints === 'function') awardGrayPoints(typeof GRAY_XP_AWARDS !== 'undefined' ? GRAY_XP_AWARDS.meal_logged.xp : 3, 'meal_logged');
+      this.render();
+    });
     root.querySelector('#olBackHub')?.addEventListener('click', () => { this.stopParseTypewriter(); this.view = 'hub'; this.editingId = null; this.sessionDraft = null; this.bodyEditingId = null; this.render(); });
     root.querySelector('#olFinishedRant')?.addEventListener('click', () => this.runAutoParse());
     root.querySelector('#olSaveVent')?.addEventListener('click', () => this.saveVent());

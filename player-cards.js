@@ -381,12 +381,6 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
         ${xpRankLabel}
       </div>`
     : '';
-  const ageVal = unlocked ? displayCardAge(item, pc) : '';
-  const ageLabel = ageVal
-    ? (isNickOrGod(item)
-      ? `<span class="pc-age pc-op-tag">${esc(ageVal)}</span>`
-      : `<span class="pc-age">Age ${esc(ageVal)}</span>`)
-    : '';
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
@@ -395,7 +389,6 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
       <span class="pc-lv">Lv ${unlocked ? displayCardLevel(item, pc) : '??'}</span>
-      ${ageLabel}
     </div>
     ${xpStrip}
     <div class="pc-art">${buildCardPhotoHtml(artSrc, unlocked, item.name, focus)}${spirit}</div>

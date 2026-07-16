@@ -30,7 +30,7 @@ function applyAdminUI(){
     ? 'Accept, complete, or decline viewer missions. Completing quests levels up their cards.'
     : guest
       ? 'Browse missions — log in with a Coders Card to send quests.'
-      : 'Give Gray missions — places, food, comfort, Press pieces, meetups.';
+      : 'Give me missions — places, food, comfort, Press pieces, meetups.';
   const barLabel = document.querySelector('.admin-bar-label');
   if(barLabel) barLabel.textContent = 'Player Gray mode';
   const brand = document.getElementById('brandName');
@@ -194,10 +194,15 @@ function defaultState(){
     hiddenDramas: [],
     arrivalDate: '',
     calendarView: null,
+    logViewMode: 'month',
+    logFocusKey: '',
     content: null,
     overloadLogs: [],
     privateBodyLog: [],
     privateVentLogs: [],
+    privateMeals: [],
+    privateVaultDays: {},
+    systemConsoleMemory: null,
     currentMood: '',
     moodCatalog: [],
     viewerCharacters: [],
@@ -846,13 +851,13 @@ const DailyLog = {
       const { year, month } = getCalendarView();
       const d = new Date(year, month - 1, 1);
       setCalendarView(d.getFullYear(), d.getMonth());
-      renderLogCalendar();
+      renderLedger();
     });
     document.getElementById('calNext')?.addEventListener('click', () => {
       const { year, month } = getCalendarView();
       const d = new Date(year, month + 1, 1);
       setCalendarView(d.getFullYear(), d.getMonth());
-      renderLogCalendar();
+      renderLedger();
     });
 
     document.getElementById('logPhotos')?.addEventListener('change', e => {
@@ -878,20 +883,64 @@ const DailyLog = {
     });
     document.getElementById('editTodayBtn')?.addEventListener('click', e => {
       e.preventDefault();
+      setLogFocusKey(todayKey());
       this.selectDay(todayKey());
+    });
+
+    document.querySelectorAll('[data-log-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setLogViewMode(btn.dataset.logView);
+        if(btn.dataset.logView !== 'month') setLogFocusKey(this.activeKey || todayKey());
+        document.querySelectorAll('[data-log-view]').forEach(b => b.classList.toggle('is-active', b.dataset.logView === getLogViewMode()));
+        renderLedger();
+      });
+    });
+    document.getElementById('logWeekPrev')?.addEventListener('click', () => {
+      setLogFocusKey(addDaysToKey(getLogFocusKey(), -7));
+      renderLedger();
+    });
+    document.getElementById('logWeekNext')?.addEventListener('click', () => {
+      setLogFocusKey(addDaysToKey(getLogFocusKey(), 7));
+      renderLedger();
+    });
+    document.getElementById('logDayPrev')?.addEventListener('click', () => {
+      setLogFocusKey(addDaysToKey(getLogFocusKey(), -1));
+      if(isAdmin()) this.selectDay(getLogFocusKey());
+      else renderLedger();
+    });
+    document.getElementById('logDayNext')?.addEventListener('click', () => {
+      setLogFocusKey(addDaysToKey(getLogFocusKey(), 1));
+      if(isAdmin()) this.selectDay(getLogFocusKey());
+      else renderLedger();
     });
 
     if(isAdmin()) this.onAdminReady();
   },
 
+  renderPlannedSection(dayKey){
+    const host = document.getElementById('logPlannedTodos');
+    if(!host || !isAdmin()) return;
+    const key = dayKey || this.activeKey || todayKey();
+    host.innerHTML = HomeCheckIn.renderPlannedTodosBoard(true, key, { compact: true, hideDayPicker: true, hostId: 'logPlannedBoard' });
+    HomeCheckIn.bindPlannedTodos(host, {
+      rerender: () => {
+        this.renderPlannedSection(key);
+        renderHomeCheckIn();
+      },
+      rerenderLog: () => renderLedger(),
+    });
+  },
+
   onAdminReady(){
     document.getElementById('dailyLogEditor')?.classList.remove('hidden');
     if(!this.activeKey) this.selectDay(todayKey());
+    else this.renderPlannedSection(this.activeKey);
     renderSkillControls();
   },
 
   selectDay(key){
     if(!key) return;
+    setLogFocusKey(key);
     if(!isAdmin()){
       openDayModal(key);
       return;
@@ -928,7 +977,7 @@ const DailyLog = {
     const preview = document.getElementById('ledgerDayPreview');
     const stream = getDayStream(key);
     if(preview){
-      if(stream.endedAt){
+      if(stream.endedAt || getPlannedTodosForDay(key).length){
         preview.classList.remove('hidden');
         preview.innerHTML = buildDayDetailHTML(key, e);
       } else {
@@ -937,7 +986,8 @@ const DailyLog = {
       }
     }
 
-    renderLogCalendar();
+    this.renderPlannedSection(key);
+    renderLedger();
   },
 
   currentKey(){
@@ -983,7 +1033,7 @@ const DailyLog = {
     saveState();
     if(hobby) LiveSync?.hobbyLogged(hobby, hobbyHours);
     document.getElementById('logEditHint').textContent = `Saved ${fmtDateLong(key)}`;
-    renderLogCalendar();
+    renderLedger();
     renderHomeCheckIn();
   },
 
@@ -998,7 +1048,7 @@ const DailyLog = {
     document.getElementById('logEditHint').textContent = 'Click any day to edit it';
     const preview = document.getElementById('ledgerDayPreview');
     if(preview){ preview.classList.add('hidden'); preview.innerHTML = ''; }
-    renderLogCalendar();
+    renderLedger();
   },
 
   renderPhotoPreview(){
@@ -1085,6 +1135,7 @@ function normalizeEntry(e){
     dayReflection: e.dayReflection || null,
     daySummary: e.daySummary || null,
     dayStartSnapshot: e.dayStartSnapshot || null,
+    plannedTodos: e.plannedTodos || null,
   };
 }
 
@@ -1144,6 +1195,7 @@ const STREAM_NODE_META = {
   nap: { label: 'Rest', neon: '#64748b', icon: '⋯' },
   event: { label: 'Event', neon: '#f97316', icon: '◈' },
   todo: { label: 'To-do done', neon: '#e8c547', icon: '✓' },
+  planned: { label: 'Planned', neon: '#94a3b8', icon: '◷' },
   call: { label: 'Call', neon: '#34d399', icon: '☎' },
   message: { label: 'Message', neon: '#7dd3fc', icon: '✉' },
   news: { label: 'News', neon: '#fca5a5', icon: '▤' },
@@ -1216,6 +1268,7 @@ function ensureCharacterCard(name){
     };
     state.content.characters.push(c);
     LiveSync?.cardUnlocked('player', name);
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(GRAY_XP_AWARDS.new_card.xp, 'new_card');
     saveState();
   }
   return c;
@@ -1235,6 +1288,7 @@ function ensurePlaceCard(name){
     state.content.places.push(p);
     if(!state.unlockedZones.includes(name)) state.unlockedZones.push(name);
     LiveSync?.cardUnlocked('place', name);
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(GRAY_XP_AWARDS.new_card.xp, 'new_card');
     saveState();
   } else if(!p.unlocked){
     p.unlocked = true;
@@ -1434,14 +1488,21 @@ function clockOffsetLabel(tz, refTz = 'Europe/London'){
 const GRAY_XP_AWARDS = {
   day_sealed: { label: 'Day sealed in log', xp: 25 },
   pulse: { label: 'Pulse dropped live', xp: 5 },
-  quest_complete: { label: 'Quest completed for a coder', xp: 20 },
-  todo_done: { label: 'Live to-do ticked off', xp: 3 },
-  media_review: { label: 'Media unit rated', xp: 4 },
-  final_review: { label: 'Final media review written', xp: 15 },
-  new_card: { label: 'New player/place card', xp: 10 },
+  vault_pulse: { label: 'Vault pulse (offline)', xp: 5 },
+  quest_complete: { label: 'Quest completed for a coder', xp: 100 },
+  todo_done: { label: 'To-do ticked off', xp: 5 },
+  media_review: { label: 'Media unit rated', xp: 5 },
+  final_review: { label: 'Final media review written', xp: 25 },
+  new_card: { label: 'New player/place card', xp: 50 },
   overload_session: { label: 'Overload session archived', xp: 12 },
+  vent_archived: { label: 'Staff vent archived', xp: 8 },
+  body_log: { label: 'Body log entry', xp: 5 },
+  meal_logged: { label: 'Meal logged in vault', xp: 3 },
+  vault_login: { label: 'Vault login', xp: 5 },
+  newsletter: { label: 'Weekly newsletter drafted', xp: 15 },
+  console_chat: { label: 'System console chat', xp: 2 },
   custom: { label: 'Custom award', xp: 0 },
-  login: { label: 'Daily login', xp: 3 },
+  login: { label: 'Daily login', xp: 5 },
 };
 
 function getGrayPoints(){
@@ -2399,6 +2460,7 @@ function bootApp(){
   try{ if(typeof OverloadLog !== 'undefined') OverloadLog.init(); }catch(err){ console.error('Overload log init failed:', err); }
   try{ if(typeof GoogleSteps !== 'undefined') GoogleSteps.init(); }catch(err){ console.error('Google steps init failed:', err); }
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
+  try{ if(typeof SystemConsole !== 'undefined') SystemConsole.init(); }catch(err){ console.error('System console init failed:', err); }
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
   try{ initCommunityCommentModal(); }catch(err){ console.error('Community comment modal failed:', err); }
@@ -2714,6 +2776,11 @@ function bindCommunityConsole(){
       resetConsoleInput(input);
       return;
     }
+    if(v === '...' || v === '…'){
+      if(typeof SystemConsole !== 'undefined') SystemConsole.open();
+      resetConsoleInput(input);
+      return;
+    }
     if(typeof tryCoderLoginFromConsole === 'function' && tryCoderLoginFromConsole(v)){
       if(!isAdmin()) navigateToView(typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync');
       resetConsoleInput(input);
@@ -2721,6 +2788,146 @@ function bindCommunityConsole(){
     }
     resetConsoleInput(input);
   });
+}
+
+/* ---------- Day planner — timed to-dos per day ---------- */
+function normalizePlannedTodo(t){
+  return {
+    id: t.id || uid('ptodo'),
+    text: t.text || '',
+    notes: t.notes || '',
+    scheduledTime: t.scheduledTime || '',
+    durationMin: Number(t.durationMin) || 0,
+    done: !!t.done,
+    doneAt: t.doneAt || null,
+    subtasks: (t.subtasks || []).map(s => ({
+      id: s.id || uid('psub'),
+      text: s.text || '',
+      scheduledTime: s.scheduledTime || '',
+      done: !!s.done,
+      doneAt: s.doneAt || null,
+    })),
+  };
+}
+
+function migrateLegacyLiveTodos(dayKey){
+  if(!Array.isArray(state.liveTodos) || !state.liveTodos.length) return;
+  const todos = getPlannedTodosForDay(dayKey, { skipMigrate: true });
+  if(todos.length) return;
+  state.entries[dayKey].plannedTodos = state.liveTodos.map(normalizePlannedTodo);
+  state.liveTodos = [];
+  saveState();
+}
+
+function getPlannedTodosForDay(dayKey, opts = {}){
+  const key = dayKey || todayKey();
+  if(!state.entries[key]) state.entries[key] = {};
+  if(!state.entries[key].plannedTodos){
+    state.entries[key].plannedTodos = [];
+  }
+  if(!opts.skipMigrate && key === todayKey()) migrateLegacyLiveTodos(key);
+  return state.entries[key].plannedTodos;
+}
+
+function sortPlannedTodos(todos){
+  return [...todos].sort((a, b) => {
+    const ta = a.scheduledTime || '99:99';
+    const tb = b.scheduledTime || '99:99';
+    if(ta !== tb) return ta.localeCompare(tb);
+    return (a.text || '').localeCompare(b.text || '');
+  });
+}
+
+function fmtPlannedTime(timeStr){
+  if(!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  if(Number.isNaN(h)) return timeStr;
+  const d = new Date();
+  d.setHours(h, m || 0, 0, 0);
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function scheduledAtIso(dayKey, timeStr){
+  if(!timeStr || !dayKey) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  if(Number.isNaN(h)) return null;
+  const [y, mo, d] = dayKey.split('-').map(Number);
+  return new Date(y, mo - 1, d, h, m || 0, 0).toISOString();
+}
+
+function getMergedTimelineNodes(stream, dayKey){
+  const nodes = [...(stream?.nodes || [])];
+  sortPlannedTodos(getPlannedTodosForDay(dayKey)).forEach(t => {
+    if(t.done) return;
+    const at = scheduledAtIso(dayKey, t.scheduledTime)
+      || stream?.startedAt
+      || `${dayKey}T23:59:00`;
+    nodes.push({
+      id: 'plan-' + t.id,
+      at,
+      type: 'planned',
+      text: t.text,
+      body: [t.notes, t.durationMin ? `${t.durationMin} min` : ''].filter(Boolean).join(' · '),
+      plannedId: t.id,
+      isPlanned: true,
+    });
+  });
+  return nodes.sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+}
+
+function getLogFocusKey(){
+  return state.logFocusKey || todayKey();
+}
+
+function setLogFocusKey(key){
+  state.logFocusKey = key;
+  saveState();
+}
+
+function getLogViewMode(){
+  return state.logViewMode || 'month';
+}
+
+function setLogViewMode(mode){
+  state.logViewMode = mode;
+  saveState();
+}
+
+function daySummaryStats(key){
+  const n = normalizeEntry(state.entries[key]);
+  const stream = getDayStream(key);
+  const planned = getPlannedTodosForDay(key);
+  const donePlanned = planned.filter(t => t.done).length;
+  return {
+    moodId: resolveEntryMood(n),
+    pulseCount: stream.nodes.filter(nd => nd.type !== 'wake' && nd.type !== 'sleep').length,
+    plannedCount: planned.length,
+    plannedDone: donePlanned,
+    sealed: !!stream.endedAt,
+    hasEntry: !!(state.entries[key] && (
+      stream.endedAt || resolveEntryMood(n) || n.steps || n.diary
+      || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length || planned.length
+    )),
+  };
+}
+
+function addDaysToKey(key, delta){
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + delta);
+  return dt.toISOString().slice(0, 10);
+}
+
+function weekStartKey(key){
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - dt.getDay());
+  return dt.toISOString().slice(0, 10);
+}
+
+function weekKeysFrom(key){
+  const start = weekStartKey(key);
+  return Array.from({ length: 7 }, (_, i) => addDaysToKey(start, i));
 }
 
 /* ---------- Home Check-In — live day stream ---------- */
@@ -2982,7 +3189,7 @@ const HomeCheckIn = {
     this.closePulseComposer();
     awardGrayPoints(GRAY_XP_AWARDS.pulse.xp, 'pulse');
     renderHomeCheckIn();
-    renderLogCalendar();
+    renderLedger();
     safeRender(renderAbout);
     if(this.pulseType === 'person') renderCharacters();
     if(this.pulseType === 'place') renderPlaces();
@@ -3131,7 +3338,7 @@ const HomeCheckIn = {
     this.closeEndDay();
     awardGrayPoints(GRAY_XP_AWARDS.day_sealed.xp, 'day_sealed');
     renderHomeCheckIn();
-    renderLogCalendar();
+    renderLedger();
     safeRender(renderAbout);
     document.querySelector('.node-btn[data-view="ledger"]')?.click();
     DailyLog.selectDay(key);
@@ -3140,13 +3347,13 @@ const HomeCheckIn = {
 
   renderTimeline(stream, refDayKey){
     const admin = isAdmin();
-    if(!stream.nodes.length){
+    const sorted = getMergedTimelineNodes(stream, refDayKey);
+    if(!sorted.length){
       return `<div class="live-rail-empty">
         <div class="live-rail-spine"></div>
-        <p>${admin ? 'Awaiting transmission. Hit ▶ Start day, then drop pulses.' : 'Awaiting transmission. Start day, then pulse updates.'}</p>
+        <p>${admin ? 'Awaiting transmission. Hit ▶ Start day, add timed to-dos, then drop pulses.' : 'Awaiting transmission. Start day, then pulse updates.'}</p>
       </div>`;
     }
-    const sorted = [...stream.nodes].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
     return `<div class="live-rail-track">
       <div class="live-rail-spine" aria-hidden="true"></div>
       <div class="live-rail-nodes">
@@ -3163,9 +3370,10 @@ const HomeCheckIn = {
           const photoHtml = node.photo ? `<div class="live-node-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : '';
           const body = node.body && node.body !== node.text ? node.body : '';
           const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 220 ? body.slice(0, 220) + '…' : body)}</p>` : '';
-          const canDel = admin && node.type !== 'wake' && node.type !== 'sleep';
+          const canDel = admin && node.type !== 'wake' && node.type !== 'sleep' && !node.isPlanned;
           const delBtn = canDel ? `<button type="button" class="live-node-del" data-live-node-del="${esc(node.id)}" title="Remove pulse">×</button>` : '';
-          return `<article class="live-node${canDel ? ' is-editable' : ''}" style="--ln-neon:${meta.neon}">
+          const plannedTag = node.isPlanned ? `<span class="live-node-planned">planned</span>` : '';
+          return `<article class="live-node${canDel ? ' is-editable' : ''}${node.isPlanned ? ' is-planned' : ''}" style="--ln-neon:${meta.neon}">
             <div class="live-node-marker" title="${meta.label}">
               <span class="live-node-glow"></span>
               <span class="live-node-core"></span>
@@ -3174,6 +3382,7 @@ const HomeCheckIn = {
               <div class="live-node-top">
                 <time class="live-node-time">${fmtNodeStamp(node.at, refDayKey)}</time>
                 <span class="live-node-type">${meta.icon} ${meta.label}</span>
+                ${plannedTag}
                 ${moodBadge}
                 ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
                 ${delBtn}
@@ -3199,136 +3408,202 @@ const HomeCheckIn = {
     return 'Day not started';
   },
 
-  renderLiveTodos(admin){
-    const todos = state.liveTodos || [];
+  renderPlannedTodosBoard(admin, dayKey, opts = {}){
+    const key = dayKey || todayKey();
+    const todos = sortPlannedTodos(getPlannedTodosForDay(key));
+    const compact = !!opts.compact;
+    const hostId = opts.hostId || 'liveTodoBoard';
     if(!todos.length && !admin){
-      return `<section class="live-todo-board viewer-todo-board">
-        <h3 class="live-todo-title">Gray's to-do list</h3>
-        <p class="live-todo-hint">Nothing queued yet — check back for live missions.</p>
+      return `<section class="live-todo-board viewer-todo-board" id="${hostId}">
+        <h3 class="live-todo-title">Day plan</h3>
+        <p class="live-todo-hint">Nothing scheduled yet — check back for timed missions.</p>
       </section>`;
     }
     const rows = todos.map(t => {
+      const timeBadge = t.scheduledTime
+        ? `<span class="live-todo-time">${esc(fmtPlannedTime(t.scheduledTime))}${t.durationMin ? ` · ${t.durationMin}m` : ''}</span>`
+        : `<span class="live-todo-time is-anytime">anytime</span>`;
       const subs = (t.subtasks || []).map(s => `
         <li class="live-todo-sub ${s.done ? 'is-done' : ''}">
-          ${admin ? `<input type="checkbox" data-live-sub="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" ${s.done ? 'checked' : ''}>` : `<span class="live-todo-check ${s.done ? 'done' : ''}">${s.done ? '✓' : '○'}</span>`}
-          ${admin ? `<input type="text" class="live-todo-sub-input" data-live-sub-text="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" value="${esc(s.text)}">` : `<span>${esc(s.text)}</span>`}
-          ${admin ? `<button type="button" class="live-todo-del" data-live-sub-del="${esc(t.id)}" data-live-sub-id="${esc(s.id)}" title="Remove">×</button>` : ''}
+          ${admin ? `<input type="checkbox" data-planned-sub="${esc(t.id)}" data-planned-sub-id="${esc(s.id)}" data-planned-day="${esc(key)}" ${s.done ? 'checked' : ''}>` : `<span class="live-todo-check ${s.done ? 'done' : ''}">${s.done ? '✓' : '○'}</span>`}
+          ${s.scheduledTime ? `<span class="live-todo-sub-time">${esc(fmtPlannedTime(s.scheduledTime))}</span>` : ''}
+          ${admin ? `<input type="text" class="live-todo-sub-input" data-planned-sub-text="${esc(t.id)}" data-planned-sub-id="${esc(s.id)}" data-planned-day="${esc(key)}" value="${esc(s.text)}">` : `<span>${esc(s.text)}</span>`}
+          ${admin ? `<button type="button" class="live-todo-del" data-planned-sub-del="${esc(t.id)}" data-planned-sub-id="${esc(s.id)}" data-planned-day="${esc(key)}" title="Remove">×</button>` : ''}
         </li>`).join('');
-      return `<li class="live-todo-item ${t.done ? 'is-done' : ''}">
+      const notesHtml = t.notes && !compact
+        ? (admin
+          ? `<textarea class="live-todo-notes" rows="2" data-planned-notes="${esc(t.id)}" data-planned-day="${esc(key)}" placeholder="Notes…">${esc(t.notes)}</textarea>`
+          : `<p class="live-todo-notes-read">${esc(t.notes)}</p>`)
+        : '';
+      return `<li class="live-todo-item ${t.done ? 'is-done' : ''}" data-planned-item="${esc(t.id)}">
         <div class="live-todo-row">
-          ${admin ? `<input type="checkbox" data-live-todo="${esc(t.id)}" ${t.done ? 'checked' : ''}>` : `<span class="live-todo-check ${t.done ? 'done' : ''}">${t.done ? '✓' : '○'}</span>`}
-          ${admin ? `<input type="text" class="live-todo-input" data-live-todo-text="${esc(t.id)}" value="${esc(t.text)}">` : `<strong class="live-todo-label">${esc(t.text)}</strong>`}
-          ${admin ? `<button type="button" class="live-todo-del" data-live-todo-del="${esc(t.id)}" title="Remove">×</button>` : ''}
+          ${admin ? `<input type="checkbox" data-planned-todo="${esc(t.id)}" data-planned-day="${esc(key)}" ${t.done ? 'checked' : ''}>` : `<span class="live-todo-check ${t.done ? 'done' : ''}">${t.done ? '✓' : '○'}</span>`}
+          ${timeBadge}
+          ${admin ? `<input type="time" class="live-todo-time-input" data-planned-time="${esc(t.id)}" data-planned-day="${esc(key)}" value="${esc(t.scheduledTime)}">` : ''}
+          ${admin ? `<input type="number" class="live-todo-duration" data-planned-duration="${esc(t.id)}" data-planned-day="${esc(key)}" min="0" step="5" value="${t.durationMin || ''}" placeholder="min" title="Duration (minutes)">` : ''}
+          ${admin ? `<input type="text" class="live-todo-input" data-planned-text="${esc(t.id)}" data-planned-day="${esc(key)}" value="${esc(t.text)}">` : `<strong class="live-todo-label">${esc(t.text)}</strong>`}
+          ${admin ? `<button type="button" class="live-todo-del" data-planned-del="${esc(t.id)}" data-planned-day="${esc(key)}" title="Remove">×</button>` : ''}
         </div>
+        ${notesHtml}
         ${subs ? `<ul class="live-todo-subs">${subs}</ul>` : ''}
-        ${admin ? `<button type="button" class="btn live-todo-add-sub" data-live-add-sub="${esc(t.id)}">+ sub-task</button>` : ''}
+        ${admin ? `<button type="button" class="btn live-todo-add-sub" data-planned-add-sub="${esc(t.id)}" data-planned-day="${esc(key)}">+ sub-task</button>` : ''}
       </li>`;
     }).join('');
-    return `<section class="live-todo-board ${admin ? 'admin-todo-board' : 'viewer-todo-board'}">
+    const compose = admin ? `<div class="live-todo-compose planned-compose">
+      <input type="text" class="planned-new-text" data-planned-day="${esc(key)}" placeholder="What are you doing?">
+      <input type="time" class="planned-new-time" data-planned-day="${esc(key)}" title="Scheduled time">
+      <input type="number" class="planned-new-duration" data-planned-day="${esc(key)}" min="0" step="5" placeholder="min" title="Duration (minutes)">
+      <input type="text" class="planned-new-notes" data-planned-day="${esc(key)}" placeholder="Notes (optional)">
+      <button type="button" class="btn primary planned-add-btn" data-planned-day="${esc(key)}">Add</button>
+    </div>` : '';
+    const dayPicker = admin && !opts.hideDayPicker ? `<div class="live-todo-day-row">
+      <label>Plan for</label>
+      <input type="date" class="live-todo-day-pick" data-planned-board-day value="${esc(key)}">
+      <span class="field-hint">Timed items slot into the transmission log in order. Plan ahead in Daily Log too.</span>
+    </div>` : '';
+    return `<section class="live-todo-board ${admin ? 'admin-todo-board' : 'viewer-todo-board'}" id="${hostId}" data-planned-board-day="${esc(key)}">
       <div class="live-todo-head">
-        <h3 class="live-todo-title">Gray's to-do list</h3>
-        <p class="live-todo-hint">${admin ? 'Tick items to broadcast on the neon timeline. Viewers see this list read-only.' : 'What Gray is working through today — completed items light up on the transmission log.'}</p>
+        <h3 class="live-todo-title">Day plan · ${fmtDateLong(key)}</h3>
+        <p class="live-todo-hint">${admin ? 'Schedule with times — tick when done. Planned items appear on the transmission log until completed.' : 'Timed schedule for today — completed items light up on the transmission log.'}</p>
+        ${dayPicker}
       </div>
-      <ul class="live-todo-list">${rows || `<li class="empty-hint">No items yet.</li>`}</ul>
-      ${admin ? `<div class="live-todo-compose">
-        <input type="text" id="liveTodoNew" placeholder="Add a to-do…">
-        <button type="button" class="btn primary" id="liveTodoAdd">Add</button>
-      </div>` : ''}
+      <ul class="live-todo-list">${rows || `<li class="empty-hint">No items yet — add your first timed task.</li>`}</ul>
+      ${compose}
     </section>`;
   },
 
+  renderLiveTodos(admin){
+    return this.renderPlannedTodosBoard(admin, todayKey(), { hideDayPicker: true });
+  },
+
+  bindPlannedTodos(spread, opts = {}){
+    const rerender = opts.rerender || (() => renderHomeCheckIn());
+    const rerenderLog = opts.rerenderLog || (() => renderLedger());
+    spread.querySelectorAll('.planned-add-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.addPlannedTodo(btn.dataset.plannedDay, spread));
+    });
+    spread.querySelectorAll('.planned-new-text').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){ e.preventDefault(); this.addPlannedTodo(inp.dataset.plannedDay, spread); }
+      });
+    });
+    spread.querySelectorAll('.live-todo-day-pick').forEach(inp => {
+      inp.addEventListener('change', () => {
+        if(opts.onDayChange) opts.onDayChange(inp.value);
+        else rerender();
+      });
+    });
+    spread.querySelectorAll('[data-planned-todo]').forEach(cb => {
+      cb.addEventListener('change', () => this.togglePlannedTodo(cb.dataset.plannedDay, cb.dataset.plannedTodo, cb.checked, rerender, rerenderLog));
+    });
+    spread.querySelectorAll('[data-planned-sub]').forEach(cb => {
+      cb.addEventListener('change', () => this.togglePlannedSubtask(cb.dataset.plannedDay, cb.dataset.plannedSub, cb.dataset.plannedSubId, cb.checked, rerender, rerenderLog));
+    });
+    spread.querySelectorAll('[data-planned-text]').forEach(inp => {
+      inp.addEventListener('change', () => this.updatePlannedTodoField(inp.dataset.plannedDay, inp.dataset.plannedText, 'text', inp.value));
+    });
+    spread.querySelectorAll('[data-planned-time]').forEach(inp => {
+      inp.addEventListener('change', () => {
+        this.updatePlannedTodoField(inp.dataset.plannedDay, inp.dataset.plannedTime, 'scheduledTime', inp.value, rerender, rerenderLog);
+      });
+    });
+    spread.querySelectorAll('[data-planned-duration]').forEach(inp => {
+      inp.addEventListener('change', () => this.updatePlannedTodoField(inp.dataset.plannedDay, inp.dataset.plannedDuration, 'durationMin', inp.value));
+    });
+    spread.querySelectorAll('[data-planned-notes]').forEach(inp => {
+      inp.addEventListener('change', () => this.updatePlannedTodoField(inp.dataset.plannedDay, inp.dataset.plannedNotes, 'notes', inp.value));
+    });
+    spread.querySelectorAll('[data-planned-sub-text]').forEach(inp => {
+      inp.addEventListener('change', () => this.updatePlannedSubtaskText(inp.dataset.plannedDay, inp.dataset.plannedSubText, inp.dataset.plannedSubId, inp.value));
+    });
+    spread.querySelectorAll('[data-planned-del]').forEach(btn => {
+      btn.addEventListener('click', () => this.deletePlannedTodo(btn.dataset.plannedDay, btn.dataset.plannedDel, rerender, rerenderLog));
+    });
+    spread.querySelectorAll('[data-planned-sub-del]').forEach(btn => {
+      btn.addEventListener('click', () => this.deletePlannedSubtask(btn.dataset.plannedDay, btn.dataset.plannedSubDel, btn.dataset.plannedSubId, rerender, rerenderLog));
+    });
+    spread.querySelectorAll('[data-planned-add-sub]').forEach(btn => {
+      btn.addEventListener('click', () => this.addPlannedSubtask(btn.dataset.plannedDay, btn.dataset.plannedAddSub, rerender, rerenderLog));
+    });
+  },
+
   bindLiveTodos(spread){
-    spread.querySelector('#liveTodoAdd')?.addEventListener('click', () => this.addLiveTodo());
-    spread.querySelector('#liveTodoNew')?.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){ e.preventDefault(); this.addLiveTodo(); }
-    });
-    spread.querySelectorAll('[data-live-todo]').forEach(cb => {
-      cb.addEventListener('change', () => this.toggleLiveTodo(cb.dataset.liveTodo, cb.checked));
-    });
-    spread.querySelectorAll('[data-live-sub]').forEach(cb => {
-      cb.addEventListener('change', () => this.toggleLiveSubtask(cb.dataset.liveSub, cb.dataset.liveSubId, cb.checked));
-    });
-    spread.querySelectorAll('[data-live-todo-text]').forEach(inp => {
-      inp.addEventListener('change', () => this.updateLiveTodoText(inp.dataset.liveTodoText, inp.value));
-    });
-    spread.querySelectorAll('[data-live-sub-text]').forEach(inp => {
-      inp.addEventListener('change', () => this.updateLiveSubtaskText(inp.dataset.liveSubText, inp.dataset.liveSubId, inp.value));
-    });
-    spread.querySelectorAll('[data-live-todo-del]').forEach(btn => {
-      btn.addEventListener('click', () => this.deleteLiveTodo(btn.dataset.liveTodoDel));
-    });
-    spread.querySelectorAll('[data-live-sub-del]').forEach(btn => {
-      btn.addEventListener('click', () => this.deleteLiveSubtask(btn.dataset.liveSubDel, btn.dataset.liveSubId));
-    });
-    spread.querySelectorAll('[data-live-add-sub]').forEach(btn => {
-      btn.addEventListener('click', () => this.addLiveSubtask(btn.dataset.liveAddSub));
-    });
+    this.bindPlannedTodos(spread);
   },
 
-  addLiveTodo(){
+  addPlannedTodo(dayKey, root){
     if(!isAdmin()) return;
-    const inp = document.getElementById('liveTodoNew');
-    const text = inp?.value?.trim();
+    const host = root?.querySelector?.(`[data-planned-board-day="${dayKey}"]`) || root;
+    const text = host?.querySelector('.planned-new-text')?.value?.trim();
     if(!text) return;
-    if(!state.liveTodos) state.liveTodos = [];
-    state.liveTodos.push({ id: uid('todo'), text, done: false, subtasks: [] });
+    const time = host?.querySelector('.planned-new-time')?.value || '';
+    const durationMin = Number(host?.querySelector('.planned-new-duration')?.value) || 0;
+    const notes = host?.querySelector('.planned-new-notes')?.value?.trim() || '';
+    getPlannedTodosForDay(dayKey).push(normalizePlannedTodo({ text, scheduledTime: time, durationMin, notes, subtasks: [] }));
     saveState();
-    inp.value = '';
     renderHomeCheckIn();
+    if(typeof renderLedger === 'function') renderLedger();
+    if(DailyLog.activeKey === dayKey) DailyLog.renderPlannedSection(dayKey);
   },
 
-  addLiveSubtask(todoId){
+  addPlannedSubtask(dayKey, todoId, rerender, rerenderLog){
     if(!isAdmin()) return;
     const text = prompt('Sub-task:')?.trim();
     if(!text) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     if(!t) return;
     if(!t.subtasks) t.subtasks = [];
-    t.subtasks.push({ id: uid('sub'), text, done: false });
+    t.subtasks.push({ id: uid('psub'), text, done: false });
     saveState();
-    renderHomeCheckIn();
+    rerender();
+    rerenderLog();
   },
 
-  updateLiveTodoText(todoId, text){
+  updatePlannedTodoField(dayKey, todoId, field, value, rerender, rerenderLog){
     if(!isAdmin()) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     if(!t) return;
-    t.text = text.trim() || t.text;
+    if(field === 'durationMin') t.durationMin = Number(value) || 0;
+    else t[field] = String(value || '').trim();
     saveState();
+    if(field === 'scheduledTime'){ rerender?.(); rerenderLog?.(); }
   },
 
-  updateLiveSubtaskText(todoId, subId, text){
+  updatePlannedSubtaskText(dayKey, todoId, subId, text){
     if(!isAdmin()) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     const s = t?.subtasks?.find(x => x.id === subId);
     if(!s) return;
     s.text = text.trim() || s.text;
     saveState();
   },
 
-  deleteLiveTodo(todoId){
+  deletePlannedTodo(dayKey, todoId, rerender, rerenderLog){
     if(!isAdmin()) return;
-    state.liveTodos = (state.liveTodos || []).filter(x => x.id !== todoId);
+    const todos = getPlannedTodosForDay(dayKey);
+    state.entries[dayKey].plannedTodos = todos.filter(x => x.id !== todoId);
     saveState();
-    renderHomeCheckIn();
+    rerender();
+    rerenderLog();
   },
 
-  deleteLiveSubtask(todoId, subId){
+  deletePlannedSubtask(dayKey, todoId, subId, rerender, rerenderLog){
     if(!isAdmin()) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     if(!t?.subtasks) return;
     t.subtasks = t.subtasks.filter(s => s.id !== subId);
     saveState();
-    renderHomeCheckIn();
+    rerender();
+    rerenderLog();
   },
 
-  pushTodoTimelineNode(label, parent){
-    const key = todayKey();
+  pushTodoTimelineNode(label, parent, dayKey, atIso){
+    const key = dayKey || todayKey();
     const stream = getDayStream(key);
-    const now = new Date().toISOString();
+    const at = atIso || new Date().toISOString();
     stream.nodes.push({
       id: 'n-todo-' + Date.now(),
-      at: now,
+      at,
       type: 'todo',
       text: label,
       body: parent ? `Part of: ${parent}` : '',
@@ -3337,28 +3612,33 @@ const HomeCheckIn = {
     state.entries[key].stream = stream;
   },
 
-  toggleLiveTodo(todoId, done){
+  togglePlannedTodo(dayKey, todoId, done, rerender, rerenderLog){
     if(!isAdmin()) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     if(!t || t.done === done) return;
     t.done = done;
     t.doneAt = done ? new Date().toISOString() : null;
-    if(done) this.pushTodoTimelineNode(t.text);
-    if(done) awardGrayPoints(GRAY_XP_AWARDS.todo_done.xp, 'todo_done');
+    if(done){
+      const at = scheduledAtIso(dayKey, t.scheduledTime) || new Date().toISOString();
+      this.pushTodoTimelineNode(t.text, t.notes || '', dayKey, at);
+      awardGrayPoints(GRAY_XP_AWARDS.todo_done.xp, 'todo_done');
+    }
     saveState();
-    renderHomeCheckIn();
+    rerender();
+    rerenderLog();
   },
 
-  toggleLiveSubtask(todoId, subId, done){
+  togglePlannedSubtask(dayKey, todoId, subId, done, rerender, rerenderLog){
     if(!isAdmin()) return;
-    const t = (state.liveTodos || []).find(x => x.id === todoId);
+    const t = getPlannedTodosForDay(dayKey).find(x => x.id === todoId);
     const s = t?.subtasks?.find(x => x.id === subId);
     if(!s || s.done === done) return;
     s.done = done;
     s.doneAt = done ? new Date().toISOString() : null;
-    if(done) this.pushTodoTimelineNode(s.text, t?.text);
+    if(done) this.pushTodoTimelineNode(s.text, t?.text, dayKey);
     saveState();
-    renderHomeCheckIn();
+    rerender();
+    rerenderLog();
   },
 };
 
@@ -3471,7 +3751,7 @@ function renderHomeCheckIn(){
   const key = todayKey();
   const stream = getDayStream(key);
   const admin = isAdmin();
-  const nodeCount = stream.nodes.length;
+  const nodeCount = getMergedTimelineNodes(stream, key).length;
   const onAir = stream.startedAt && !stream.endedAt;
 
   spread.className = admin ? 'live-broadcast live-broadcast--edit' : 'live-broadcast';
@@ -3490,7 +3770,7 @@ function renderHomeCheckIn(){
         <span class="live-edit-dot" aria-hidden="true"></span>
         <div>
           <p class="live-edit-kicker">Player Gray · edit mode</p>
-          <p class="live-edit-text">Start your day, edit the to-do list, drop pulses. Viewers see updates on the transmission log — tap × on a pulse to remove it.</p>
+          <p class="live-edit-text">Start your day, schedule timed to-dos, drop pulses. Everything slots into the transmission log in order — tick tasks when done.</p>
         </div>
       </div>` : ''}
 
@@ -3671,17 +3951,33 @@ function renderDayReflectionHTML(reflection){
   </section>`;
 }
 
+function renderPlannedTodosReadOnly(dayKey){
+  const todos = sortPlannedTodos(getPlannedTodosForDay(dayKey));
+  if(!todos.length) return '';
+  const rows = todos.map(t => {
+    const time = t.scheduledTime ? fmtPlannedTime(t.scheduledTime) : 'anytime';
+    const status = t.done ? '✓' : '○';
+    const notes = t.notes ? ` — ${esc(t.notes)}` : '';
+    return `<li class="day-plan-row ${t.done ? 'is-done' : ''}"><span class="day-plan-time">${esc(time)}</span><span class="day-plan-status">${status}</span><span class="day-plan-text">${esc(t.text)}${notes}</span></li>`;
+  }).join('');
+  return `<section class="day-detail-section day-plan-read">
+    <h4>Day plan</h4>
+    <ul class="day-plan-list">${rows}</ul>
+  </section>`;
+}
+
 function buildDayDetailHTML(key, e){
   const n = normalizeEntry(e);
   const stream = getDayStream(key);
-  const hasContent = !!(resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length || n.dayReflection?.favoriteThing);
+  const planned = getPlannedTodosForDay(key);
+  const hasContent = !!(resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length || n.dayReflection?.favoriteThing || planned.length);
   if(!hasContent){
     return '<p class="empty-day">No entry yet — start a day, drop pulses, then seal it in the log.</p>';
   }
   const moodId = resolveEntryMood(n);
   const completed = !!stream.endedAt;
   const duration = fmtDayDuration(stream) || fmtDurationMs(n.daySummary?.durationMs);
-  const nodeCount = stream.nodes.length;
+  const nodeCount = getMergedTimelineNodes(stream, key).length;
   const deltas = n.daySummary?.deltas?.length ? n.daySummary.deltas : computeDayScoreDeltas(key);
   const hobbyLine = n.hobby ? `${esc(n.hobby)}${n.hobbyHours ? ` · ${n.hobbyHours}h` : ''}` : '';
 
@@ -3696,8 +3992,9 @@ function buildDayDetailHTML(key, e){
 
     ${renderDayScoreChips(deltas)}
     ${renderDayReflectionHTML(n.dayReflection)}
+    ${renderPlannedTodosReadOnly(key)}
 
-    ${stream.nodes.length ? `<section class="day-ledger-timeline">
+    ${nodeCount ? `<section class="day-ledger-timeline">
       <div class="day-rail-wrap">
         <div class="day-rail-head">
           <span class="live-rail-label">Neon transmission</span>
@@ -3754,9 +4051,12 @@ function renderLogCalendar(){
     const e = state.entries[key];
     const n = normalizeEntry(e);
     const stream = getDayStream(key);
-    const isComplete = !!stream.endedAt;
-    const hasEntry = !!(e && (isComplete || resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length));
-    const moodId = resolveEntryMood(n);
+    const stats = daySummaryStats(key);
+    const isComplete = stats.sealed;
+    const hasEntry = stats.hasEntry;
+    const moodId = stats.moodId;
+    const plannedCount = stats.plannedCount;
+    const pulseCount = stats.pulseCount;
     const neon = stableNeon(key, d);
     const isToday = key === tk;
     const isEditing = isAdmin() && key === DailyLog.activeKey;
@@ -3764,6 +4064,8 @@ function renderLogCalendar(){
       style="--cal-neon:${neon}" data-log-day="${key}">
       <span class="cal-day-num">${d}</span>
       ${hasEntry && moodId ? `<span class="cal-mood">${moodIcon(moodId)}</span>` : ''}
+      ${plannedCount ? `<span class="cal-plan-count" title="${plannedCount} planned">${plannedCount}◷</span>` : ''}
+      ${pulseCount ? `<span class="cal-pulse-count" title="${pulseCount} pulses">${pulseCount}◎</span>` : ''}
       ${hasEntry ? `<span class="cal-dot"></span>` : ''}
     </button>`;
   }
@@ -3771,8 +4073,56 @@ function renderLogCalendar(){
   grid.innerHTML = html;
 }
 
+function renderLogWeek(){
+  const grid = document.getElementById('logCalendar');
+  const label = document.getElementById('monthLabel');
+  const tally = document.getElementById('logTally');
+  if(!grid) return;
+  const focus = getLogFocusKey();
+  const keys = weekKeysFrom(focus);
+  if(label) label.textContent = `${fmtDateLong(keys[0])} – ${fmtDateLong(keys[6])}`;
+  if(tally) tally.textContent = `${countLoggedDays()} days logged · week view`;
+  const tk = todayKey();
+  grid.innerHTML = `<div class="log-week-grid">${keys.map(key => {
+    const stats = daySummaryStats(key);
+    const d = Number(key.split('-')[2]);
+    const weekday = new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short' });
+    return `<button type="button" class="log-week-day${stats.hasEntry ? ' has-entry' : ''}${stats.sealed ? ' is-complete' : ''}${key === tk ? ' is-today' : ''}${isAdmin() && key === DailyLog.activeKey ? ' is-editing-day' : ''}" data-log-day="${key}">
+      <span class="log-week-dow">${weekday}</span>
+      <span class="log-week-num">${d}</span>
+      ${stats.moodId ? `<span class="log-week-mood">${moodIcon(stats.moodId)}</span>` : ''}
+      <span class="log-week-meta">${stats.plannedCount ? `${stats.plannedCount}◷ ` : ''}${stats.pulseCount ? `${stats.pulseCount}◎` : ''}</span>
+      <span class="log-week-status">${stats.sealed ? 'sealed' : stats.hasEntry ? 'active' : '—'}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function renderLogDayFocus(){
+  const grid = document.getElementById('logCalendar');
+  const label = document.getElementById('monthLabel');
+  const tally = document.getElementById('logTally');
+  if(!grid) return;
+  const key = getLogFocusKey();
+  if(label) label.textContent = fmtDateLong(key);
+  if(tally) tally.textContent = `${countLoggedDays()} days logged · day view`;
+  const e = state.entries[key];
+  grid.innerHTML = `<div class="log-day-focus">${buildDayDetailHTML(key, e)}</div>`;
+}
+
+function syncLogNavControls(){
+  const mode = getLogViewMode();
+  document.getElementById('logCalNavMonth')?.classList.toggle('hidden', mode !== 'month');
+  document.getElementById('logCalNavWeek')?.classList.toggle('hidden', mode !== 'week');
+  document.getElementById('logCalNavDay')?.classList.toggle('hidden', mode !== 'day');
+  document.querySelectorAll('[data-log-view]').forEach(b => b.classList.toggle('is-active', b.dataset.logView === mode));
+}
+
 function renderLedger(){
-  renderLogCalendar();
+  syncLogNavControls();
+  const mode = getLogViewMode();
+  if(mode === 'week') renderLogWeek();
+  else if(mode === 'day') renderLogDayFocus();
+  else renderLogCalendar();
 }
 
 function deleteLogDay(key, opts = {}){
@@ -3801,7 +4151,7 @@ function deleteLogDay(key, opts = {}){
     document.getElementById('logEditHint').textContent = `Deleted ${fmtDateLong(key)}`;
     document.getElementById('logEditorTitle').textContent = fmtDateLong(key);
   }
-  renderLogCalendar();
+  renderLedger();
   renderHomeCheckIn();
   safeRender(renderAbout);
   return true;
@@ -3842,6 +4192,49 @@ function renderPlaces(){
   bindFlipPlayerCards(deck);
 }
 
+function getCoderPosts(coderId){
+  return (state.pinboard || []).filter(p =>
+    p.characterId === coderId
+    || (p.replies || []).some(r => r.characterId === coderId)
+  );
+}
+
+function openCoderProfileModal(coderId){
+  const c = (state.viewerCharacters || []).find(x => x.id === coderId)
+    || (typeof getCharacters === 'function' ? getCharacters() : []).find(x => x.id === coderId);
+  if(!c) return;
+  const posts = getCoderPosts(coderId);
+  const quests = (state.quests || []).filter(q => q.fromCharacterId === coderId);
+  const xpRows = (c.xpHistory || []).slice(0, 12).map(e =>
+    `<li><time>${esc(new Date(e.at).toLocaleDateString())}</time> +${e.amount} · ${esc(e.label || e.reason)}</li>`
+  ).join('');
+  const postRows = posts.slice(0, 16).map(p =>
+    `<article class="coder-profile-post"><time>${esc(new Date(p.time).toLocaleDateString())}</time><p>${esc(p.text?.slice(0, 200) || '')}</p>${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : ''}</article>`
+  ).join('');
+  document.getElementById('coderProfileBody').innerHTML = `
+    <header class="coder-profile-head">
+      <h3>${esc(c.name)}</h3>
+      <p>Lv ${c.pokeCard?.level || 0} · ${c.points || 0} XP · ${c.questsSent || 0} quests sent · ${c.questsCompleted || 0} completed</p>
+    </header>
+    <section class="coder-profile-section">
+      <h4>Update board</h4>
+      <div class="coder-profile-posts">${postRows || '<p class="empty-hint">No community posts yet.</p>'}</div>
+    </section>
+    <section class="coder-profile-section">
+      <h4>Recent XP</h4>
+      <ul class="coder-profile-xp">${xpRows || '<li>No XP logged yet.</li>'}</ul>
+    </section>
+    <section class="coder-profile-section">
+      <h4>Quests</h4>
+      <ul>${quests.slice(0, 8).map(q => `<li>${esc(q.title)} · ${esc(q.status)}</li>`).join('') || '<li>No quests yet.</li>'}</ul>
+    </section>`;
+  const profileBack = document.getElementById('coderProfileBack');
+  if(profileBack) profileBack.classList.remove('hidden');
+  const closeBtn = document.getElementById('closeCoderProfile');
+  if(closeBtn) closeBtn.onclick = () => profileBack?.classList.add('hidden');
+  if(profileBack) profileBack.onclick = e => { if(e.target.id === 'coderProfileBack') profileBack.classList.add('hidden'); };
+}
+
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
@@ -3853,10 +4246,16 @@ function renderCharacters(){
       rankNeon: getCoderRankNeon(rankMap.get(c.id)),
     });
     const quoteLog = isAdmin() && isCoderDeckCard(c) ? renderCoderQuoteLog(c) : '';
-    return `<div class="char-deck-item">${card}${quoteLog}</div>`;
+    const profileBtn = isCoderDeckCard(c)
+      ? `<button type="button" class="btn coder-profile-btn" data-coder-profile="${esc(c.id)}">View profile</button>`
+      : '';
+    return `<div class="char-deck-item">${card}${profileBtn}${quoteLog}</div>`;
   }).join('');
   bindFlipPlayerCards(deck);
   bindCoderQuoteLogs(deck);
+  deck.querySelectorAll('[data-coder-profile]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); openCoderProfileModal(btn.dataset.coderProfile); });
+  });
 }
 
 function findCoderCardByName(name){
@@ -4645,6 +5044,59 @@ function parseArticleTags(article){
   return String(article.tags || '').split(/[,;]+/).map(t => t.trim()).filter(Boolean);
 }
 
+function generateWeeklyNewsletter(refDate = new Date()){
+  const end = new Date(refDate);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  start.setHours(0, 0, 0, 0);
+  const inRange = (iso) => {
+    if(!iso) return false;
+    const d = new Date(iso);
+    return d >= start && d <= end;
+  };
+  const dayKeys = [];
+  for(let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)){
+    dayKeys.push(d.toISOString().slice(0, 10));
+  }
+  const places = new Set();
+  const people = new Set();
+  const pulses = [];
+  dayKeys.forEach(k => {
+    const n = typeof normalizeEntry === 'function' ? normalizeEntry(state.entries[k]) : {};
+    (n.places || []).forEach(p => places.add(p));
+    (n.people || []).forEach(p => people.add(p));
+    const stream = typeof getDayStream === 'function' ? getDayStream(k) : { nodes: [] };
+    stream.nodes.forEach(nd => {
+      if(inRange(nd.at) && nd.type !== 'wake' && nd.type !== 'sleep') pulses.push({ ...nd, day: k });
+    });
+  });
+  const media = (typeof getDramas === 'function' ? getDramas() : []).filter(d => {
+    const eps = Object.values(d.episodes || {});
+    return eps.some(ep => inRange(ep.date) || inRange(ep.reviewedAt));
+  }).slice(0, 6);
+  const articles = (typeof getArticles === 'function' ? getArticles() : []).filter(a => inRange(a.date)).slice(0, 4);
+  const gallery = (state.pinboard || []).filter(p => inRange(p.time)).slice(0, 8);
+  const skills = (typeof getSkills === 'function' ? getSkills() : []).map(s => ({
+    name: s.name,
+    hours: typeof getTotalSkillHours === 'function' ? getTotalSkillHours(s.id) : 0,
+    color: s.color,
+  })).filter(s => s.hours > 0).slice(0, 6);
+  const title = `Week in review · ${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const body = [
+    `# ${title}`,
+    '',
+    places.size ? `## Places\n${[...places].map(p => `- ${p}`).join('\n')}` : '',
+    people.size ? `## People\n${[...people].map(p => `- ${p}`).join('\n')}` : '',
+    media.length ? `## Media\n${media.map(d => `- ${d.title} (${d.mediaType})`).join('\n')}` : '',
+    skills.length ? `## Skills\n${skills.map(s => `- ${s.name}: ${s.hours}h`).join('\n')}` : '',
+    articles.length ? `## Writing\n${articles.map(a => `- ${a.title}`).join('\n')}` : '',
+    pulses.length ? `## Live moments\n${pulses.slice(0, 12).map(p => `- ${p.day}: ${p.text || p.type}`).join('\n')}` : '',
+    gallery.length ? `## Gallery\n${gallery.map(p => p.photo ? `![${p.name}](photo)` : `- ${p.name}: ${p.text?.slice(0, 80)}`).join('\n')}` : '',
+  ].filter(Boolean).join('\n\n');
+  return { title, body, excerpt: body.split('\n').filter(Boolean).slice(1, 4).join(' · ').slice(0, 220) };
+}
+
 function renderPress(){
   const spread = document.getElementById('pressSpread');
   if(!spread) return;
@@ -4662,7 +5114,10 @@ function renderPress(){
   const recs = typeof renderCategoryRecommendationsHtml === 'function'
     ? renderCategoryRecommendationsHtml('press', 'The Press')
     : '';
-  spread.innerHTML = recs + tagBar + filtered.map((a, i) => {
+  const newsletterBtn = isAdmin()
+    ? `<div class="press-admin-tools"><button type="button" class="btn primary" id="generateWeeklyNewsletter">Generate weekly newsletter draft</button><p class="field-hint">Pulls places, people, media, skills, pulses &amp; gallery from the last 7 days — nothing from the overload vault.</p></div>`
+    : '';
+  spread.innerHTML = recs + newsletterBtn + tagBar + filtered.map((a, i) => {
     const neon = stableNeon(a.id, i);
     const tags = parseArticleTags(a);
     const tagHtml = tags.length
@@ -4685,6 +5140,27 @@ function renderPress(){
       pressTagFilter = btn.dataset.pressTag || '';
       renderPress();
     });
+  });
+  spread.querySelector('#generateWeeklyNewsletter')?.addEventListener('click', () => {
+    const draft = generateWeeklyNewsletter();
+    ensureContentState();
+    const article = {
+      id: uid('art'),
+      section: 'Newsletter',
+      title: draft.title,
+      date: todayKey(),
+      excerpt: draft.excerpt,
+      body: draft.body,
+      layout: 'feature',
+      tags: 'newsletter,weekly',
+      image: (state.pinboard || []).find(p => p.photo)?.photo || '',
+    };
+    if(!state.content.articles) state.content.articles = [];
+    state.content.articles.unshift(article);
+    saveState();
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(GRAY_XP_AWARDS.newsletter.xp, 'newsletter');
+    openContentEditor('article', article.id, false);
+    renderPress();
   });
 
   spread.querySelectorAll('.manga-panel').forEach(p => {
@@ -4860,7 +5336,7 @@ function openCommunityCommentModal(source){
   document.getElementById('ccSourceId').value = source.id || '';
   document.getElementById('ccSourceLabel').value = source.label || '';
   document.getElementById('communityCommentTitle').textContent = `Note on ${source.label || 'this post'}`;
-  document.getElementById('communityCommentHint').textContent = 'Posts to the Community board — Gray sees it there, even though you commented from here.';
+  document.getElementById('communityCommentHint').textContent = 'Posts to the Community board — I see it there, even though you commented from here.';
   document.getElementById('ccText').value = '';
   document.getElementById('ccLocation').value = '';
   document.getElementById('communityCommentBack')?.classList.remove('hidden');
@@ -4915,8 +5391,11 @@ function initCommunityCommentModal(){
       sourceLabel: sourceLabel || '',
     });
     saveState();
+    if(author.characterId && typeof awardCoderPoints === 'function'){
+      awardCoderPoints(author.characterId, XP_AWARDS.community_comment.xp, 'community_comment');
+    }
     if(typeof logCoderActivity === 'function'){
-      logCoderActivity(author.characterId ? 'community_post' : 'community_post', {
+      logCoderActivity('community_comment', {
         coderId: author.characterId || '',
         name: author.name,
         detail: `${author.name} commented via ${sourceType || 'post'}`,
@@ -5070,6 +5549,9 @@ function renderPinboard(){
           time: new Date().toISOString(),
         });
         saveState();
+        if(author.characterId && typeof awardCoderPoints === 'function'){
+          awardCoderPoints(author.characterId, XP_AWARDS.community_comment.xp, 'community_comment');
+        }
         if(typeof logCoderActivity === 'function'){
           logCoderActivity('community_reply', {
             coderId: author.characterId || '',
@@ -5109,6 +5591,9 @@ document.getElementById('pinForm')?.addEventListener('submit', e => {
       replies: [],
     });
     saveState();
+    if(author.characterId && typeof awardCoderPoints === 'function'){
+      awardCoderPoints(author.characterId, XP_AWARDS.community_post.xp, 'community_post');
+    }
     if(typeof logCoderActivity === 'function'){
       logCoderActivity(author.characterId ? 'community_post' : 'community_post', {
         coderId: author.characterId || '',

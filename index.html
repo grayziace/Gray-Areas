@@ -15,6 +15,10 @@
   document.head.appendChild(tag);
 })();
 </script>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gray Areas">
+<meta name="theme-color" content="#9b5cff">
 <link rel="stylesheet" href="style.css">
 <script>
 (function(){
@@ -202,10 +206,11 @@
       </div>
       <div class="mind-channel-header sys-broken">
         <div class="mind-channel-title">
-          <span class="mind-channel-kicker sys-flicker">// Gray only · private vault · never on Coming To You Live</span>
+          <span class="mind-channel-kicker sys-flicker">// wish I could log this in the dark · never on Coming To You Live</span>
           <h2 class="view-title sketch-title mind-glitch-title">System Overload</h2>
-          <p class="mind-channel-sub">Problem solver · staff vent · body log. Your private space on the left — nothing broadcasts to viewers.</p>
+          <p class="mind-channel-sub">Coming To You <em>Offline</em> · staff vent · body log · secret calories. The belly of everything — never leaves the vault.</p>
         </div>
+        <button type="button" class="btn mind-exit-btn" id="mindExitBtn">← Leave vault</button>
       </div>
       <div class="mind-channel-body sys-broken" id="mindContent"></div>
     </section>
@@ -214,10 +219,25 @@
       <h2 class="view-title sketch-title">Daily Log</h2>
       <div class="log-header-bar">
         <div class="log-tally" id="logTally">0 days logged</div>
-        <div class="log-cal-nav">
+        <div class="log-view-tabs">
+          <button type="button" class="btn log-view-tab is-active" data-log-view="month">Month</button>
+          <button type="button" class="btn log-view-tab" data-log-view="week">Week</button>
+          <button type="button" class="btn log-view-tab" data-log-view="day">Day</button>
+        </div>
+        <div class="log-cal-nav" id="logCalNavMonth">
           <button type="button" class="btn cal-nav-btn" id="calPrev" aria-label="Previous month">‹</button>
           <span class="log-month-label" id="monthLabel"></span>
           <button type="button" class="btn cal-nav-btn" id="calNext" aria-label="Next month">›</button>
+        </div>
+        <div class="log-cal-nav hidden" id="logCalNavWeek">
+          <button type="button" class="btn cal-nav-btn" id="logWeekPrev" aria-label="Previous week">‹</button>
+          <span class="log-month-label" id="weekLabel">Week</span>
+          <button type="button" class="btn cal-nav-btn" id="logWeekNext" aria-label="Next week">›</button>
+        </div>
+        <div class="log-cal-nav hidden" id="logCalNavDay">
+          <button type="button" class="btn cal-nav-btn" id="logDayPrev" aria-label="Previous day">‹</button>
+          <span class="log-month-label" id="dayLabel">Day</span>
+          <button type="button" class="btn cal-nav-btn" id="logDayNext" aria-label="Next day">›</button>
         </div>
       </div>
       <div class="log-calendar" id="logCalendar"></div>
@@ -247,6 +267,11 @@
         <div class="field"><label>Places discovered</label><input type="text" id="logPlaces" placeholder="or pick below"></div>
         <div class="field"><label>From list</label><select id="logZone"><option value="">—</option></select></div>
         <div class="field"><label>Diary entry</label><textarea id="logDiary" rows="5" placeholder="how the day actually felt"></textarea></div>
+        <section class="day-planner-section admin-only">
+          <h4 class="log-planner-title">Day plan</h4>
+          <p class="field-hint">Timed to-dos for this day — they slot into the transmission log in order. Plan ahead here or on Coming To You Live.</p>
+          <div id="logPlannedTodos"></div>
+        </section>
         <div class="field"><label>Photos of the day</label><input type="file" id="logPhotos" accept="image/*" multiple></div>
         <div class="day-photo-preview" id="dayPhotoPreview"></div>
         <div class="log-editor-actions">
@@ -255,7 +280,7 @@
           <button class="btn primary" id="saveLog" type="button">Save day</button>
         </div>
       </div>
-      <p class="gallery-hint">In editing mode, click any day on the calendar to open and save that day.</p>
+      <p class="gallery-hint">Month / Week / Day views. Click any day to edit — plan timed to-dos, log people &amp; places, drop pulses on Coming To You Live.</p>
     </section>
 
     <section class="view neon-section" id="view-places" style="--sec-neon:#4fa3ff">
@@ -326,7 +351,7 @@
             <div class="field"><label>Posting from</label><input type="text" id="pinLocation" required placeholder="Shenzhen, UK, café, flat…"></div>
           </div>
           <div class="field"><label>Message</label><textarea id="pinText" required placeholder="leave a note on the board…" rows="4"></textarea></div>
-          <div class="field"><label>Photo (optional)</label><input type="file" id="pinPhoto" accept="image/*"></div>
+          <div class="field"><label>Photo note (optional)</label><input type="file" id="pinPhoto" accept="image/*" capture="environment"></div>
           <button class="btn primary" type="submit">Pin to board</button>
         </form>
         <div class="pin-wall" id="pinWall"></div>
@@ -335,13 +360,13 @@
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
       <h2 class="view-title sketch-title">My Card</h2>
-      <p class="gallery-hint viewer-hint">Your Coders Card — quest Gray, earn XP, edit your look anytime.</p>
+      <p class="gallery-hint viewer-hint">Your Coders Card — send me quests, earn XP, edit your look anytime.</p>
       <div id="viewerCardSpread"></div>
     </section>
 
     <section class="view neon-section" id="view-quests" style="--sec-neon:#4ade80">
       <h2 class="view-title sketch-title" id="questViewTitle">Quests</h2>
-      <p class="gallery-hint viewer-hint" id="questViewHint">Give Gray missions — places, food, comfort, Press pieces, meetups.</p>
+      <p class="gallery-hint viewer-hint" id="questViewHint">Give me missions — places, food, comfort, Press pieces, meetups.</p>
       <div id="questSpread"></div>
     </section>
 
@@ -381,7 +406,7 @@
   <header class="inbox-drawer-head">
     <div>
       <h3 class="viewer-wizard-title">Private messages</h3>
-      <span class="inbox-drawer-sub">Only you and Gray — coders can message each other too.</span>
+      <span class="inbox-drawer-sub">Private messages — coders can message me or each other.</span>
     </div>
     <button type="button" class="inbox-drawer-close" id="closeInboxDrawer" aria-label="Close inbox">×</button>
   </header>
@@ -413,7 +438,7 @@
   <div class="modal sketch-card community-comment-modal">
     <button class="modal-close" id="closeCommunityComment">×</button>
     <h3 class="viewer-wizard-title" id="communityCommentTitle">Leave a note</h3>
-    <p class="field-hint" id="communityCommentHint">Your comment goes on the Community board — Gray sees it there.</p>
+    <p class="field-hint" id="communityCommentHint">Your comment goes on the Community board — I see it there.</p>
     <form id="communityCommentForm">
       <input type="hidden" id="ccSourceType">
       <input type="hidden" id="ccSourceId">
@@ -677,6 +702,36 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="systemConsoleBack">
+  <div class="modal sketch-card system-console-modal">
+    <header class="sys-console-head">
+      <div>
+        <p class="sys-console-kicker">// system control · private</p>
+        <h3>System Console</h3>
+      </div>
+      <button type="button" class="btn" id="closeSystemConsole">Close</button>
+    </header>
+    <div class="sys-console-modes">
+      <button type="button" class="btn sys-console-mode is-active" data-console-mode="friend">◎ Friend</button>
+      <button type="button" class="btn sys-console-mode" data-console-mode="career">⌁ Career</button>
+      <button type="button" class="btn sys-console-mode" data-console-mode="personality">◇ Personality</button>
+    </div>
+    <div class="sys-console-messages" id="systemConsoleMessages"></div>
+    <form id="systemConsoleForm" class="sys-console-form">
+      <textarea id="systemConsoleInput" rows="2" placeholder="Talk to the system…" required></textarea>
+      <button type="submit" class="btn primary">Send</button>
+    </form>
+    <p class="field-hint">Type <code>...</code> in the sidebar console to open this anytime. Uses site context — never reads the overload vault.</p>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="coderProfileBack">
+  <div class="modal sketch-card coder-profile-modal">
+    <button type="button" class="inbox-drawer-close" id="closeCoderProfile" aria-label="Close">×</button>
+    <div id="coderProfileBody"></div>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="adminModalBack">
   <div class="modal sketch-card">
     <h3>Unlock player mode</h3>
@@ -687,7 +742,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'gray-console.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
