@@ -32,20 +32,6 @@ const SITE_STATE = {
             "auto": true
           },
           {
-            "id": "n-todo-1784197276204",
-            "at": "2026-07-16T10:21:16.204Z",
-            "type": "todo",
-            "text": "Gotta Tidy the Room before people arrive tomorrow",
-            "body": ""
-          },
-          {
-            "id": "n-todo-1784197277762",
-            "at": "2026-07-16T10:21:17.762Z",
-            "type": "todo",
-            "text": "Linkedin Posts",
-            "body": ""
-          },
-          {
             "id": "n-1784226530045-ng0z",
             "at": "2026-07-16T18:28:01.000Z",
             "type": "photo",
