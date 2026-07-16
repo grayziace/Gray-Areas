@@ -309,8 +309,8 @@ const SITE_STATE = {
   "playerPoints": 14,
   "playerXpHistory": [
     {
-      "id": "gxp-1784194634552-r021",
-      "at": "2026-07-16T09:37:14.552Z",
+      "id": "gxp-1784195251680-f9zw",
+      "at": "2026-07-16T09:47:31.680Z",
       "amount": 3,
       "reason": "login",
       "label": "Daily login"
