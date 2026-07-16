@@ -222,7 +222,14 @@ const SITE_STATE = {
     }
   ],
   "videoDiary": [],
-  "liveTodos": [],
+  "liveTodos": [
+    {
+      "id": "todo-1784193960653-inwc",
+      "text": "Gotta Tidy the Room before people arrive tomorrow",
+      "done": false,
+      "subtasks": []
+    }
+  ],
   "instructionsHtml": "",
   "coderActivity": [
     {
