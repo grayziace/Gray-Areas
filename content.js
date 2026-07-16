@@ -292,7 +292,9 @@ const CONTENT = {
           }
         ],
         "friends": [],
-        "media": []
+        "media": [],
+        "photos": [],
+        "animals": []
       },
     },
     {

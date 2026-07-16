@@ -280,7 +280,9 @@ const SITE_STATE = {
           }
         ],
         "friends": [],
-        "media": []
+        "media": [],
+        "photos": [],
+        "animals": []
       }
     },
     {
