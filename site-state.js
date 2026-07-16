@@ -239,6 +239,12 @@ const SITE_STATE = {
       "text": "Gotta Tidy the Room before people arrive tomorrow",
       "done": false,
       "subtasks": []
+    },
+    {
+      "id": "todo-1784194121207-86su",
+      "text": "Linkedin Posts",
+      "done": false,
+      "subtasks": []
     }
   ],
   "instructionsHtml": "",
