@@ -818,20 +818,16 @@ function saveContentEdit(){
 }
 
 function deleteContentItem(type, id){
-  if(!id || !confirm('Delete this?')) return;
+  if(!id) return;
   ensureContentState();
 
   if(type === 'character'){
-    if(typeof getCoderById === 'function' && getCoderById(id)){
-      state.viewerCharacters = (state.viewerCharacters || []).filter(c => c.id !== id);
-      saveState();
-      if(typeof postVisitorData === 'function') postVisitorData('deleteCharacter', { id });
-    } else {
-      state.content.characters = state.content.characters.filter(c => c.id !== id);
-      saveState();
-    }
+    if(typeof deleteCoderAccount === 'function') deleteCoderAccount(id);
+    return;
   }
-  else if(type === 'place') state.content.places = state.content.places.filter(p => p.id !== id);
+
+  if(!confirm('Delete this?')) return;
+  if(type === 'place') state.content.places = state.content.places.filter(p => p.id !== id);
   else if(type === 'gallery') state.content.gallery = state.content.gallery.filter(g => g.id !== id);
   else if(type === 'article') state.content.articles = state.content.articles.filter(a => a.id !== id);
   else if(type === 'drama'){
@@ -3746,6 +3742,7 @@ const HomeCheckIn = {
 const CODER_ACTIVITY_META = {
   card_created: { label: 'Card created', icon: '◆', neon: '#fcd34d' },
   card_updated: { label: 'Card updated', icon: '✎', neon: '#fcd34d' },
+  account_deleted: { label: 'Account deleted', icon: '✕', neon: '#f87171' },
   quest_sent: { label: 'Quest sent', icon: '▶', neon: '#4ade80' },
   quest_complete: { label: 'Quest completed', icon: '★', neon: '#3ad6e0' },
   quest_comment: { label: 'Quest comment', icon: '💬', neon: '#4ade80' },

@@ -1,5 +1,6 @@
 const ACTIVITY_LABELS = {
   card_created: 'New coder card created',
+  account_deleted: 'Coder account deleted',
   card_updated: 'Coder card updated',
   quest_sent: 'Quest sent',
   quest_complete: 'Quest completed',

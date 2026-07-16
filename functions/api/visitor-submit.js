@@ -128,7 +128,37 @@ export async function onRequestPost(context) {
       if (idx >= 0) store.quests[idx] = { ...store.quests[idx], ...payload };
       else store.quests.push(payload);
     } else if (action === 'deleteCharacter') {
-      store.viewerCharacters = (store.viewerCharacters || []).filter(c => c.id !== payload.id);
+      const id = payload.id;
+      store.viewerCharacters = (store.viewerCharacters || []).filter(c => c.id !== id);
+      store.quests = (store.quests || []).filter(q => q.fromCharacterId !== id);
+      store.inboxMessages = (store.inboxMessages || []).filter(m => m.fromId !== id && m.toId !== id);
+      store.pressSubmissions = (store.pressSubmissions || []).filter(s => s.characterId !== id);
+      store.coderRecommendations = (store.coderRecommendations || []).filter(r => r.coderId !== id);
+      store.xpRequests = (store.xpRequests || []).filter(r => r.coderId !== id);
+      store.chatMessages = (store.chatMessages || []).filter(m => m.characterId !== id);
+      store.friendRequests = (store.friendRequests || []).filter(r => r.fromId !== id && r.toId !== id);
+      store.coderActivityPulses = (store.coderActivityPulses || []).filter(a => a.coderId !== id);
+      if (store.coderPresence) delete store.coderPresence[id];
+      (store.viewerCharacters || []).forEach(c => {
+        if (Array.isArray(c.collection?.friends)) {
+          c.collection.friends = c.collection.friends.filter(fid => fid !== id);
+        }
+      });
+
+      store.coderActivityPulses = store.coderActivityPulses || [];
+      const pulse = {
+        id: `act-delete-${id}`,
+        at: new Date().toISOString(),
+        type: 'account_deleted',
+        coderId: id,
+        name: payload.name || 'Coder',
+        detail: payload.name ? `Account deleted: ${payload.name}` : `Account deleted (${id})`,
+      };
+      if (!store.coderActivityPulses.some(a => a.id === pulse.id)) {
+        store.coderActivityPulses.unshift(pulse);
+        store.coderActivityPulses = store.coderActivityPulses.slice(0, 200);
+      }
+      notifyActivity = pulse;
     } else if (action === 'pulseActivity') {
       store.coderActivityPulses = store.coderActivityPulses || [];
       const exists = store.coderActivityPulses.some(a => a.id === payload.id);

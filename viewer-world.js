@@ -291,6 +291,80 @@ function getCoderById(id){
   return (state.viewerCharacters || []).find(c => c.id === id) || null;
 }
 
+function resolveCoderAccount(coderId){
+  if(!coderId) return null;
+  let account = getCoderById(coderId);
+  if(account) return account;
+  const ref = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
+  if(!ref) return null;
+  const nameKey = (ref.name || '').trim().toLowerCase();
+  if(!nameKey) return null;
+  return (state.viewerCharacters || []).find(c => (c.name || '').trim().toLowerCase() === nameKey) || null;
+}
+
+function purgeCoderAccountData(coderId, accountName){
+  if(!coderId) return;
+  const nameKey = (accountName || '').trim().toLowerCase();
+
+  state.viewerCharacters = (state.viewerCharacters || []).filter(c => c.id !== coderId);
+  if(state.content?.characters){
+    state.content.characters = state.content.characters.filter(c => {
+      if(c.id === coderId) return false;
+      if(nameKey && (c.name || '').trim().toLowerCase() === nameKey) return false;
+      return true;
+    });
+  }
+
+  state.quests = (state.quests || []).filter(q => q.fromCharacterId !== coderId);
+  state.inboxMessages = (state.inboxMessages || []).filter(m => m.fromId !== coderId && m.toId !== coderId);
+  state.pinboard = (state.pinboard || []).filter(p => p.characterId !== coderId);
+  if(state.coderPresence) delete state.coderPresence[coderId];
+  state.friendRequests = (state.friendRequests || []).filter(r => r.fromId !== coderId && r.toId !== coderId);
+  state.pressSubmissions = (state.pressSubmissions || []).filter(s => s.characterId !== coderId);
+  state.coderRecommendations = (state.coderRecommendations || []).filter(r => r.coderId !== coderId);
+  state.xpRequests = (state.xpRequests || []).filter(r => r.coderId !== coderId);
+  state.chatMessages = (state.chatMessages || []).filter(m => m.characterId !== coderId);
+  state.coderActivity = (state.coderActivity || []).filter(a => a.coderId !== coderId);
+
+  (state.viewerCharacters || []).forEach(c => {
+    if(!Array.isArray(c.collection?.friends)) return;
+    c.collection.friends = c.collection.friends.filter(fid => fid !== coderId);
+  });
+}
+
+function deleteCoderAccount(coderId){
+  if(!isAdmin() || !coderId) return false;
+  ensureViewerState();
+
+  const account = resolveCoderAccount(coderId);
+  const isRealAccount = !!(account && (account.consoleKey || account.isCoderCard !== false));
+
+  if(isRealAccount){
+    const name = account.name || 'this coder';
+    if(!confirm(`Delete ${name}'s whole account? Their card, profile, quests, and messages will be removed permanently.`)) return false;
+    purgeCoderAccountData(account.id, account.name);
+    saveState();
+    postVisitorData('deleteCharacter', { id: account.id, name: account.name });
+    if(typeof logCoderActivity === 'function'){
+      logCoderActivity('account_deleted', { coderId: account.id, name: account.name, detail: `Account deleted: ${account.name}` });
+    }
+    if(typeof getCoderSessionId === 'function' && getCoderSessionId() === account.id) lockCoderSession();
+  } else {
+    if(!confirm('Delete this card?')) return false;
+    ensureContentState();
+    state.content.characters = (state.content.characters || []).filter(c => c.id !== coderId);
+    state.viewerCharacters = (state.viewerCharacters || []).filter(c => c.id !== coderId);
+    saveState();
+    postVisitorData('deleteCharacter', { id: coderId });
+  }
+
+  document.getElementById('contentEditBack')?.classList.add('hidden');
+  document.getElementById('dramaDetailBack')?.classList.add('hidden');
+  if(typeof renderAll === 'function') renderAll();
+  if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
+  return true;
+}
+
 const GRAY_LOGIN_DAY_KEY = 'ga-gray-login-day';
 
 function tryPlayerLogin(name, key){
