@@ -484,8 +484,15 @@ const SITE_STATE = {
       "reason": "practical_help"
     }
   ],
-  "playerPoints": 24,
+  "playerPoints": 29,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784206467405-owyc",
+      "at": "2026-07-16T12:54:27.405Z",
+      "amount": 5,
+      "reason": "login",
+      "label": "Daily login"
+    },
     {
       "id": "gxp-1784197277763-y6r9",
       "at": "2026-07-16T10:21:17.763Z",
