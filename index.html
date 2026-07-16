@@ -149,7 +149,7 @@
       <button data-view="sync" class="node-btn active" style="--nc:#3ad6e0"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⊛</span><span class="node-label">Coming To You Live</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▤</span><span class="node-label">Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⌖</span><span class="node-label">Place Cards</span></button>
-      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◆</span><span class="node-label">Coder Cards</span></button>
+      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◆</span><span class="node-label">Player Cards</span></button>
       <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Skill Cards</span></button>
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▶</span><span class="node-label">Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▥</span><span class="node-label">The Press</span></button>
@@ -292,8 +292,9 @@
     </section>
 
     <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
-      <h2 class="view-title sketch-title">Coder Cards</h2>
+      <h2 class="view-title sketch-title">Player Cards</h2>
       <p class="gallery-hint">Ranked by XP — #1, #2, #3 glow on the deck. Higher XP = higher rank. Click to flip.</p>
+      <div id="playerDeckMeta" class="player-deck-meta"></div>
       <div class="card-deck" id="charDeck"></div>
       <button class="btn admin-only hidden" id="addCharBtn" style="margin-top:14px">+ Add player</button>
     </section>
@@ -388,7 +389,7 @@
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
       <h2 class="view-title sketch-title">My Card</h2>
-      <p class="gallery-hint viewer-hint">Your Coders Card — send me quests, earn XP, edit your look anytime.</p>
+      <p class="gallery-hint viewer-hint">Your Player Card — send me quests, earn XP, post updates, edit your look anytime.</p>
       <div id="viewerCardSpread"></div>
     </section>
 
@@ -726,6 +727,20 @@
     <div class="modal-actions">
       <button type="button" class="btn" onclick="document.getElementById('questCompleteBack').classList.add('hidden')">Cancel</button>
       <button type="button" class="btn primary" id="questCompleteSave">Post completion</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="grayCoderEditBack">
+  <div class="modal sketch-card gray-coder-edit-modal">
+    <header class="gray-edit-head">
+      <h3 id="grayCoderEditTitle">Edit player card</h3>
+      <button type="button" class="btn" id="closeGrayCoderEdit">Close</button>
+    </header>
+    <div class="gray-coder-edit-scroll" id="grayCoderEditFields"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="cancelGrayCoderEdit">Cancel</button>
+      <button type="button" class="btn primary" id="saveGrayCoderEdit">Save card</button>
     </div>
   </div>
 </div>

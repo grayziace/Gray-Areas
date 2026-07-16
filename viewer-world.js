@@ -181,7 +181,7 @@ function renderCoderWelcomeBar(){
       : rank
         ? `<span class="coder-welcome-rank is-plain">Rank #${rank}</span>`
         : '';
-    host.innerHTML = `<div class="coder-welcome-bar" style="--coder-neon:${esc(neon)}"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, Coder: <strong>${esc(name)}</strong>${rankHtml}</span></div>`;
+    host.innerHTML = `<div class="coder-welcome-bar" style="--coder-neon:${esc(neon)}"><span class="coder-welcome-kicker">// logged in</span><span class="coder-welcome-text">Welcome back, <strong>${esc(name)}</strong>${rankHtml}</span></div>`;
     host.classList.remove('hidden');
     return;
   }
@@ -615,6 +615,7 @@ function unlockCoderSession(cardId, opts = {}){
   if(typeof navigateToView === 'function') navigateToView(opts.view || 'sync');
   ViewerWorld.renderAll();
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
+  startPresenceHeartbeat();
 }
 
 function lockCoderSession(){
@@ -853,7 +854,9 @@ function buildCoderCardFromWizard(form, existing){
     image: base.image || '',
     avatar: base.avatar || '',
     lookPrompt: form.selfDescription?.trim() || base.lookPrompt || '',
-    cardDescription: base.cardDescription || '',
+    cardDescription: form.cardDescription?.trim()
+      || (typeof sanitizeCardDescription === 'function' ? sanitizeCardDescription(base.cardDescription) : (base.cardDescription || ''))
+      || '',
     pokeCard: {
       ...(base.pokeCard || {}),
       level: base.pokeCard?.level || 1,
@@ -906,8 +909,65 @@ function fallbackPersonalityBlurb(card){
 function cleanPersonalityBlurb(text){
   let t = (text || '').trim().replace(/^["'`]+|["'`]+$/g, '').replace(/\s+/g, ' ');
   t = t.replace(/^(here('|')?s|sure|okay)[^:]*:\s*/i, '');
+  t = t.replace(/(.)\1{4,}/g, '$1$1');
+  if(/(.)\1{3,}/.test(t)) return '';
   if(t.length > 90) t = t.slice(0, 87).trim() + '…';
   return t;
+}
+
+function isValidCardDescription(text){
+  const t = (text || '').trim();
+  if(!t || t.length < 4) return false;
+  if(/(.)\1{4,}/.test(t)) return false;
+  if(!/[a-zA-Z]{2,}/.test(t)) return false;
+  return true;
+}
+
+const PRESENCE_ONLINE_MS = 5 * 60 * 1000;
+let presenceHeartbeatTimer = null;
+
+function touchCoderPresence(coderId, name){
+  if(!coderId) return;
+  if(!state.coderPresence) state.coderPresence = {};
+  state.coderPresence[coderId] = { at: new Date().toISOString(), atMs: Date.now(), name: name || '' };
+  saveState();
+  postVisitorData('heartbeat', { coderId, name: name || '', at: state.coderPresence[coderId].at });
+}
+
+function mergeCoderPresence(remote){
+  if(!remote || typeof remote !== 'object') return;
+  if(!state.coderPresence) state.coderPresence = {};
+  Object.entries(remote).forEach(([id, row]) => {
+    if(!row?.at) return;
+    const incoming = row.atMs || new Date(row.at).getTime();
+    const existing = state.coderPresence[id]?.atMs || new Date(state.coderPresence[id]?.at || 0).getTime();
+    if(incoming > existing) state.coderPresence[id] = { ...row, atMs: incoming };
+  });
+}
+
+function getOnlineCoderIds(){
+  const now = Date.now();
+  const ids = new Set();
+  Object.entries(state.coderPresence || {}).forEach(([id, row]) => {
+    const at = row.atMs || new Date(row.at || 0).getTime();
+    if(now - at < PRESENCE_ONLINE_MS) ids.add(id);
+  });
+  return ids;
+}
+
+function isCoderOnline(coderId){
+  return getOnlineCoderIds().has(coderId);
+}
+
+function startPresenceHeartbeat(){
+  clearInterval(presenceHeartbeatTimer);
+  const mine = getMyCoderCard();
+  if(!mine) return;
+  touchCoderPresence(mine.id, mine.name);
+  presenceHeartbeatTimer = setInterval(() => {
+    const c = getMyCoderCard();
+    if(c) touchCoderPresence(c.id, c.name);
+  }, 120000);
 }
 
 async function generateCoderCardDescription(card){
@@ -921,7 +981,7 @@ async function generateCoderCardDescription(card){
     clearTimeout(timer);
     if(!res.ok) throw new Error('Text gen failed');
     const text = cleanPersonalityBlurb(await res.text());
-    if(text) card.cardDescription = text;
+    if(isValidCardDescription(text)) card.cardDescription = text;
     else card.cardDescription = fallbackPersonalityBlurb(card);
   }catch(e){
     console.warn('Card description gen:', e);
@@ -1015,6 +1075,7 @@ function mergeVisitorDataFile(remote){
     }
   });
   state.coderActivity = (state.coderActivity || []).slice(0, 120);
+  mergeCoderPresence(remote.coderPresence);
 }
 
 async function fetchVisitorData(){
@@ -1024,6 +1085,7 @@ async function fetchVisitorData(){
     mergeVisitorDataFile(await res.json());
     saveState();
     ViewerWorld.renderAll();
+    if(typeof renderCharacters === 'function' && document.body.dataset.activeView === 'characters') renderCharacters();
     maybeShowInboxPopupOnLoad();
   }catch(e){}
 }
@@ -1112,6 +1174,7 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
         <div class="field"><label>Weaknesses (optional)</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="optional">${esc(c.weaknesses || '')}</textarea></div>
         <div class="field"><label>Resistances (optional)</label><textarea id="${id('Resistances')}" rows="2" placeholder="optional">${esc(c.resistances || '')}</textarea></div>
         <div class="field"><label>Quote (optional)</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
+        <div class="field"><label>Card line (front text)</label><input type="text" id="${id('CardDesc')}" value="${esc(c.cardDescription || '')}" placeholder="short tagline — edit if AI glitched"></div>
       </div>
       <aside class="card-wizard-preview-col">
         <p class="card-preview-kicker">Live preview</p>
@@ -1158,6 +1221,7 @@ function cardWizardFieldsHtml(prefix, card, opts = {}){
     <div class="field"><label>Weaknesses (optional)</label><textarea id="${id('Weaknesses')}" rows="2" placeholder="comma or line separated">${esc(c.weaknesses || '')}</textarea></div>
     <div class="field"><label>Resistances (optional)</label><textarea id="${id('Resistances')}" rows="2" placeholder="what you're immune to">${esc(c.resistances || '')}</textarea></div>
     <div class="field"><label>Quote (optional)</label><input type="text" id="${id('Quote')}" value="${esc(c.quote || c.pokeCard?.quote || '')}" placeholder="optional"></div>
+    <div class="field"><label>Card line (front text)</label><input type="text" id="${id('CardDesc')}" value="${esc(c.cardDescription || '')}" placeholder="short tagline — edit if AI glitched"></div>
     <div class="field"><label>Self description (for portrait only)</label><textarea id="${id('SelfDesc')}" rows="3" placeholder="used to draw your portrait — not card text">${esc(c.selfDescription || '')}</textarea></div>`;
 }
 
@@ -1180,6 +1244,7 @@ function readCardFormFromDom(prefix, opts = {}){
     weaknesses: g('Weaknesses'),
     resistances: g('Resistances'),
     quote: g('Quote'),
+    cardDescription: g('CardDesc'),
     selfDescription: g('SelfDesc'),
     consoleKey: opts.consoleKey || g('ConsoleKey'),
   };
@@ -1357,6 +1422,7 @@ const ViewerWorld = {
     });
     fetchVisitorData().then(() => {
       if(!isSiteUnlocked()) showEntryGate();
+      if(getMyCoderCard()) startPresenceHeartbeat();
       ViewerWorld.renderAll();
     });
   },
@@ -1565,11 +1631,11 @@ const ViewerWorld = {
 
     if(this.editingCardId === mine.id){
       host.innerHTML = `
-        <div class="viewer-wizard sketch-card">
+        <div class="viewer-wizard sketch-card card-edit-studio">
           <h3 class="viewer-wizard-title">Edit My Card</h3>
-          <p class="field-hint">Tweak anything — regenerate portrait or spirit when you're ready (you'll see progress).</p>
+          <p class="field-hint">Full editing station — tweak stats, fix your card line, regenerate portrait or spirit.</p>
           <form id="myCardEditForm" class="viewer-wizard-form">
-            ${cardWizardFieldsHtml('edit', mine)}
+            ${cardWizardFieldsHtml('edit', mine, { createLayout: true, portraitPreview: mine.image || mine.avatar, spiritPreview: mine.pokeCard?.spiritAnimalImage })}
             <div class="card-regen-row">
               <button type="button" class="btn" id="regenPortraitBtn">↻ Regenerate portrait</button>
               <button type="button" class="btn" id="regenSpiritBtn">↻ Regenerate spirit</button>
@@ -1588,32 +1654,67 @@ const ViewerWorld = {
         e.preventDefault();
         this.saveCardEdit(mine.id, 'edit');
       });
+      this.wireCardWizardCreate('edit');
       return;
     }
 
     const lvl = coderLevelFromPoints(mine.points);
     const myRank = typeof getCoderXpRank === 'function' ? getCoderXpRank(mine.id) : null;
     const myRankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(myRank) : null;
-    const rankPill = myRank && myRank <= 3 && myRankNeon
-      ? `<div class="viewer-rank-pill" style="--rank-neon:${esc(myRankNeon)}">#${myRank}</div>`
-      : myRank
-        ? `<div class="viewer-rank-pill is-plain">Rank #${myRank}</div>`
-        : '';
     const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(mine) : String(mine.points || 0);
+    const myPosts = typeof getCoderPosts === 'function' ? getCoderPosts(mine.id).filter(p => p.characterId === mine.id) : [];
+    const myQuests = typeof getCoderQuests === 'function' ? getCoderQuests(mine.id) : (state.quests || []).filter(q => q.fromCharacterId === mine.id);
+    const galleryHtml = typeof renderCoderGalleryGrid === 'function' ? renderCoderGalleryGrid(mine.id) : '';
     host.innerHTML = `
-      <div class="viewer-card-hero">
-        <div class="viewer-fire-badge viewer-fire-badge--prominent" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
-          <span class="viewer-fire-icon">◆</span>
+      <div class="viewer-card-hero viewer-card-hero--hub">
+        <div class="viewer-xp-cluster" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
           <span class="viewer-fire-val">${xpDisplay}</span>
           <span class="viewer-fire-label">XP</span>
+          <span class="viewer-level-inline">Lv ${lvl.level}</span>
         </div>
-        ${rankPill}
-        <div class="viewer-level-pill" title="${lvl.xpToNext} XP to next level">Lv ${lvl.level}</div>
+        ${myRank && myRank <= 3 && myRankNeon
+          ? `<div class="viewer-rank-corner" style="--rank-neon:${esc(myRankNeon)}">#${myRank}</div>`
+          : myRank ? `<div class="viewer-rank-corner is-plain">#${myRank}</div>` : ''}
         <button type="button" class="btn primary" id="editMyCardBtn">Edit My Card</button>
       </div>
       <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor, xpRank: myRank, rankNeon: myRankNeon }) : ''}</div>
+      <section class="player-status-board sketch-card">
+        <h3 class="viewer-wizard-title">Drop an update</h3>
+        <p class="field-hint">Tell everyone what you're up to — or send me a private note.</p>
+        <form id="playerStatusForm">
+          <div class="field"><label>What's happening?</label><textarea id="playerStatusText" rows="3" required placeholder="working on… feeling… just saw…"></textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Visibility</label>
+              <select id="playerStatusVis">
+                <option value="public">Public — everyone sees it</option>
+                <option value="private">Private — just Gray</option>
+              </select>
+            </div>
+            <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
+          </div>
+          <div class="pin-media-btns">
+            <button type="button" class="btn" id="statusTakePhoto">📷 Photo</button>
+            <button type="button" class="btn" id="statusTakeVideo">🎬 Video</button>
+          </div>
+          <div id="statusMediaPreview" class="pin-media-preview hidden"></div>
+          <button type="submit" class="btn primary">Post update</button>
+        </form>
+      </section>
+      <nav class="my-card-tabs">
+        <button type="button" class="btn my-card-tab is-active" data-mc-tab="posts">My posts (${myPosts.length})</button>
+        <button type="button" class="btn my-card-tab" data-mc-tab="gallery">Gallery</button>
+        <button type="button" class="btn my-card-tab" data-mc-tab="quests">Quests (${myQuests.length})</button>
+      </nav>
+      <section class="my-card-panel is-active" data-mc-panel="posts">
+        <div class="my-card-posts">${myPosts.length
+          ? myPosts.slice(0, 12).map(p => typeof renderPinPostFull === 'function' ? renderPinPostFull(p, mine.id) : '').join('')
+          : '<p class="empty-hint">No posts yet — drop an update above.</p>'}</div>
+      </section>
+      <section class="my-card-panel" data-mc-panel="gallery">${galleryHtml}</section>
+      <section class="my-card-panel" data-mc-panel="quests">
+        <ul class="my-card-quest-list">${myQuests.map(q => `<li><strong>${esc(q.title)}</strong> · ${esc(q.status)}</li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
+      </section>
       <div class="viewer-card-stats sketch-card">
-        ${myRank ? `<div class="vcs-row"><span>Deck rank</span><strong>#${myRank} by XP</strong></div>` : ''}
         <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
         <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
         ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
@@ -1644,6 +1745,89 @@ const ViewerWorld = {
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => this.openMyCardEditor(mine.id));
     host.querySelector('#xpRequestForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitXpRequest(); });
+    host.querySelectorAll('.my-card-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        host.querySelectorAll('.my-card-tab').forEach(t => t.classList.remove('is-active'));
+        host.querySelectorAll('.my-card-panel').forEach(p => p.classList.remove('is-active'));
+        tab.classList.add('is-active');
+        host.querySelector(`[data-mc-panel="${tab.dataset.mcTab}"]`)?.classList.add('is-active');
+      });
+    });
+    host.querySelector('#playerStatusForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitPlayerStatus(); });
+    host.querySelector('#statusTakePhoto')?.addEventListener('click', () => {
+      if(typeof MediaCapture === 'undefined') return;
+      MediaCapture.open({ mode: 'photo', onResult: r => { this.statusMedia = { photo: r.dataUrl, video: '' }; this.renderStatusMediaPreview(); }});
+    });
+    host.querySelector('#statusTakeVideo')?.addEventListener('click', () => {
+      if(typeof MediaCapture === 'undefined') return;
+      MediaCapture.open({ mode: 'video', onResult: r => { this.statusMedia = { photo: '', video: r.dataUrl }; this.renderStatusMediaPreview(); }});
+    });
+  },
+
+  statusMedia: { photo: '', video: '' },
+
+  renderStatusMediaPreview(){
+    const el = document.getElementById('statusMediaPreview');
+    if(!el) return;
+    const m = this.statusMedia || {};
+    if(!m.photo && !m.video){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+    el.classList.remove('hidden');
+    el.innerHTML = `${m.photo ? `<img src="${esc(m.photo)}" alt="">` : ''}${m.video ? `<video src="${esc(m.video)}" controls playsinline></video>` : ''}<button type="button" class="btn" id="statusClearMedia">Clear</button>`;
+    document.getElementById('statusClearMedia')?.addEventListener('click', () => { this.statusMedia = { photo: '', video: '' }; this.renderStatusMediaPreview(); });
+  },
+
+  submitPlayerStatus(){
+    const mine = getMyCoderCard();
+    if(!mine) return;
+    const text = document.getElementById('playerStatusText')?.value?.trim();
+    const vis = document.getElementById('playerStatusVis')?.value || 'public';
+    const location = document.getElementById('playerStatusLoc')?.value?.trim() || 'somewhere';
+    if(!text) return;
+    const media = this.statusMedia || {};
+    if(vis === 'public'){
+      state.pinboard = state.pinboard || [];
+      state.pinboard.push({
+        id: 'pin-' + Date.now(),
+        name: mine.name,
+        characterId: mine.id,
+        location,
+        text,
+        photo: media.photo || '',
+        video: media.video || '',
+        postType: 'update',
+        pollOptions: [],
+        pollVotes: {},
+        time: new Date().toISOString(),
+        replies: [],
+      });
+      saveState();
+      awardCoderPoints(mine.id, XP_AWARDS.community_post.xp, 'community_post');
+      logCoderActivity('status_update', { coderId: mine.id, name: mine.name, detail: `${mine.name} posted a public update` });
+      LiveSync?.pinPosted(mine.name, location);
+      if(typeof renderPinboard === 'function') renderPinboard();
+    } else {
+      const msg = {
+        id: uid('msg'),
+        fromCharacterId: mine.id,
+        fromName: mine.name,
+        toId: 'gray',
+        subject: 'Private update',
+        body: `${text}${location ? `\n📍 ${location}` : ''}`,
+        photo: media.photo || '',
+        video: media.video || '',
+        at: new Date().toISOString(),
+        readBy: [],
+      };
+      state.inboxMessages = state.inboxMessages || [];
+      state.inboxMessages.unshift(msg);
+      saveState();
+      postVisitorData('sendMessage', msg);
+      logCoderActivity('private_update', { coderId: mine.id, name: mine.name, detail: `${mine.name} sent a private update` });
+    }
+    this.statusMedia = { photo: '', video: '' };
+    document.getElementById('playerStatusForm')?.reset();
+    this.renderStatusMediaPreview();
+    this.renderViewerCard();
   },
 
   openMyCardEditor(cardId){
@@ -1734,7 +1918,79 @@ const ViewerWorld = {
   },
 
   openPlayerCoderEdit(coderId){
-    if(typeof openContentEditor === 'function') openContentEditor('character', coderId, false);
+    const c = getCoderById(coderId) || (typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null)
+      || (typeof getCharacters === 'function' ? getCharacters() : []).find(x => x.id === coderId);
+    if(!c) return;
+    this.playerEditingCoderId = coderId;
+    const back = document.getElementById('grayCoderEditBack');
+    const fields = document.getElementById('grayCoderEditFields');
+    const title = document.getElementById('grayCoderEditTitle');
+    if(!back || !fields) {
+      if(typeof openContentEditor === 'function') openContentEditor('character', coderId, false);
+      return;
+    }
+    if(title) title.textContent = `Edit ${c.name}'s player card`;
+    fields.innerHTML = `
+      <form id="grayCoderEditForm" class="viewer-wizard-form">
+        ${cardWizardFieldsHtml('gray', c, { createLayout: true, portraitPreview: c.image || c.avatar, spiritPreview: c.pokeCard?.spiritAnimalImage })}
+        <div class="card-regen-row">
+          <button type="button" class="btn" id="grayRegenPortrait">↻ Regenerate portrait</button>
+          <button type="button" class="btn" id="grayRegenSpirit">↻ Regenerate spirit</button>
+        </div>
+        <div id="grayEditGenProgress"></div>
+      </form>`;
+    back.classList.remove('hidden');
+    document.body.classList.add('gray-coder-edit-open');
+    if(!back.dataset.bound){
+      back.dataset.bound = '1';
+      document.getElementById('closeGrayCoderEdit')?.addEventListener('click', () => this.closeGrayCoderEdit());
+      document.getElementById('cancelGrayCoderEdit')?.addEventListener('click', () => this.closeGrayCoderEdit());
+      document.getElementById('saveGrayCoderEdit')?.addEventListener('click', () => this.saveGrayCoderEdit());
+      back.addEventListener('click', e => { if(e.target.id === 'grayCoderEditBack') this.closeGrayCoderEdit(); });
+    }
+    document.getElementById('grayRegenPortrait')?.addEventListener('click', () => this.regenerateGrayCoderLook('portrait'));
+    document.getElementById('grayRegenSpirit')?.addEventListener('click', () => this.regenerateGrayCoderLook('spirit'));
+    this.wireCardWizardCreate('gray');
+  },
+
+  closeGrayCoderEdit(){
+    document.getElementById('grayCoderEditBack')?.classList.add('hidden');
+    document.body.classList.remove('gray-coder-edit-open');
+    this.playerEditingCoderId = null;
+  },
+
+  async saveGrayCoderEdit(){
+    const coderId = this.playerEditingCoderId;
+    if(!coderId) return;
+    const idx = state.viewerCharacters.findIndex(c => c.id === coderId);
+    const existing = idx >= 0 ? state.viewerCharacters[idx]
+      : (typeof getCharacters === 'function' ? getCharacters() : []).find(c => c.id === coderId);
+    if(!existing) return;
+    const form = readCardFormFromDom('gray', { consoleKey: existing.consoleKey });
+    const updated = buildCoderCardFromWizard(form, existing);
+    if(this.wizardDraft?.portrait){ updated.image = this.wizardDraft.portrait; updated.avatar = this.wizardDraft.portrait; }
+    if(this.wizardDraft?.spirit) updated.pokeCard = { ...updated.pokeCard, spiritAnimalImage: this.wizardDraft.spirit };
+    if(idx >= 0) state.viewerCharacters[idx] = updated;
+    else {
+      const ci = (state.content?.characters || []).findIndex(c => c.id === coderId);
+      if(ci >= 0) state.content.characters[ci] = updated;
+    }
+    saveState();
+    await postVisitorData('updateCharacter', updated);
+    this.closeGrayCoderEdit();
+    if(typeof renderCharacters === 'function') renderCharacters();
+  },
+
+  async regenerateGrayCoderLook(mode){
+    const coderId = this.playerEditingCoderId;
+    if(!coderId) return;
+    const c = getCoderById(coderId) || (typeof getCharacters === 'function' ? getCharacters() : []).find(x => x.id === coderId);
+    if(!c) return;
+    const form = readCardFormFromDom('gray', { consoleKey: c.consoleKey });
+    Object.assign(c, buildCoderCardFromWizard(form, c));
+    await generateCoderCardImages(c, { portrait: mode === 'portrait', spirit: mode === 'spirit', onStep: updateCardGenProgress });
+    saveState();
+    this.openPlayerCoderEdit(coderId);
   },
 
   async submitCharacterWizard(){

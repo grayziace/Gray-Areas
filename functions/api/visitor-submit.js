@@ -113,6 +113,14 @@ export async function onRequestPost(context) {
         store.coderActivityPulses.unshift(payload);
         store.coderActivityPulses = store.coderActivityPulses.slice(0, 200);
       }
+    } else if (action === 'heartbeat') {
+      store.coderPresence = store.coderPresence || {};
+      if (payload.coderId && payload.at) {
+        store.coderPresence[payload.coderId] = {
+          at: payload.at,
+          name: payload.name || '',
+        };
+      }
     } else if (action === 'sendMessage') {
       store.inboxMessages = store.inboxMessages || [];
       store.inboxMessages.unshift(payload);

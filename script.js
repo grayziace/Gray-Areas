@@ -4218,41 +4218,105 @@ function getCoderByIdAny(coderId){
     || null;
 }
 
+function getCoderGallery(coderId){
+  const items = [];
+  (state.pinboard || []).forEach(p => {
+    if(p.characterId !== coderId) return;
+    if(p.photo) items.push({ type: 'photo', src: p.photo, at: p.time, label: p.text?.slice(0, 60) || 'Post' });
+    if(p.video) items.push({ type: 'video', src: p.video, at: p.time, label: p.text?.slice(0, 60) || 'Video' });
+  });
+  return items.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+}
+
+function getCoderQuests(coderId){
+  return (state.quests || []).filter(q => q.fromCharacterId === coderId);
+}
+
+function renderCoderGalleryGrid(coderId){
+  const items = getCoderGallery(coderId);
+  if(!items.length) return '<p class="empty-hint">No photos or videos yet.</p>';
+  return `<div class="coder-gallery-grid">${items.map(it => `
+    <figure class="coder-gallery-item coder-gallery-item--${it.type}">
+      ${it.type === 'video'
+        ? `<video src="${esc(it.src)}" controls playsinline></video>`
+        : `<img src="${esc(it.src)}" alt="" loading="lazy">`}
+      <figcaption>${esc(it.label || '')}</figcaption>
+    </figure>`).join('')}</div>`;
+}
+
 function renderCoderBoardPage(coderId){
   const host = document.getElementById('coderBoardSpread');
   if(!host) return;
   const c = getCoderByIdAny(coderId);
-  if(!c){ host.innerHTML = '<p class="empty-hint">Coder not found.</p>'; return; }
+  if(!c){ host.innerHTML = '<p class="empty-hint">Player not found.</p>'; return; }
+  const accent = c.cardColor || '#e94ff5';
+  const rank = typeof getCoderXpRank === 'function' ? getCoderXpRank(c.id) : null;
+  const rankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rank) : accent;
+  const lvl = typeof coderLevelFromPoints === 'function' ? coderLevelFromPoints(c.points || 0) : { level: 0 };
+  const online = typeof isCoderOnline === 'function' && isCoderOnline(c.id);
   const rankMap = typeof getCoderXpRankMap === 'function' ? getCoderXpRankMap() : new Map();
   const card = typeof buildFlipPlayerCard === 'function'
-    ? buildFlipPlayerCard(c, 'character', 0, { xpRank: rankMap.get(c.id), rankNeon: typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rankMap.get(c.id)) : '' })
+    ? buildFlipPlayerCard(c, 'character', 0, { xpRank: rankMap.get(c.id), rankNeon, isOnline: online })
     : '';
-  const posts = getCoderPosts(coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-  const quests = (state.quests || []).filter(q => q.fromCharacterId === coderId);
-  const xpRows = (c.xpHistory || []).map(e =>
+  const posts = getCoderPosts(coderId).filter(p => p.characterId === coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+  const quests = getCoderQuests(coderId);
+  const xpRows = (c.xpHistory || []).slice(0, 16).map(e =>
     `<li><time>${esc(new Date(e.at).toLocaleString())}</time> +${e.amount} · ${esc(e.label || e.reason)}</li>`
   ).join('');
+  const quotes = (c.saidQuotes || []).slice(0, 5).map(q =>
+    `<blockquote class="coder-board-quote"><p>${esc(q.text)}</p></blockquote>`
+  ).join('');
   const postHtml = posts.map(p => renderPinPostFull(p, c.id)).join('');
+  const avatar = c.avatar || c.image;
   host.innerHTML = `
-    <header class="coder-board-hero sketch-card">
-      <h2 class="view-title sketch-title">${esc(c.name)}'s update board</h2>
-      <p class="gallery-hint">Everything they've posted — polls, notes, video — plus quests and XP.</p>
-    </header>
-    <div class="coder-board-card-wrap">${card}</div>
-    <section class="coder-board-section sketch-card">
-      <h3>Posts &amp; updates (${posts.length})</h3>
-      <div class="coder-board-posts">${postHtml || '<p class="empty-hint">Nothing posted yet.</p>'}</div>
-    </section>
-    <section class="coder-board-section sketch-card">
-      <h3>Recent XP</h3>
-      <ul class="coder-profile-xp">${xpRows || '<li>None yet.</li>'}</ul>
-    </section>
-    <section class="coder-board-section sketch-card">
-      <h3>Quests (${quests.length})</h3>
-      <ul>${quests.map(q => `<li><strong>${esc(q.title)}</strong> · ${esc(q.status)}</li>`).join('') || '<li>None yet.</li>'}</ul>
-    </section>`;
+    <div class="coder-board-page" style="--cb-neon:${esc(accent)};--cb-rank-neon:${esc(rankNeon)}">
+      <header class="coder-board-hero">
+        <div class="coder-board-hero-bg"></div>
+        <div class="coder-board-hero-inner">
+          <div class="coder-board-avatar">${avatar ? `<img src="${esc(avatar)}" alt="">` : `<span>${esc((c.name || '?').charAt(0))}</span>`}</div>
+          <div class="coder-board-hero-meta">
+            <p class="coder-board-kicker">${online ? '<span class="coder-board-online">● online</span>' : ''}// player profile</p>
+            <h2 class="coder-board-name">${esc(c.name)}</h2>
+            <div class="coder-board-stat-row">
+              <span class="coder-board-xp">${c.points || 0} XP</span>
+              <span class="coder-board-lv">Lv ${lvl.level}</span>
+              ${rank ? `<span class="coder-board-rank" style="--rank-neon:${esc(rankNeon)}">#${rank}</span>` : ''}
+            </div>
+            <p class="coder-board-blurb">${esc(typeof sanitizeCardDescription === 'function' ? sanitizeCardDescription(c.cardDescription) : (c.cardDescription || c.vibe || ''))}</p>
+          </div>
+        </div>
+      </header>
+      <div class="coder-board-card-wrap">${card}</div>
+      <nav class="coder-board-tabs">
+        <button type="button" class="btn coder-board-tab is-active" data-cb-tab="posts">Updates</button>
+        <button type="button" class="btn coder-board-tab" data-cb-tab="gallery">Gallery</button>
+        <button type="button" class="btn coder-board-tab" data-cb-tab="quests">Quests</button>
+        <button type="button" class="btn coder-board-tab" data-cb-tab="xp">XP</button>
+      </nav>
+      <section class="coder-board-panel is-active" data-cb-panel="posts">
+        <div class="coder-board-posts">${postHtml || '<p class="empty-hint">No public updates yet.</p>'}</div>
+      </section>
+      <section class="coder-board-panel" data-cb-panel="gallery">
+        ${renderCoderGalleryGrid(coderId)}
+      </section>
+      <section class="coder-board-panel" data-cb-panel="quests">
+        <ul class="coder-board-quest-list">${quests.map(q => `<li><strong>${esc(q.title)}</strong> <span class="coder-board-quest-status">${esc(q.status)}</span></li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
+      </section>
+      <section class="coder-board-panel" data-cb-panel="xp">
+        <ul class="coder-profile-xp">${xpRows || '<li>None yet.</li>'}</ul>
+        ${quotes ? `<div class="coder-board-quotes"><h4>Things they've said</h4>${quotes}</div>` : ''}
+      </section>
+    </div>`;
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
   bindPollVoteButtons(host);
+  host.querySelectorAll('.coder-board-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      host.querySelectorAll('.coder-board-tab').forEach(t => t.classList.remove('is-active'));
+      host.querySelectorAll('.coder-board-panel').forEach(p => p.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      host.querySelector(`[data-cb-panel="${tab.dataset.cbTab}"]`)?.classList.add('is-active');
+    });
+  });
 }
 
 function openCoderProfileModal(coderId){
@@ -4303,14 +4367,23 @@ function renderCharacters(){
   if(!deck) return;
   const rankMap = getCoderXpRankMap();
   const chars = getRankedCoderCards();
+  const onlineIds = typeof getOnlineCoderIds === 'function' ? getOnlineCoderIds() : new Set();
+  const onlineCount = onlineIds.size;
+  const header = document.getElementById('playerDeckMeta');
+  if(header){
+    header.innerHTML = onlineCount
+      ? `<span class="player-online-count"><span class="player-online-pulse"></span>${onlineCount} player${onlineCount === 1 ? '' : 's'} online</span>`
+      : '';
+  }
   deck.innerHTML = chars.map((c, i) => {
     const card = buildFlipPlayerCard(c, 'character', i, {
       xpRank: rankMap.get(c.id),
       rankNeon: getCoderRankNeon(rankMap.get(c.id)),
+      isOnline: onlineIds.has(c.id),
     });
     const quoteLog = isAdmin() && isCoderDeckCard(c) ? renderCoderQuoteLog(c) : '';
     const profileBtn = isCoderDeckCard(c)
-      ? `<button type="button" class="btn coder-profile-btn" data-coder-board="${esc(c.id)}">Update board</button>`
+      ? `<button type="button" class="btn coder-profile-btn" data-coder-board="${esc(c.id)}">View profile</button>`
       : '';
     return `<div class="char-deck-item">${card}${profileBtn}${quoteLog}</div>`;
   }).join('');
@@ -4352,28 +4425,42 @@ function addCoderQuoteByName(name, text, context){
 }
 
 function renderCoderQuoteLog(c){
-  const quotes = c.saidQuotes || [];
-  const rows = quotes.length
-    ? quotes.map(q => `<blockquote class="coder-quote-item"><p>${esc(q.text)}</p>${q.context ? `<cite>${esc(q.context)}</cite>` : ''}</blockquote>`).join('')
-    : '<p class="empty-hint">No quotes logged yet — add one below or drop a Quote pulse on Coming To You Live.</p>';
-  return `<div class="coder-quote-log" data-coder-id="${esc(c.id)}">
-    <h4 class="coder-quote-title">Things they've said</h4>
-    <div class="coder-quote-list">${rows}</div>
-    <form class="coder-quote-add-form">
-      <div class="field"><label>Add quote</label><textarea class="coder-quote-input" rows="2" placeholder="Funny thing they said…"></textarea></div>
-      <button type="submit" class="btn">Add quote</button>
-    </form>
+  const quotes = (c.saidQuotes || []).slice(0, 3);
+  const latest = quotes[0];
+  const mini = latest
+    ? `<blockquote class="coder-quote-mini"><p>${esc(latest.text)}</p></blockquote>`
+    : '';
+  const more = quotes.length > 1 ? `<span class="coder-quote-more">+${quotes.length - 1} more</span>` : '';
+  return `<div class="coder-quote-compact" data-coder-id="${esc(c.id)}">
+    ${mini}${more}
+    <button type="button" class="btn coder-quote-toggle" data-quote-toggle="${esc(c.id)}">+ Add quote</button>
+    <div class="coder-quote-panel hidden" data-quote-panel="${esc(c.id)}">
+      <div class="coder-quote-list">${quotes.map(q => `<blockquote class="coder-quote-item"><p>${esc(q.text)}</p>${q.context ? `<cite>${esc(q.context)}</cite>` : ''}</blockquote>`).join('') || '<p class="empty-hint">No quotes yet.</p>'}</div>
+      <form class="coder-quote-add-form">
+        <textarea class="coder-quote-input" rows="2" placeholder="Funny thing they said…"></textarea>
+        <button type="submit" class="btn">Save quote</button>
+      </form>
+    </div>
   </div>`;
 }
 
 function bindCoderQuoteLogs(container){
   if(!container || !isAdmin()) return;
+  container.querySelectorAll('[data-quote-toggle]').forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const panel = container.querySelector(`[data-quote-panel="${btn.dataset.quoteToggle}"]`);
+      panel?.classList.toggle('hidden');
+      btn.textContent = panel?.classList.contains('hidden') ? '+ Add quote' : '− Hide quotes';
+    });
+  });
   container.querySelectorAll('.coder-quote-add-form').forEach(form => {
     if(form.dataset.bound) return;
     form.dataset.bound = '1';
     form.addEventListener('submit', e => {
       e.preventDefault();
-      const wrap = form.closest('.coder-quote-log');
+      const wrap = form.closest('.coder-quote-compact');
       const coderId = wrap?.dataset.coderId;
       const text = form.querySelector('.coder-quote-input')?.value?.trim();
       if(!coderId || !text) return;

@@ -295,10 +295,21 @@ function getPlayerAccent(item, opts = {}){
   return paletteToAccent(pc.colorPalette);
 }
 
+function sanitizeCardDescription(text){
+  let t = (text || '').trim().replace(/\s+/g, ' ');
+  if(!t) return '';
+  if(/(.)\1{4,}/.test(t)) return '';
+  if(t.length < 4 || !/[a-zA-Z]/.test(t)) return '';
+  const words = t.split(' ').filter(Boolean);
+  if(words.length === 1 && words[0].length > 12) return '';
+  return t;
+}
+
 function playerBriefDesc(item){
-  if(item?.cardDescription?.trim()) return item.cardDescription.trim();
+  const desc = sanitizeCardDescription(item?.cardDescription);
+  if(desc) return desc;
   const pc = normalizePokeCard(item);
-  return pc.vibe || item.cardSubtitle || pc.subtitle || '';
+  return sanitizeCardDescription(pc.vibe) || item.cardSubtitle || pc.subtitle || '';
 }
 
 function buildCardPhotoHtml(src, unlocked, name, focus){
@@ -369,26 +380,35 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   const xpVal = displayCoderXp(item);
   const rank = isNickOrGod(item) ? null : opts.xpRank;
   const rankNeon = opts.rankNeon || (rank && rank <= 3 ? ['#fcd34d', '#ff4fd8', '#3ad6e0'][rank - 1] : null);
-  const rankBadge = unlocked && rank && rank <= 3 && rankNeon
-    ? `<span class="pc-rank-badge" style="--rank-neon:${rankNeon}">#${rank}</span>`
+  const onlineDot = unlocked && opts.isOnline
+    ? `<span class="pc-online-dot" title="Online now"></span>`
     : '';
-  const xpRankLabel = isNickOrGod(item)
-    ? `<span class="pc-xp-rank is-op">OP</span>`
-    : rank ? `<span class="pc-xp-rank">Rank #${rank}</span>` : '';
+  const rankBadge = unlocked && rank && !isNickOrGod(item)
+    ? rank <= 3 && rankNeon
+      ? `<span class="pc-rank-badge" style="--rank-neon:${rankNeon}">#${rank}</span>`
+      : `<span class="pc-rank-badge is-plain">#${rank}</span>`
+    : isNickOrGod(item) && unlocked
+      ? `<span class="pc-rank-badge is-op">OP</span>`
+      : '';
+  const cardLevel = unlocked ? displayCardLevel(item, pc) : '??';
   const xpStrip = showXp && unlocked
     ? `<div class="pc-xp-strip" style="--pc-accent:${accent}">
-        <span class="pc-xp-val">${xpVal} XP</span>
-        ${xpRankLabel}
+        <div class="pc-xp-left">
+          <span class="pc-xp-val">${xpVal} XP</span>
+          <span class="pc-lv-inline">Lv ${cardLevel}</span>
+        </div>
       </div>`
     : '';
+  const headLevel = showXp ? '' : `<span class="pc-lv">Lv ${cardLevel}</span>`;
 
   return `<div class="pc-front ${opts.hero ? 'pc-front-hero' : ''}" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
     <div class="pc-frame-glow"></div>
+    ${onlineDot}
     ${rankBadge}
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
-      <span class="pc-lv">Lv ${unlocked ? displayCardLevel(item, pc) : '??'}</span>
+      ${headLevel}
     </div>
     ${xpStrip}
     <div class="pc-art">${buildCardPhotoHtml(artSrc, unlocked, item.name, focus)}${spirit}</div>
