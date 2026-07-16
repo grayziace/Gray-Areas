@@ -22,6 +22,14 @@ const SITE_STATE = {
               "title": "Testerrrr testerrrr",
               "body": "I did wake up a while ago I just forgot to test this today whoops."
             }
+          },
+          {
+            "id": "n-auto-1784194140209-i2yb",
+            "at": "2026-07-16T09:29:00.209Z",
+            "type": "mood",
+            "source": "mood",
+            "text": "Mood → Neutral",
+            "auto": true
           }
         ]
       },
@@ -53,7 +61,7 @@ const SITE_STATE = {
   "hiddenDramas": [
     "example-drama"
   ],
-  "currentMood": "focused",
+  "currentMood": "neutral",
   "moodCatalog": [],
   "viewerCharacters": [
     {
