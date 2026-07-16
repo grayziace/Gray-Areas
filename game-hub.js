@@ -886,7 +886,7 @@ function findBrokenCardDescriptions(){
 GameHub.renderCardRepairTool = function(){
   if(!isAdmin()) return '';
   const broken = findBrokenCardDescriptions();
-  if(!broken.length) return '<p class="field-hint card-repair-ok">All player card lines look OK.</p>';
+  if(!broken.length) return '';
   return `<section class="card-repair-board sketch-card">
     <h3 class="viewer-wizard-title">Repair glitched card lines (${broken.length})</h3>
     <p class="field-hint">AI sometimes repeats characters — clear or regenerate the front tagline.</p>

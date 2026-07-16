@@ -839,6 +839,8 @@ function buildCoderCardFromWizard(form, existing){
     ...base,
     id: base.id || uid('coder'),
     isCoderCard: true,
+    active: base.active !== false,
+    status: base.status || 'active',
     createdAt: base.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     locked: true,
@@ -1078,6 +1080,9 @@ function mergeVisitorDataFile(remote){
     });
   };
   mergeById(state.viewerCharacters, remote.viewerCharacters);
+  if(typeof normalizeViewerCoder === 'function'){
+    state.viewerCharacters = (state.viewerCharacters || []).map(c => normalizeViewerCoder(c)).filter(Boolean);
+  }
   mergeById(state.quests, remote.quests);
   mergeById(state.videoDiary, remote.videoDiary);
   mergeById(state.inboxMessages, remote.inboxMessages);
@@ -1427,6 +1432,15 @@ function logCoderActivity(type, payload = {}){
   saveState();
   postVisitorData('pulseActivity', entry);
   if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
+  if(type === 'card_created' && typeof isAdmin === 'function' && isAdmin()){
+    const toast = document.getElementById('editToast');
+    if(toast){
+      toast.textContent = `New coder card: ${entry.name || 'someone'}`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast?.classList.add('hidden'), 4500);
+    }
+    if(typeof updateCoderSignalBadge === 'function') updateCoderSignalBadge();
+  }
 }
 
 function renderCoderUpdateFeed(posts, accent){
@@ -2133,12 +2147,23 @@ const ViewerWorld = {
     updateCardGenProgress('desc', 'done', 'Card line ready.');
     updateCardGenProgress('seal', 'active', 'Sealing your card into the deck…');
 
-    state.viewerCharacters.push(card);
+    card.active = true;
+    card.status = 'active';
+    card.isCoderCard = true;
+
+    const existingIdx = state.viewerCharacters.findIndex(c => c.id === card.id);
+    if(existingIdx >= 0) state.viewerCharacters[existingIdx] = card;
+    else state.viewerCharacters.push(card);
     saveState();
-    await postVisitorData('createCharacter', card);
+
+    const synced = await postVisitorData('createCharacter', card);
+    if(!synced){
+      updateCardGenProgress('seal', 'fail', 'Saved on this device — server sync pending. Try again later if your card is missing elsewhere.');
+    }
+
     logCoderActivity('card_created', { coderId: card.id, name: card.name, detail: `${card.name} created their Coders Card` });
     awardCoderPoints(card.id, XP_AWARDS.card_create.xp, 'card_create');
-    updateCardGenProgress('seal', 'done', 'Welcome to the deck!');
+    updateCardGenProgress('seal', synced ? 'done' : 'fail', synced ? 'Welcome to the deck!' : 'Card saved locally — deck updated here.');
     this.wizardDraft = { portrait: '', spirit: '' };
     unlockCoderSession(card.id, { welcome: true, view: 'sync' });
     if(typeof renderCharacters === 'function') renderCharacters();

@@ -85,12 +85,35 @@ export async function onRequestPost(context) {
       throw new Error(fileMeta.message || 'Could not read visitor-data.json');
     }
 
+    let notifyActivity = null;
+
     if (action === 'createCharacter') {
-      const exists = (store.viewerCharacters || []).some(c => c.id === payload.id);
-      if (!exists) {
-        store.viewerCharacters = store.viewerCharacters || [];
-        store.viewerCharacters.push(payload);
+      store.viewerCharacters = store.viewerCharacters || [];
+      const idx = store.viewerCharacters.findIndex(c => c.id === payload.id);
+      const record = {
+        ...payload,
+        isCoderCard: true,
+        active: true,
+        status: 'active',
+        updatedAt: new Date().toISOString(),
+      };
+      if (idx >= 0) store.viewerCharacters[idx] = { ...store.viewerCharacters[idx], ...record };
+      else store.viewerCharacters.push(record);
+
+      store.coderActivityPulses = store.coderActivityPulses || [];
+      const pulse = {
+        id: `act-create-${payload.id}`,
+        at: new Date().toISOString(),
+        type: 'card_created',
+        coderId: payload.id,
+        name: payload.name || 'Coder',
+        detail: `${payload.name || 'Coder'} created their Coders Card`,
+      };
+      if (!store.coderActivityPulses.some(a => a.id === pulse.id)) {
+        store.coderActivityPulses.unshift(pulse);
+        store.coderActivityPulses = store.coderActivityPulses.slice(0, 200);
       }
+      notifyActivity = pulse;
     } else if (action === 'updateCharacter') {
       store.viewerCharacters = store.viewerCharacters || [];
       const idx = store.viewerCharacters.findIndex(c => c.id === payload.id);
@@ -113,6 +136,7 @@ export async function onRequestPost(context) {
         store.coderActivityPulses.unshift(payload);
         store.coderActivityPulses = store.coderActivityPulses.slice(0, 200);
       }
+      notifyActivity = payload;
     } else if (action === 'heartbeat') {
       store.coderPresence = store.coderPresence || {};
       if (payload.coderId && payload.at) {
@@ -178,8 +202,6 @@ export async function onRequestPost(context) {
     } else {
       return jsonResponse({ error: 'Unknown action' }, 400);
     }
-
-    const notifyActivity = (action === 'pulseActivity') ? payload : null;
 
     const content = JSON.stringify(store, null, 2);
     const { res: putRes, data: putData } = await githubRequest(

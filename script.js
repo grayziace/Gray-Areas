@@ -244,13 +244,13 @@ function mergeSiteStateFromFile(){
   /* private vault: overloadLogs, privateBodyLog, privateVentLogs — localStorage only */
   if(s.currentMood) state.currentMood = s.currentMood;
   if(Array.isArray(s.moodCatalog)) state.moodCatalog = s.moodCatalog;
-  if(Array.isArray(s.viewerCharacters)) state.viewerCharacters = s.viewerCharacters;
+  if(Array.isArray(s.viewerCharacters)) mergeStateRecordsById(state.viewerCharacters, s.viewerCharacters);
   if(Array.isArray(s.quests)) state.quests = s.quests;
   if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
   if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
   if(typeof s.instructionsHtml === 'string') state.instructionsHtml = s.instructionsHtml;
   if(typeof s.instructionsRevision === 'number') state.instructionsRevision = s.instructionsRevision;
-  if(Array.isArray(s.coderActivity)) state.coderActivity = s.coderActivity;
+  if(Array.isArray(s.coderActivity)) mergeStateRecordsById(state.coderActivity, s.coderActivity);
   if(typeof s.playerPoints === 'number') state.playerPoints = s.playerPoints;
   if(Array.isArray(s.playerXpHistory)) state.playerXpHistory = s.playerXpHistory;
   if(s.grayRewardsVault && typeof s.grayRewardsVault === 'object') state.grayRewardsVault = s.grayRewardsVault;
@@ -372,6 +372,29 @@ function getContentList(key, fallback){
   return fallback;
 }
 
+function mergeStateRecordsById(target, incoming){
+  if(!Array.isArray(incoming)) return;
+  incoming.forEach(item => {
+    if(!item?.id) return;
+    const i = target.findIndex(x => x.id === item.id);
+    if(i >= 0) target[i] = { ...target[i], ...item };
+    else target.push(item);
+  });
+}
+
+function normalizeViewerCoder(c){
+  if(!c?.id || !(c.name || '').trim()) return null;
+  const n = (c.name || '').trim().toLowerCase();
+  if(n === 'gray') return null;
+  return {
+    ...c,
+    isCoderCard: c.isCoderCard !== false,
+    active: c.active !== false,
+    status: c.status || 'active',
+    points: c.points || 0,
+  };
+}
+
 function getCharacters(){
   const base = getContentList('characters', [...CONTENT.characters, ...(state.runtimeCharacters || [])]);
   const seen = new Set(base.map(c => c.id));
@@ -385,7 +408,7 @@ function getCharacters(){
       merged[byId] = { ...merged[byId], ...vc, isCoderCard: true, points: vc.points ?? merged[byId].points ?? 0 };
       seen.add(vc.id);
     } else if(byName >= 0){
-      merged[byName] = { ...merged[byName], ...vc, id: merged[byName].id, isCoderCard: true, points: vc.points ?? merged[byName].points ?? 0 };
+      merged[byName] = { ...merged[byName], ...vc, id: vc.id, isCoderCard: true, active: vc.active !== false, points: vc.points ?? merged[byName].points ?? 0 };
       seen.add(vc.id);
     } else if(!seen.has(vc.id)){
       merged.push({ ...vc, isCoderCard: vc.isCoderCard !== false });
@@ -428,7 +451,20 @@ function isCoderDeckCard(c){
 }
 
 function getRankedCoderCards(){
-  const all = getCharacters().filter(c => isCoderDeckCard(c));
+  const viewerCoders = (state.viewerCharacters || [])
+    .map(normalizeViewerCoder)
+    .filter(Boolean);
+  const seenIds = new Set(viewerCoders.map(c => c.id));
+  const seenNames = new Set(viewerCoders.map(c => (c.name || '').trim().toLowerCase()));
+
+  const extras = getCharacters().filter(c => {
+    if(!isCoderDeckCard(c)) return false;
+    const key = (c.name || '').trim().toLowerCase();
+    if(seenIds.has(c.id) || seenNames.has(key)) return false;
+    return true;
+  });
+
+  const all = [...viewerCoders, ...extras];
   const gods = all.filter(c => typeof isNickOrGod === 'function' && isNickOrGod(c));
   const rest = all.filter(c => !(typeof isNickOrGod === 'function' && isNickOrGod(c))).sort((a, b) => {
     const xp = (b.points || 0) - (a.points || 0);
