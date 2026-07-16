@@ -270,8 +270,17 @@ const SITE_STATE = {
       ],
       "collection": {
         "places": [],
-        "skills": [],
-        "friends": []
+        "skills": [
+          {
+            "id": "pskill-1784210289962-be6c",
+            "name": "Art",
+            "hours": 0,
+            "color": "#7c4dff",
+            "at": "2026-07-16T13:58:09.962Z"
+          }
+        ],
+        "friends": [],
+        "media": []
       }
     },
     {
@@ -383,6 +392,16 @@ const SITE_STATE = {
   "liveTodos": [],
   "instructionsHtml": "",
   "coderActivity": [
+    {
+      "id": "act-1784210289987-entg",
+      "at": "2026-07-16T13:58:09.987Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +5 XP · Collection skill card",
+      "amount": 5,
+      "reason": "collection_skill"
+    },
     {
       "id": "act-1784196958460-n4c3",
       "at": "2026-07-16T10:15:58.460Z",

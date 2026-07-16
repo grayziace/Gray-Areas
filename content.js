@@ -282,8 +282,17 @@ const CONTENT = {
       ],
       "collection": {
         "places": [],
-        "skills": [],
-        "friends": []
+        "skills": [
+          {
+            "id": "pskill-1784210289962-be6c",
+            "name": "Art",
+            "hours": 0,
+            "color": "#7c4dff",
+            "at": "2026-07-16T13:58:09.962Z"
+          }
+        ],
+        "friends": [],
+        "media": []
       },
     },
     {
