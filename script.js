@@ -49,6 +49,7 @@ function applyAdminUI(){
   syncCornerFabVisibility();
   if(admin && typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
   if(admin && typeof notifyGrayCoderBirthdays === 'function') notifyGrayCoderBirthdays();
+  if(typeof GameHub !== 'undefined') GameHub.applySiteModeUI();
   const pinForm = document.getElementById('pinForm');
   if(pinForm) pinForm.classList.toggle('hidden', !canPost);
   const commHint = document.getElementById('commBoardHint');
@@ -93,6 +94,7 @@ function unlockAdmin(opts = {}){
   if(typeof clearGuestMode === 'function') clearGuestMode();
   try{ sessionStorage.removeItem('ga-coder-card-id'); }catch(e){}
   sessionStorage.setItem('ga-admin', '1');
+  try{ sessionStorage.setItem('ga-site-mode', 'game'); }catch(e){}
   if(typeof hideEntryGate === 'function') hideEntryGate();
   else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
@@ -109,6 +111,7 @@ function unlockAdmin(opts = {}){
       setTimeout(() => toast?.classList.add('hidden'), 2200);
     }
   }
+  if(typeof GameHub !== 'undefined') GameHub.applySiteModeUI();
   const view = opts.view || 'sync';
   if(typeof navigateToView === 'function') navigateToView(view);
   else document.querySelector(`.node-btn[data-view="${view}"]`)?.click();
@@ -213,6 +216,9 @@ function defaultState(){
     playerPoints: 0,
     playerXpHistory: [],
     grayRewardsVault: null,
+    chatMessages: [],
+    pressSubmissions: [],
+    coderPresence: {},
   };
 }
 
@@ -2413,6 +2419,14 @@ function navigateToView(view){
     openInboxDrawer();
     return;
   }
+  if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
+    const gameViews = ['comm', 'chat', 'viewer-card', 'quests', 'inbox'];
+    if(gameViews.includes(view)){
+      if(typeof GameHub !== 'undefined') GameHub.showGameLogin();
+      if(typeof showEntryGate === 'function') showEntryGate({ force: true });
+      return;
+    }
+  }
   if(view === 'instructions' && typeof shouldShowInstructionsNav === 'function' && !shouldShowInstructionsNav()){
     view = typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync';
   }
@@ -2425,6 +2439,14 @@ function navigateToView(view){
   if(view === 'sync') closeCoderNotify();
   if(view === 'comm') applyAdminUI();
   if(view === 'coder-board' && coderBoardId) renderCoderBoardPage(coderBoardId);
+  if(view === 'chat'){
+    if(typeof GameHub !== 'undefined'){
+      GameHub.renderChat();
+      GameHub.startChatPoll();
+    }
+  } else if(typeof GameHub !== 'undefined'){
+    GameHub.stopChatPoll();
+  }
   if(view === 'mind' && typeof OverloadLog !== 'undefined'){
     OverloadLog.embedded = false;
     document.body.classList.add('mind-channel-open');
@@ -4290,6 +4312,7 @@ function renderCoderBoardPage(coderId){
       <nav class="coder-board-tabs">
         <button type="button" class="btn coder-board-tab is-active" data-cb-tab="posts">Updates</button>
         <button type="button" class="btn coder-board-tab" data-cb-tab="gallery">Gallery</button>
+        <button type="button" class="btn coder-board-tab" data-cb-tab="collection">Collection</button>
         <button type="button" class="btn coder-board-tab" data-cb-tab="quests">Quests</button>
         <button type="button" class="btn coder-board-tab" data-cb-tab="xp">XP</button>
       </nav>
@@ -4298,6 +4321,9 @@ function renderCoderBoardPage(coderId){
       </section>
       <section class="coder-board-panel" data-cb-panel="gallery">
         ${renderCoderGalleryGrid(coderId)}
+      </section>
+      <section class="coder-board-panel" data-cb-panel="collection">
+        ${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(coderId) : ''}
       </section>
       <section class="coder-board-panel" data-cb-panel="quests">
         <ul class="coder-board-quest-list">${quests.map(q => `<li><strong>${esc(q.title)}</strong> <span class="coder-board-quest-status">${esc(q.status)}</span></li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
@@ -4309,6 +4335,7 @@ function renderCoderBoardPage(coderId){
     </div>`;
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
   bindPollVoteButtons(host);
+  if(typeof GameHub !== 'undefined') GameHub.bindProfileCollections(host, coderId);
   host.querySelectorAll('.coder-board-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       host.querySelectorAll('.coder-board-tab').forEach(t => t.classList.remove('is-active'));
@@ -4371,9 +4398,10 @@ function renderCharacters(){
   const onlineCount = onlineIds.size;
   const header = document.getElementById('playerDeckMeta');
   if(header){
-    header.innerHTML = onlineCount
+    header.innerHTML = `${onlineCount
       ? `<span class="player-online-count"><span class="player-online-pulse"></span>${onlineCount} player${onlineCount === 1 ? '' : 's'} online</span>`
-      : '';
+      : ''}${isAdmin() && typeof GameHub !== 'undefined' ? GameHub.renderCardRepairTool() : ''}`;
+    if(isAdmin() && typeof GameHub !== 'undefined') GameHub.bindCardRepair(header);
   }
   deck.innerHTML = chars.map((c, i) => {
     const card = buildFlipPlayerCard(c, 'character', i, {
@@ -5270,7 +5298,9 @@ function renderPress(){
   const newsletterBtn = isAdmin()
     ? `<div class="press-admin-tools"><button type="button" class="btn primary" id="generateWeeklyNewsletter">Generate weekly newsletter draft</button><p class="field-hint">Pulls places, people, media, skills, pulses &amp; gallery from the last 7 days — nothing from the overload vault.</p></div>`
     : '';
-  spread.innerHTML = recs + newsletterBtn + tagBar + filtered.map((a, i) => {
+  const pressQueue = typeof GameHub !== 'undefined' ? GameHub.renderPressQueue() : '';
+  const pressSubmit = typeof GameHub !== 'undefined' ? GameHub.renderPressSubmitForm() : '';
+  spread.innerHTML = recs + pressQueue + pressSubmit + newsletterBtn + tagBar + filtered.map((a, i) => {
     const neon = stableNeon(a.id, i);
     const tags = parseArticleTags(a);
     const tagHtml = tags.length
@@ -5294,6 +5324,10 @@ function renderPress(){
       renderPress();
     });
   });
+  if(typeof GameHub !== 'undefined'){
+    GameHub.bindPressQueue(spread);
+    GameHub.bindPressSubmit();
+  }
   spread.querySelector('#generateWeeklyNewsletter')?.addEventListener('click', () => {
     const draft = generateWeeklyNewsletter();
     ensureContentState();

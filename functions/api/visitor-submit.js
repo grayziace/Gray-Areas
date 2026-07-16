@@ -75,7 +75,7 @@ export async function onRequestPost(context) {
       env.GITHUB_TOKEN,
     );
 
-    let store = { viewerCharacters: [], quests: [], videoDiary: [], inboxMessages: [], xpRequests: [], coderActivityPulses: [] };
+    let store = { viewerCharacters: [], quests: [], videoDiary: [], inboxMessages: [], xpRequests: [], coderActivityPulses: [], chatMessages: [], pressSubmissions: [], coderPresence: {} };
     let sha = null;
     if (getRes.ok && fileMeta.content) {
       sha = fileMeta.sha;
@@ -121,6 +121,22 @@ export async function onRequestPost(context) {
           name: payload.name || '',
         };
       }
+    } else if (action === 'postChatMessage') {
+      store.chatMessages = store.chatMessages || [];
+      const exists = store.chatMessages.some(m => m.id === payload.id);
+      if (!exists) {
+        store.chatMessages.push(payload);
+        store.chatMessages = store.chatMessages.slice(-400);
+      }
+    } else if (action === 'submitPressSubmission') {
+      store.pressSubmissions = store.pressSubmissions || [];
+      const exists = store.pressSubmissions.some(s => s.id === payload.id);
+      if (!exists) store.pressSubmissions.unshift(payload);
+    } else if (action === 'updatePressSubmission') {
+      store.pressSubmissions = store.pressSubmissions || [];
+      const idx = store.pressSubmissions.findIndex(s => s.id === payload.id);
+      if (idx >= 0) store.pressSubmissions[idx] = { ...store.pressSubmissions[idx], ...payload };
+      else store.pressSubmissions.unshift(payload);
     } else if (action === 'sendMessage') {
       store.inboxMessages = store.inboxMessages || [];
       store.inboxMessages.unshift(payload);

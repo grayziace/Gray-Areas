@@ -118,16 +118,32 @@
   <div class="login-page-inner">
     <header class="login-page-brand">
       <h1 class="login-page-title">Gray Areas</h1>
-      <p class="login-page-sub">project shenzhen · log in to enter</p>
+      <p class="login-page-sub">project shenzhen · pick your path</p>
     </header>
-    <div class="login-page-card sketch-card">
-      <h2 class="login-page-heading">Who's connecting?</h2>
-      <p class="field-hint login-page-hint">Log in with your <strong>card name</strong> + <strong>console key</strong>. Guests can watch only.</p>
+    <div class="login-fork sketch-card" id="loginFork">
+      <h2 class="login-fork-title">Where are you headed?</h2>
+      <p class="field-hint login-fork-hint">Watch Gray's world — or log in and play alongside me.</p>
+      <div class="login-fork-actions">
+        <button type="button" class="btn login-fork-btn login-fork-watch" id="enterWatchMode">
+          <span class="login-fork-kicker">read-only</span>
+          <span class="login-fork-label">See What Gray's Up To</span>
+          <span class="login-fork-desc">Live feed, daily log, photos, Press — my standalone site</span>
+        </button>
+        <button type="button" class="btn primary login-fork-btn login-fork-game" id="enterGameMode">
+          <span class="login-fork-kicker">interactive</span>
+          <span class="login-fork-label">Play the Game</span>
+          <span class="login-fork-desc">Your player card, quests, chat, updates — play alongside me</span>
+        </button>
+      </div>
+    </div>
+    <div class="login-page-card sketch-card hidden" id="loginGamePanel">
+      <button type="button" class="btn login-back-fork" id="loginBackToFork">← Back</button>
+      <h2 class="login-page-heading">Play the game</h2>
+      <p class="field-hint login-page-hint">Log in with your <strong>player card name</strong> + <strong>console key</strong>, or make a new card.</p>
       <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
       <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
       <div class="login-page-actions">
         <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
-        <button type="button" class="btn" id="coderGateGuest">Continue as guest</button>
         <button type="button" class="btn" id="coderGateCreate">Make My Card</button>
       </div>
     </div>
@@ -156,11 +172,12 @@
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▣</span><span class="node-label">Photo Wall</span></button>
       <div class="sidebar-nav-break" aria-hidden="true"></div>
       <button data-view="instructions" class="node-btn" style="--nc:#e8c547"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">?</span><span class="node-label">Instructions</span></button>
-      <button data-view="comm" class="node-btn" style="--nc:#38bdf8"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◈</span><span class="node-label">Community</span></button>
+      <button data-view="comm" class="node-btn game-only-nav" style="--nc:#38bdf8"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◈</span><span class="node-label">Community</span></button>
+      <button data-view="chat" class="node-btn game-only-nav" style="--nc:#22d3ee"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">💬</span><span class="node-label">Chat</span></button>
       <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">☠</span><span class="node-label">System Overload</span></button>
-      <button data-view="viewer-card" class="node-btn viewer-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▢</span><span class="node-label">My Card</span></button>
-      <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
-      <button data-view="inbox" class="node-btn inbox-nav hidden" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
+      <button data-view="viewer-card" class="node-btn viewer-only-nav game-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▢</span><span class="node-label">My Card</span></button>
+      <button data-view="quests" class="node-btn game-only-nav" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
+      <button data-view="inbox" class="node-btn inbox-nav game-only-nav hidden" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
@@ -181,6 +198,10 @@
   </aside>
 
   <div class="workspace-col">
+  <div class="watch-mode-banner watch-only-banner hidden sketch-card" id="watchModeBanner">
+    <p>You're watching Gray's site — read-only newsletter mode.</p>
+    <button type="button" class="btn primary" id="switchToGameBanner">Play the game →</button>
+  </div>
   <div class="main-col">
     <div id="coderWelcomeBar" class="coder-welcome-host hidden" aria-live="polite"></div>
 
@@ -380,6 +401,12 @@
         </form>
         <div class="pin-wall" id="pinWall"></div>
       </div>
+    </section>
+
+    <section class="view neon-section" id="view-chat" style="--sec-neon:#22d3ee">
+      <h2 class="view-title sketch-title">Game Chat</h2>
+      <p class="gallery-hint game-only-hint">Real-time room for players — your card icon shows on every line.</p>
+      <div id="chatSpread"></div>
     </section>
 
     <section class="view neon-section" id="view-coder-board" style="--sec-neon:#e94ff5">
@@ -805,7 +832,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'game-hub.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){

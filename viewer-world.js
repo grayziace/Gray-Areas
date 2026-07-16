@@ -21,6 +21,8 @@ const XP_AWARDS = {
   card_edit: { label: 'Edit My Card', xp: 5, auto: true },
   community_post: { label: 'Community post', xp: 25, auto: true },
   community_comment: { label: 'Comment on the board', xp: 15, auto: true },
+  chat_funny: { label: 'Funny chat line', xp: 2, auto: true },
+  press_published: { label: 'Press article published', xp: 15, auto: true },
   inbox_message: { label: 'Private message sent', xp: 10, auto: true },
   login_streak_7: { label: '7-day login streak', xp: 70 },
   meet_in_person: { label: 'Met in person', xp: 200 },
@@ -421,11 +423,15 @@ function isCreatingCard(){
 }
 
 function isSiteUnlocked(){
-  return isAdmin() || !!getCoderSessionId() || isGuest() || isCreatingCard();
+  return isAdmin() || !!getCoderSessionId() || isGuest() || isCreatingCard()
+    || (typeof isWatchMode === 'function' && isWatchMode());
 }
 
 function enterCardCreationMode(){
-  try{ sessionStorage.setItem(CREATING_CARD_KEY, '1'); }catch(e){}
+  try{
+    sessionStorage.setItem(CREATING_CARD_KEY, '1');
+    sessionStorage.setItem('ga-site-mode', 'game');
+  }catch(e){}
   clearGuestMode();
   enterMainSite();
   navigateToView('viewer-card');
@@ -609,6 +615,7 @@ function unlockCoderSession(cardId, opts = {}){
   }catch(e){}
   enterMainSite();
   awardLoginPoints(cardId);
+  try{ sessionStorage.setItem('ga-site-mode', 'game'); }catch(e){}
   if(opts.welcome !== false && card) showWelcomeCoder(card);
   else if(card) showBirthdayCelebration(card);
   applyAdminUI?.();
@@ -616,6 +623,7 @@ function unlockCoderSession(cardId, opts = {}){
   ViewerWorld.renderAll();
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   startPresenceHeartbeat();
+  if(typeof GameHub !== 'undefined') GameHub.applySiteModeUI();
 }
 
 function lockCoderSession(){
@@ -737,6 +745,7 @@ function shouldShowInstructionsNav(){
 function defaultViewForSession(){
   if(isAdmin()) return 'sync';
   if(getMyCoderCard()) return 'sync';
+  if(typeof isWatchMode === 'function' && isWatchMode()) return 'sync';
   if(isGuest() || !getMyCoderCard()) return 'instructions';
   return 'sync';
 }
@@ -1075,7 +1084,8 @@ function mergeVisitorDataFile(remote){
     }
   });
   state.coderActivity = (state.coderActivity || []).slice(0, 120);
-  mergeCoderPresence(remote.coderPresence);
+  if(typeof mergeHubVisitorData === 'function') mergeHubVisitorData(remote);
+  else mergeCoderPresence(remote.coderPresence);
 }
 
 async function fetchVisitorData(){
@@ -1086,6 +1096,7 @@ async function fetchVisitorData(){
     saveState();
     ViewerWorld.renderAll();
     if(typeof renderCharacters === 'function' && document.body.dataset.activeView === 'characters') renderCharacters();
+    if(typeof GameHub !== 'undefined' && document.body.dataset.activeView === 'chat') GameHub.renderChat();
     maybeShowInboxPopupOnLoad();
   }catch(e){}
 }
@@ -1271,6 +1282,7 @@ function showEntryGate(opts = {}){
   document.getElementById('app')?.classList.add('hidden');
   document.body.classList.add('login-screen-active');
   document.body.classList.remove('site-unlocked');
+  if(typeof GameHub !== 'undefined') GameHub.showLandingFork();
 }
 
 function enterMainSite(){
@@ -1425,6 +1437,7 @@ const ViewerWorld = {
       if(getMyCoderCard()) startPresenceHeartbeat();
       ViewerWorld.renderAll();
     });
+    if(typeof GameHub !== 'undefined') GameHub.init();
   },
 
   bindLoginConsole(){
@@ -1703,6 +1716,7 @@ const ViewerWorld = {
       <nav class="my-card-tabs">
         <button type="button" class="btn my-card-tab is-active" data-mc-tab="posts">My posts (${myPosts.length})</button>
         <button type="button" class="btn my-card-tab" data-mc-tab="gallery">Gallery</button>
+        <button type="button" class="btn my-card-tab" data-mc-tab="collection">Collection</button>
         <button type="button" class="btn my-card-tab" data-mc-tab="quests">Quests (${myQuests.length})</button>
       </nav>
       <section class="my-card-panel is-active" data-mc-panel="posts">
@@ -1711,6 +1725,7 @@ const ViewerWorld = {
           : '<p class="empty-hint">No posts yet — drop an update above.</p>'}</div>
       </section>
       <section class="my-card-panel" data-mc-panel="gallery">${galleryHtml}</section>
+      <section class="my-card-panel" data-mc-panel="collection">${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(mine.id) : ''}</section>
       <section class="my-card-panel" data-mc-panel="quests">
         <ul class="my-card-quest-list">${myQuests.map(q => `<li><strong>${esc(q.title)}</strong> · ${esc(q.status)}</li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
       </section>
@@ -1754,6 +1769,7 @@ const ViewerWorld = {
       });
     });
     host.querySelector('#playerStatusForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitPlayerStatus(); });
+    if(typeof GameHub !== 'undefined') GameHub.bindProfileCollections(host, mine.id);
     host.querySelector('#statusTakePhoto')?.addEventListener('click', () => {
       if(typeof MediaCapture === 'undefined') return;
       MediaCapture.open({ mode: 'photo', onResult: r => { this.statusMedia = { photo: r.dataUrl, video: '' }; this.renderStatusMediaPreview(); }});
