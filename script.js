@@ -44,7 +44,7 @@ function applyAdminUI(){
   if(admin && typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   const canPost = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
-  document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.add('hidden'));
+  document.querySelectorAll('.inbox-nav').forEach(btn => btn.classList.toggle('hidden', !canInbox));
   if(typeof updateInboxBadge === 'function') updateInboxBadge();
   syncCornerFabVisibility();
   if(admin && typeof refreshLiveViewForAdmin === 'function') refreshLiveViewForAdmin();
@@ -57,8 +57,8 @@ function applyAdminUI(){
     commHint.textContent = admin
       ? 'Player Gray mode — post as yourself. Your notes stay on the board permanently.'
       : canPost
-        ? 'Posts stay permanently. Your Coders Card shows on your note.'
-        : 'Guest watch-only — log in or make My Card to post.';
+        ? 'Posts stay permanently. Your coder card shows on your note.'
+        : 'Browse Gray\'s board — log in to post.';
   }
   const pinPreview = document.getElementById('pinAuthorPreview');
   if(pinPreview){
@@ -120,20 +120,17 @@ function unlockAdmin(opts = {}){
 
 function syncCornerFabVisibility(){
   const admin = isAdmin();
-  const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const stack = document.querySelector('.corner-fab-stack');
   const inboxFab = document.getElementById('inboxFab');
   const rewardsFab = document.getElementById('grayRewardsFab');
 
   if(stack){
-    stack.classList.toggle('hidden', !canInbox && !admin);
-    stack.setAttribute('aria-hidden', (!canInbox && !admin) ? 'true' : 'false');
+    stack.classList.toggle('hidden', !admin);
+    stack.setAttribute('aria-hidden', !admin ? 'true' : 'false');
   }
   if(inboxFab){
-    inboxFab.classList.remove('hidden');
-    inboxFab.hidden = !canInbox;
-    inboxFab.style.display = canInbox ? 'flex' : 'none';
-    inboxFab.setAttribute('aria-hidden', canInbox ? 'false' : 'true');
+    inboxFab.hidden = true;
+    inboxFab.style.display = 'none';
   }
   if(rewardsFab){
     rewardsFab.classList.remove('hidden');
@@ -2416,11 +2413,11 @@ function wireNavigation(){
 function navigateToView(view){
   if(!view) return;
   if(view === 'inbox'){
-    openInboxDrawer();
-    return;
+    if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderInbox?.();
+    closeInboxDrawer();
   }
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    const gameViews = ['comm', 'chat', 'viewer-card', 'quests', 'inbox'];
+    const gameViews = ['comm', 'chat', 'viewer-card', 'quests', 'inbox', 'xp-requests'];
     if(gameViews.includes(view)){
       if(typeof GameHub !== 'undefined') GameHub.showGameLogin();
       if(typeof showEntryGate === 'function') showEntryGate({ force: true });
@@ -2447,6 +2444,8 @@ function navigateToView(view){
   } else if(typeof GameHub !== 'undefined'){
     GameHub.stopChatPoll();
   }
+  if(view === 'xp-requests' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderXpRequests?.();
+  if(view === 'inbox' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderInbox?.();
   if(view === 'mind' && typeof OverloadLog !== 'undefined'){
     OverloadLog.embedded = false;
     document.body.classList.add('mind-channel-open');

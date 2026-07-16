@@ -836,9 +836,9 @@ const OverloadLog = {
     return `<div class="ol-offline-layout">
       <button type="button" class="btn" id="olBackHub">← VAULT HUB</button>
       <header class="ol-offline-hero sys-panel">
-        <p class="ol-kicker sys-flicker">// wish I could log this in the dark · belly of everything · never leaves the vault</p>
+        <p class="ol-kicker sys-flicker">// wish I could log this in the dark · never leaves the vault</p>
         <h3 class="ol-title">COMING TO YOU OFFLINE</h3>
-        <p class="ol-sub">Same energy as Coming To You Live — secret transmission. Rants, moods, food, chaos. <strong>Nobody else can see this.</strong> Not even on the public daily log.</p>
+        <p class="ol-sub">Same energy as Coming To You Live — secret transmission. Rants, moods, food, chaos. <strong>Nobody else can see this.</strong></p>
         <p class="ol-offline-date">${typeof fmtDateLong === 'function' ? fmtDateLong(key) : key}</p>
       </header>
       <div class="ol-offline-grid">
@@ -1556,7 +1556,7 @@ const OverloadLog = {
           <span class="ol-privacy-lock" aria-hidden="true">◈</span>
           <div>
             <strong>Wish I could log this in the dark</strong>
-            <p>The belly of everything. Staff vents, body logs, and <em>Coming To You Offline</em> never sync — never on Coming To You Live, never in the public daily log.</p>
+            <p>Staff vents, body logs, and <em>Coming To You Offline</em> never sync — private archive, never on Coming To You Live.</p>
           </div>
         </div>
         <button type="button" class="ol-offline-cta sys-panel" data-ol-channel="offline">

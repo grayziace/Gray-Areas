@@ -125,26 +125,26 @@
       <p class="field-hint login-fork-hint">Watch Gray's world — or log in and play alongside me.</p>
       <div class="login-fork-actions">
         <button type="button" class="btn login-fork-btn login-fork-watch" id="enterWatchMode">
-          <span class="login-fork-kicker">read-only</span>
+          <span class="login-fork-kicker">newsletter</span>
           <span class="login-fork-label">See What Gray's Up To</span>
-          <span class="login-fork-desc">Live feed, daily log, photos, Press — my standalone site</span>
+          <span class="login-fork-desc">Coming To You Live, daily log, photos, Press — just my world</span>
         </button>
         <button type="button" class="btn primary login-fork-btn login-fork-game" id="enterGameMode">
           <span class="login-fork-kicker">interactive</span>
           <span class="login-fork-label">Play the Game</span>
-          <span class="login-fork-desc">Your player card, quests, chat, updates — play alongside me</span>
+          <span class="login-fork-desc">Your profile, quests, chat, collection — play alongside me</span>
         </button>
       </div>
     </div>
     <div class="login-page-card sketch-card hidden" id="loginGamePanel">
       <button type="button" class="btn login-back-fork" id="loginBackToFork">← Back</button>
       <h2 class="login-page-heading">Play the game</h2>
-      <p class="field-hint login-page-hint">Log in with your <strong>player card name</strong> + <strong>console key</strong>, or make a new card.</p>
+      <p class="field-hint login-page-hint">Log in with your <strong>coder name</strong> + <strong>console key</strong>, or make a new profile.</p>
       <div class="field"><label>Card name</label><input type="text" id="coderGateName" autocomplete="username" placeholder="your card name"></div>
       <div class="field"><label>Console key</label><input type="password" id="coderGateKey" autocomplete="off" placeholder="your private key"></div>
       <div class="login-page-actions">
         <button type="button" class="btn primary" id="coderGateSubmit">Log in</button>
-        <button type="button" class="btn" id="coderGateCreate">Make My Card</button>
+        <button type="button" class="btn" id="coderGateCreate">Make my profile</button>
       </div>
     </div>
     <div class="login-page-console">
@@ -165,20 +165,21 @@
       <button data-view="sync" class="node-btn active" style="--nc:#3ad6e0"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⊛</span><span class="node-label">Coming To You Live</span></button>
       <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▤</span><span class="node-label">Daily Log</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⌖</span><span class="node-label">Place Cards</span></button>
-      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◆</span><span class="node-label">Player Cards</span></button>
+      <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◆</span><span class="node-label">Coder Cards</span></button>
       <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Skill Cards</span></button>
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▶</span><span class="node-label">Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▥</span><span class="node-label">The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▣</span><span class="node-label">Photo Wall</span></button>
       <div class="sidebar-nav-break" aria-hidden="true"></div>
-      <button data-view="instructions" class="node-btn" style="--nc:#e8c547"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">?</span><span class="node-label">Instructions</span></button>
+      <button data-view="instructions" class="node-btn watch-hide-nav game-only-nav" style="--nc:#e8c547"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">?</span><span class="node-label">Instructions</span></button>
       <button data-view="comm" class="node-btn game-only-nav" style="--nc:#38bdf8"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◈</span><span class="node-label">Community</span></button>
       <button data-view="chat" class="node-btn game-only-nav" style="--nc:#22d3ee"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">💬</span><span class="node-label">Chat</span></button>
       <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">☠</span><span class="node-label">System Overload</span></button>
-      <button data-view="viewer-card" class="node-btn viewer-only-nav game-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▢</span><span class="node-label">My Card</span></button>
+      <button data-view="viewer-card" class="node-btn viewer-only-nav game-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▢</span><span class="node-label">My Profile</span></button>
       <button data-view="quests" class="node-btn game-only-nav" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
-      <button data-view="inbox" class="node-btn inbox-nav game-only-nav hidden" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Inbox <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
-      <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
+      <button data-view="xp-requests" class="node-btn game-only-nav" style="--nc:#fbbf24"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Bonus XP</span></button>
+      <button data-view="inbox" class="node-btn inbox-nav game-only-nav" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Messages <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
+      <button data-view="vlog" class="node-btn admin-only hidden" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
         <div class="sidebar-console-row">
@@ -198,10 +199,6 @@
   </aside>
 
   <div class="workspace-col">
-  <div class="watch-mode-banner watch-only-banner hidden sketch-card" id="watchModeBanner">
-    <p>You're watching Gray's site — read-only newsletter mode.</p>
-    <button type="button" class="btn primary" id="switchToGameBanner">Play the game →</button>
-  </div>
   <div class="main-col">
     <div id="coderWelcomeBar" class="coder-welcome-host hidden" aria-live="polite"></div>
 
@@ -229,7 +226,7 @@
         <div class="mind-channel-title">
           <span class="mind-channel-kicker sys-flicker">// wish I could log this in the dark · never on Coming To You Live</span>
           <h2 class="view-title sketch-title mind-glitch-title">System Overload</h2>
-          <p class="mind-channel-sub">Coming To You <em>Offline</em> · staff vent · body log · secret calories. The belly of everything — never leaves the vault.</p>
+          <p class="mind-channel-sub">Coming To You <em>Offline</em> · staff vent · body log · secret calories — never leaves the vault.</p>
         </div>
         <button type="button" class="btn mind-exit-btn" id="mindExitBtn">← Leave vault</button>
       </div>
@@ -313,7 +310,7 @@
     </section>
 
     <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
-      <h2 class="view-title sketch-title">Player Cards</h2>
+      <h2 class="view-title sketch-title">Coder Cards</h2>
       <p class="gallery-hint">Ranked by XP — #1, #2, #3 glow on the deck. Higher XP = higher rank. Click to flip.</p>
       <div id="playerDeckMeta" class="player-deck-meta"></div>
       <div class="card-deck" id="charDeck"></div>
@@ -363,9 +360,9 @@
       <button class="btn admin-only hidden" id="addGalleryBtn" style="margin-top:14px">+ Add photo</button>
     </section>
 
-    <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
+    <section class="view neon-section comm-board-view" id="view-comm" style="--sec-neon:#38bdf8">
       <h2 class="view-title sketch-title">Community Board</h2>
-      <p class="gallery-hint" id="commBoardHint">Posts stay permanently. Log in with My Card to post — your card shows on your note.</p>
+      <p class="gallery-hint comm-board-tagline" id="commBoardHint">Permanent pinboard — coders leave notes, polls, and updates.</p>
       <div class="comm-feed-tabs" id="commFeedTabs">
         <button type="button" class="btn comm-feed-tab is-active" data-comm-feed="all">Recent</button>
       </div>
@@ -405,7 +402,7 @@
 
     <section class="view neon-section" id="view-chat" style="--sec-neon:#22d3ee">
       <h2 class="view-title sketch-title">Game Chat</h2>
-      <p class="gallery-hint game-only-hint">Real-time room for players — your card icon shows on every line.</p>
+      <p class="gallery-hint game-only-hint">Live coder room — your profile icon shows on every line. Updates echo here automatically.</p>
       <div id="chatSpread"></div>
     </section>
 
@@ -415,25 +412,32 @@
     </section>
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
-      <h2 class="view-title sketch-title">My Card</h2>
-      <p class="gallery-hint viewer-hint">Your Player Card — send me quests, earn XP, post updates, edit your look anytime.</p>
+      <h2 class="view-title sketch-title">My Profile</h2>
+      <p class="gallery-hint viewer-hint">Your coder profile — collection, updates, gallery, and your card in the deck.</p>
       <div id="viewerCardSpread"></div>
+    </section>
+
+    <section class="view neon-section" id="view-xp-requests" style="--sec-neon:#fbbf24">
+      <h2 class="view-title sketch-title">Bonus XP</h2>
+      <p class="gallery-hint viewer-hint">Request XP for things that happened off-site — I read every case.</p>
+      <div id="xpRequestSpread"></div>
     </section>
 
     <section class="view neon-section" id="view-quests" style="--sec-neon:#4ade80">
       <h2 class="view-title sketch-title" id="questViewTitle">Quests</h2>
-      <p class="gallery-hint viewer-hint" id="questViewHint">Give me missions — places, food, comfort, Press pieces, meetups.</p>
+      <p class="gallery-hint viewer-hint" id="questViewHint">Send missions — including website features you want me to code in.</p>
       <div id="questSpread"></div>
     </section>
 
-    <section class="view neon-section" id="view-inbox" style="--sec-neon:#c084fc">
-      <h2 class="view-title sketch-title">Private messages</h2>
+    <section class="view neon-section inbox-page-view" id="view-inbox" style="--sec-neon:#c084fc">
+      <h2 class="view-title sketch-title">Messages</h2>
+      <p class="gallery-hint viewer-hint">Private messages to Gray or other coders.</p>
       <div id="inboxSpread"></div>
     </section>
 
-    <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">
+    <section class="view neon-section admin-only hidden" id="view-vlog" style="--sec-neon:#f97316">
       <h2 class="view-title sketch-title">Video Log</h2>
-      <p class="gallery-hint">Vlog notes and short clips.</p>
+      <p class="gallery-hint">Player Gray only — video notes and short clips.</p>
       <div id="vlogSpread"></div>
       <div id="vlogOverloadHost" class="vlog-overload-host admin-only hidden"></div>
     </section>

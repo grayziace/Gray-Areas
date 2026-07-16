@@ -17,10 +17,14 @@ const XP_AWARDS = {
   quest_submit: { label: 'Quest sent', xp: 25, auto: true },
   quest_complete: { label: 'Quest completed (+75 extra)', xp: 75, auto: true },
   login: { label: 'Daily login', xp: 3, auto: true },
-  card_create: { label: 'Make My Card', xp: 20, auto: true },
-  card_edit: { label: 'Edit My Card', xp: 5, auto: true },
+  card_create: { label: 'Make my profile', xp: 20, auto: true },
+  card_edit: { label: 'Edit my profile', xp: 5, auto: true },
   community_post: { label: 'Community post', xp: 25, auto: true },
   community_comment: { label: 'Comment on the board', xp: 15, auto: true },
+  collection_place: { label: 'Collection place card', xp: 5, auto: true },
+  collection_skill: { label: 'Collection skill card', xp: 5, auto: true },
+  collection_media: { label: 'Collection media card', xp: 5, auto: true },
+  friend_card: { label: 'Collected coder card', xp: 10, auto: true },
   chat_funny: { label: 'Funny chat line', xp: 2, auto: true },
   press_published: { label: 'Press article published', xp: 15, auto: true },
   inbox_message: { label: 'Private message sent', xp: 10, auto: true },
@@ -48,6 +52,7 @@ const PLAYER_LOGIN_NAME = 'gray';
 const PLAYER_LOGIN_KEY = ':)';
 
 const QUEST_TYPES = [
+  { id: 'website', label: 'Code something new', icon: '⌨', neon: '#3ad6e0' },
   { id: 'visit', label: 'Visit a place', icon: '📍', neon: '#4ade80' },
   { id: 'food', label: 'Get food / drink', icon: '🍜', neon: '#fb923c' },
   { id: 'comfort', label: 'Comfort / cool me', icon: '♥', neon: '#f9a8d4' },
@@ -559,7 +564,7 @@ function showWelcomeCoder(card){
   const pts = typeof isNickOrGod === 'function' && isNickOrGod(card) ? '∞' : (card.points || 0);
   showWelcomeModal(
     `Welcome back, Coder: ${card.name}`,
-    `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>You're in. Send quests, post on Community, edit My Card anytime.</p>`,
+    `<p class="welcome-xp">XP: <strong>${pts}</strong></p><p>You're in. Send quests, post on Community, edit your profile anytime.</p>`,
     { onDismiss: () => {
       showBirthdayCelebration(card);
       showUnreadInboxPopup(card.id);
@@ -688,7 +693,7 @@ function renderCoderXpGuide(){
     <ul class="coder-level-list">${autoRows}</ul>
 
     ${bonusRows ? `<h4 class="xp-guide-subhead">Bonus XP</h4>
-    <p class="field-hint">Off-site stuff — met up, calls, recs I actually consumed, birthdays. Use the form below and tell me what happened.</p>
+    <p class="field-hint">Off-site stuff — met up, calls, recs I actually consumed, birthdays. Request from the <strong>Bonus XP</strong> page.</p>
     <ul class="coder-level-list coder-xp-full">${bonusRows}</ul>` : ''}
   </section>`;
 }
@@ -736,6 +741,7 @@ function renderGrayMyCardGuide(){
 }
 
 function shouldShowInstructionsNav(){
+  if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()) return false;
   if(isAdmin()) return true;
   if(isGuest()) return true;
   if(!getMyCoderCard()) return true;
@@ -1318,39 +1324,40 @@ function getInstructionsHtml(){
 }
 
 function buildDefaultInstructionsHtml(){
-  const guestNote = isGuest() ? `<p class="instructions-note">You're browsing as a <strong>guest</strong> — watch mode only.</p>` : '';
-  const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make My Card →</button>` : '';
+  if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
+    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing Gray's site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed.</p></div>`;
+  }
+  const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make my profile →</button>` : '';
   const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : '';
   const loginBtn = isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : '';
   return `
     <div class="instructions-panel sketch-card instructions-gray-voice">
-      <p class="instructions-kicker">Hi!</p>
-      <p class="instructions-p">I bet you're wondering what the hell this is. Honestly, it wasn't meant to spiral this far out of control — especially not to the extent of needing an instructions page.</p>
-      <p class="instructions-p">This was developed for me to log my life when I'm away from everyone I love and care about. The idea was to completely gamify my life and everything in it. Turns out, that's a little complicated.</p>
-      <p class="instructions-p">Originally it was just a way to watch me. I've changed it a bit: you're referred to as <strong>Coders</strong>. Coders can send <strong>quests</strong> if they think I'm not living well enough, or just want to piss me off. You get <strong>25 XP</strong> when you send one, and <strong>75 XP extra</strong> when I complete yours — plus <strong>3 XP</strong> each time you log in (once per day). Posting, messaging, commenting, and editing your card also earn XP automatically. I hand out the rest for meet-ups, calls, birthdays, recs, all that. Whoever ranks <strong>#1 on the deck</strong> gets a present — I don't know what yet.</p>
-      <p class="instructions-p"><strong>Levelling:</strong> you start at <strong>Lv 0</strong>. Every <strong>100 XP = +1 level</strong> (Lv 1 at 100 XP, Lv 2 at 200…). The deck sorts by XP — whoever's <strong>#1</strong> gets a present from me. It's competition for fun, not a life score.</p>
-      <p class="instructions-p">This is largely based off <em>Ready Player One</em> and <em>Warcross</em> — two books I love very much. I'd recommend reading them if you haven't! Oh also, please send any book/film recommendations as a quest.</p>
-      <h3 class="viewer-wizard-title">The sidebar</h3>
+      <p class="instructions-kicker">For coders</p>
+      <p class="instructions-p">Gray is the <strong>Player</strong> — you're a <strong>Coder</strong>. This site gamifies Gray's life; you can play alongside via quests, chat, community, and your own profile.</p>
+      <p class="instructions-p"><strong>Quests:</strong> send missions (places, food, comfort, meetups, media recs, or <strong>code something new into the website</strong>). <strong>25 XP</strong> to send, <strong>+75 XP</strong> when Gray completes yours. <strong>3 XP</strong> daily login.</p>
+      <p class="instructions-p"><strong>The Press:</strong> write an article and submit it from The Press page — Gray reads everything and publishes what fits.</p>
+      <p class="instructions-p"><strong>Collection:</strong> build place, skill, and media cards (Pokémon-style flips). Collect other <em>coders'</em> cards as friends — you can't create new people, only link existing accounts.</p>
+      <p class="instructions-p"><strong>Updates</strong> post to Community and echo in chat. <strong>Messages</strong> are private in the Messages page. <strong>Bonus XP</strong> is its own page for off-site wins.</p>
+      <p class="instructions-p"><strong>Levelling:</strong> Lv 0 start, <strong>+1 every 100 XP</strong>. Deck ranks by XP — #1 gets a present eventually.</p>
+      <h3 class="viewer-wizard-title">Game sidebar</h3>
       <ul class="instructions-nav-list">
-        <li><strong>Instructions</strong> — you're here. hello.</li>
-        <li><strong>Player Profile</strong> — me. my stats, mood, hero card.</li>
-        <li><strong>Coming To You Live</strong> — what I'm doing right now. to-do list + neon timeline.</li>
-        <li><strong>Daily Log</strong> — my days, steps, diary, reflections.</li>
-        <li><strong>Place Cards</strong> — places I visit in Shenzhen.</li>
-        <li><strong>Coder Cards</strong> — people in my orbit (the deck).</li>
-        <li><strong>Skill Cards</strong> — hobbies and skills I'm levelling.</li>
-        <li><strong>Media Log</strong> — films, shows, books.</li>
-        <li><strong>The Press</strong> — articles and writing.</li>
-        <li><strong>Photo Wall</strong> — photos with flip notes.</li>
-        <li><strong>Community</strong> — pinboard. log in to post; your card shows on your note.</li>
-        <li><strong>My Card</strong> — your Coders Card. make it, edit it, regenerate your look.</li>
-        <li><strong>Quests</strong> — send missions. guests can only watch.</li>
-        <li><strong>Video Log</strong> — my video notes.</li>
+        <li><strong>My Profile</strong> — your card, collection, updates, gallery</li>
+        <li><strong>Quests</strong> — send missions (incl. website features)</li>
+        <li><strong>Messages</strong> — private inbox</li>
+        <li><strong>Chat</strong> — live coder room</li>
+        <li><strong>Community</strong> — public pinboard</li>
+        <li><strong>Bonus XP</strong> — request off-site XP</li>
       </ul>
-      <h3 class="viewer-wizard-title">Logging in</h3>
-      <p class="instructions-p">You don't <em>have</em> to log in — but if you don't, you can only see what I'm doing. No quests, no community posts, no voting. Watch-only.</p>
-      <p class="instructions-p">To interact: create <strong>My Card</strong> once (leave blanks if you want — I'll fill gaps when I spot them), pick a unique console key, then log in each visit with <strong>name + key</strong> or the console as <code>Name::key</code>.</p>
-      ${guestNote}
+      <h3 class="viewer-wizard-title">Gray's site (everyone)</h3>
+      <ul class="instructions-nav-list">
+        <li><strong>Player Profile</strong> — Gray's stats and hero card</li>
+        <li><strong>Coming To You Live</strong> — live timeline</li>
+        <li><strong>Daily Log</strong> — days and reflections</li>
+        <li><strong>Place / Coder / Skill / Media Cards</strong> — Gray's decks</li>
+        <li><strong>The Press</strong> — articles (coders can submit)</li>
+        <li><strong>Photo Wall</strong> — flip photos</li>
+      </ul>
+      <p class="instructions-p">Log in with <strong>name + console key</strong> or console <code>Name::key</code>. Only Gray gets the vault and system console.</p>
       ${cardBtn}
       ${questBtn}
       ${loginBtn}
@@ -1370,6 +1377,27 @@ function logCoderActivity(type, payload = {}){
   saveState();
   postVisitorData('pulseActivity', entry);
   if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
+}
+
+function renderCoderUpdateFeed(posts, accent){
+  const neon = accent || '#fcd34d';
+  if(!posts?.length){
+    return `<div class="update-feed-empty sketch-card"><p class="empty-hint">No updates yet — drop one above and it hits Community + chat.</p></div>`;
+  }
+  return `<div class="update-feed">${posts.slice(0, 16).map((p, i) => {
+    const when = p.time ? fmtPinDateTime?.(p.time) || new Date(p.time).toLocaleString() : '';
+    const rot = ((i % 5) * 0.6 - 1.2).toFixed(1);
+    const body = typeof renderPinPostBody === 'function' ? renderPinPostBody(p) : `<p class="pin-text">${esc(p.text || '')}</p>`;
+    return `<article class="update-feed-card" style="--uf-neon:${esc(neon)};--uf-rot:${rot}deg">
+      <div class="update-feed-glow" aria-hidden="true"></div>
+      <header class="update-feed-head">
+        <span class="update-feed-badge">update</span>
+        <time>${esc(when)}</time>
+        <span class="update-feed-loc">📍 ${esc(p.location || 'somewhere')}</span>
+      </header>
+      <div class="update-feed-body">${body}</div>
+    </article>`;
+  }).join('')}</div>`;
 }
 
 function renderXpHistoryRail(history){
@@ -1480,7 +1508,7 @@ const ViewerWorld = {
       if(!isAdmin()) navigateToView(defaultViewForSession());
       return;
     }
-    alert('No match for that name and key. Continue as guest or make My Card.');
+    alert('No match for that name and key. Continue as guest or make your profile.');
   },
 
   renderAll(){
@@ -1606,10 +1634,10 @@ const ViewerWorld = {
 
     if(isGuest()){
       host.innerHTML = `<div class="viewer-wizard sketch-card">
-        <h3 class="viewer-wizard-title">Guest view</h3>
-        <p class="field-hint">Watch-only. You can see what I'm doing but cannot post, quest, or vote. Log in or make My Card to interact.</p>
+        <h3 class="viewer-wizard-title">Log in to play</h3>
+        <p class="field-hint">Make your profile to send quests, chat, collect cards, and post updates.</p>
         <div class="modal-actions">
-          <button type="button" class="btn primary" id="guestGoCreate">Make My Card</button>
+          <button type="button" class="btn primary" id="guestGoCreate">Make my profile</button>
           <button type="button" class="btn" id="guestGoLogin">Log in</button>
         </div>
       </div>`;
@@ -1623,7 +1651,7 @@ const ViewerWorld = {
       host.innerHTML = `
         <div class="viewer-wizard sketch-card card-create-intro">
           <p class="instructions-kicker">You're joining the deck</p>
-          <h3 class="viewer-wizard-title">Make My Card</h3>
+          <h3 class="viewer-wizard-title">Make my profile</h3>
           <p class="field-hint">Generate your <strong>character</strong> and <strong>spirit animal</strong> first — your card line is written from your personality stats when you summon.</p>
           <form id="viewerCardForm" class="viewer-wizard-form">
             ${cardWizardFieldsHtml('vw', null, { createLayout: true })}
@@ -1631,7 +1659,7 @@ const ViewerWorld = {
               <div class="field"><label>Console key</label><input type="password" id="vw_ConsoleKey" required placeholder="unique secret — yours alone"></div>
               <div class="field"><label>Confirm key</label><input type="password" id="vw_ConsoleKey2" required></div>
             </div>
-            <button type="submit" class="btn primary" id="vwSubmitBtn">✦ Summon my card</button>
+            <button type="submit" class="btn primary" id="vwSubmitBtn">✦ Summon my profile</button>
           </form>
         </div>`;
       document.getElementById('viewerCardForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitCharacterWizard(); });
@@ -1645,7 +1673,7 @@ const ViewerWorld = {
     if(this.editingCardId === mine.id){
       host.innerHTML = `
         <div class="viewer-wizard sketch-card card-edit-studio">
-          <h3 class="viewer-wizard-title">Edit My Card</h3>
+          <h3 class="viewer-wizard-title">Edit my profile</h3>
           <p class="field-hint">Full editing station — tweak stats, fix your card line, regenerate portrait or spirit.</p>
           <form id="myCardEditForm" class="viewer-wizard-form">
             ${cardWizardFieldsHtml('edit', mine, { createLayout: true, portraitPreview: mine.image || mine.avatar, spiritPreview: mine.pokeCard?.spiritAnimalImage })}
@@ -1678,88 +1706,82 @@ const ViewerWorld = {
     const myPosts = typeof getCoderPosts === 'function' ? getCoderPosts(mine.id).filter(p => p.characterId === mine.id) : [];
     const myQuests = typeof getCoderQuests === 'function' ? getCoderQuests(mine.id) : (state.quests || []).filter(q => q.fromCharacterId === mine.id);
     const galleryHtml = typeof renderCoderGalleryGrid === 'function' ? renderCoderGalleryGrid(mine.id) : '';
+    const profNeon = mine.cardColor || '#fcd34d';
+    const lvlPct = Math.round((lvl.progress || 0) * 100);
     host.innerHTML = `
-      <div class="viewer-card-hero viewer-card-hero--hub">
-        <div class="viewer-xp-cluster" style="--vfb-neon:${mine.cardColor || '#38bdf8'}">
-          <span class="viewer-fire-val">${xpDisplay}</span>
-          <span class="viewer-fire-label">XP</span>
-          <span class="viewer-level-inline">Lv ${lvl.level}</span>
-        </div>
-        ${myRank && myRank <= 3 && myRankNeon
-          ? `<div class="viewer-rank-corner" style="--rank-neon:${esc(myRankNeon)}">#${myRank}</div>`
-          : myRank ? `<div class="viewer-rank-corner is-plain">#${myRank}</div>` : ''}
-        <button type="button" class="btn primary" id="editMyCardBtn">Edit My Card</button>
-      </div>
-      <div class="viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor, xpRank: myRank, rankNeon: myRankNeon }) : ''}</div>
-      <section class="player-status-board sketch-card">
-        <h3 class="viewer-wizard-title">Drop an update</h3>
-        <p class="field-hint">Tell everyone what you're up to — or send me a private note.</p>
-        <form id="playerStatusForm">
-          <div class="field"><label>What's happening?</label><textarea id="playerStatusText" rows="3" required placeholder="working on… feeling… just saw…"></textarea></div>
-          <div class="field-row">
-            <div class="field"><label>Visibility</label>
-              <select id="playerStatusVis">
-                <option value="public">Public — everyone sees it</option>
-                <option value="private">Private — just Gray</option>
-              </select>
+      <div class="profile-page" style="--prof-neon:${esc(profNeon)}">
+        <header class="profile-hero">
+          <div class="profile-hero-bg" aria-hidden="true"></div>
+          <div class="profile-hero-inner">
+            <div class="profile-hero-main">
+              <p class="profile-hero-kicker">// coder profile</p>
+              <h3 class="profile-hero-name">${esc(mine.name)}</h3>
+              <div class="profile-xp-strip">
+                <div class="profile-xp-big">
+                  <span class="profile-xp-val">${xpDisplay}</span>
+                  <span class="profile-xp-unit">XP</span>
+                </div>
+                <div class="profile-level-track">
+                  <div class="profile-level-fill" style="width:${lvlPct}%"></div>
+                </div>
+                <span class="profile-level-tag">Lv ${lvl.level}</span>
+                <span class="profile-xp-next">${lvl.xpToNext} to next</span>
+              </div>
             </div>
-            <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
+            ${myRank && myRank <= 3 && myRankNeon
+              ? `<div class="profile-rank-badge" style="--rank-neon:${esc(myRankNeon)}">#${myRank}</div>`
+              : myRank ? `<div class="profile-rank-badge is-muted">#${myRank}</div>` : ''}
+            <button type="button" class="btn primary profile-edit-btn" id="editMyCardBtn">Edit profile</button>
           </div>
-          <div class="pin-media-btns">
-            <button type="button" class="btn" id="statusTakePhoto">📷 Photo</button>
-            <button type="button" class="btn" id="statusTakeVideo">🎬 Video</button>
-          </div>
-          <div id="statusMediaPreview" class="pin-media-preview hidden"></div>
-          <button type="submit" class="btn primary">Post update</button>
-        </form>
-      </section>
-      <nav class="my-card-tabs">
-        <button type="button" class="btn my-card-tab is-active" data-mc-tab="posts">My posts (${myPosts.length})</button>
-        <button type="button" class="btn my-card-tab" data-mc-tab="gallery">Gallery</button>
-        <button type="button" class="btn my-card-tab" data-mc-tab="collection">Collection</button>
-        <button type="button" class="btn my-card-tab" data-mc-tab="quests">Quests (${myQuests.length})</button>
-      </nav>
-      <section class="my-card-panel is-active" data-mc-panel="posts">
-        <div class="my-card-posts">${myPosts.length
-          ? myPosts.slice(0, 12).map(p => typeof renderPinPostFull === 'function' ? renderPinPostFull(p, mine.id) : '').join('')
-          : '<p class="empty-hint">No posts yet — drop an update above.</p>'}</div>
-      </section>
-      <section class="my-card-panel" data-mc-panel="gallery">${galleryHtml}</section>
-      <section class="my-card-panel" data-mc-panel="collection">${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(mine.id) : ''}</section>
-      <section class="my-card-panel" data-mc-panel="quests">
-        <ul class="my-card-quest-list">${myQuests.map(q => `<li><strong>${esc(q.title)}</strong> · ${esc(q.status)}</li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
-      </section>
-      <div class="viewer-card-stats sketch-card">
-        <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
-        <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
-        ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
-        <div class="vcs-row"><span>Next level</span><strong>${lvl.xpToNext} XP</strong></div>
-      </div>
-      ${renderCoderXpGuide()}
-      <section class="xp-request-board sketch-card">
-        <h3 class="viewer-wizard-title">Request bonus XP</h3>
-        <p class="field-hint">Did something off-site? Pick a reason and tell me what happened — I read every request.</p>
-        <form id="xpRequestForm">
-          <div class="field">
-            <label>Reason</label>
-            <select id="xpRequestReason" required>${getXpRequestOptionsHtml()}</select>
-          </div>
-          <div class="field">
-            <label>Your case</label>
-            <textarea id="xpRequestDesc" rows="3" required placeholder="What did you do? Be specific."></textarea>
-          </div>
-          <button type="submit" class="btn primary">Send XP request</button>
-        </form>
-      </section>
-      <section class="xp-history-board sketch-card">
-        <h3 class="viewer-wizard-title">XP history</h3>
-        ${renderXpHistoryRail(mine.xpHistory)}
-      </section>`;
-    const nextEl = host.querySelector('#coderXpToNext');
-    if(nextEl) nextEl.textContent = String(lvl.xpToNext);
+        </header>
+        <div class="profile-card-stage viewer-card-deck">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor, xpRank: myRank, rankNeon: myRankNeon }) : ''}</div>
+        <section class="player-status-board sketch-card profile-update-studio">
+          <h3 class="viewer-wizard-title">Drop an update</h3>
+          <p class="field-hint">Public updates hit Community and echo in chat. Private ones go to my inbox only.</p>
+          <form id="playerStatusForm">
+            <div class="field"><label>What's happening?</label><textarea id="playerStatusText" rows="3" required placeholder="working on… feeling… just saw…"></textarea></div>
+            <div class="field-row">
+              <div class="field"><label>Visibility</label>
+                <select id="playerStatusVis">
+                  <option value="public">Public — Community + chat</option>
+                  <option value="private">Private — just Gray</option>
+                </select>
+              </div>
+              <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
+            </div>
+            <div class="pin-media-btns">
+              <button type="button" class="btn" id="statusTakePhoto">📷 Photo</button>
+              <button type="button" class="btn" id="statusTakeVideo">🎬 Video</button>
+            </div>
+            <div id="statusMediaPreview" class="pin-media-preview hidden"></div>
+            <button type="submit" class="btn primary">Post update</button>
+          </form>
+        </section>
+        <nav class="my-card-tabs profile-tabs">
+          <button type="button" class="btn my-card-tab is-active" data-mc-tab="posts">Updates (${myPosts.length})</button>
+          <button type="button" class="btn my-card-tab" data-mc-tab="gallery">Photos</button>
+          <button type="button" class="btn my-card-tab" data-mc-tab="collection">Collection</button>
+          <button type="button" class="btn my-card-tab" data-mc-tab="quests">Quests (${myQuests.length})</button>
+        </nav>
+        <section class="my-card-panel is-active" data-mc-panel="posts">
+          ${renderCoderUpdateFeed(myPosts, profNeon)}
+        </section>
+        <section class="my-card-panel" data-mc-panel="gallery">${galleryHtml}</section>
+        <section class="my-card-panel" data-mc-panel="collection">${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(mine.id) : ''}</section>
+        <section class="my-card-panel" data-mc-panel="quests">
+          <ul class="my-card-quest-list quest-mini-list">${myQuests.map(q => {
+            const type = QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5];
+            return `<li class="quest-mini-row" style="--qc-neon:${type.neon}"><span class="quest-mini-type">${type.icon} ${esc(type.label)}</span><strong>${esc(q.title)}</strong><span class="quest-mini-st">${esc(q.status)}</span></li>`;
+          }).join('') || '<li class="empty-hint">No quests sent yet — head to Quests.</li>'}</ul>
+        </section>
+        <div class="viewer-card-stats sketch-card profile-stats-strip">
+          <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
+          <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
+          ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
+        </div>
+      </div>`;
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => this.openMyCardEditor(mine.id));
-    host.querySelector('#xpRequestForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitXpRequest(); });
     host.querySelectorAll('.my-card-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         host.querySelectorAll('.my-card-tab').forEach(t => t.classList.remove('is-active'));
@@ -1821,6 +1843,7 @@ const ViewerWorld = {
       logCoderActivity('status_update', { coderId: mine.id, name: mine.name, detail: `${mine.name} posted a public update` });
       LiveSync?.pinPosted(mine.name, location);
       if(typeof renderPinboard === 'function') renderPinboard();
+      if(typeof GameHub !== 'undefined') GameHub.mirrorUpdateToChat(text, mine);
     } else {
       const msg = {
         id: uid('msg'),
@@ -2102,31 +2125,32 @@ const ViewerWorld = {
     }
 
     if(isCoderLoggedIn()){
-      html += `<div class="quest-compose sketch-card">
+      html += `<div class="quest-compose sketch-card quest-page-studio">
+        <div class="quest-studio-glow" aria-hidden="true"></div>
         <h3 class="viewer-wizard-title">Transmit a quest</h3>
-        <p class="field-hint">From <strong>${esc(mine.name)}</strong> — you decide what I do.</p>
-        <form id="questForm">
+        <p class="field-hint">From <strong>${esc(mine.name)}</strong> — send me somewhere, feed me, comfort me, or <strong>ask me to code something new into the website</strong>.</p>
+        <form id="questForm" class="quest-transmit-form">
           <div class="field-row">
             <div class="field"><label>Type</label><select id="questType">${typeOpts}</select></div>
-            <div class="field"><label>Title</label><input type="text" id="questTitle" required></div>
+            <div class="field"><label>Title</label><input type="text" id="questTitle" required placeholder="short mission name"></div>
           </div>
-          <div class="field"><label>Mission</label><textarea id="questBody" rows="4" required></textarea></div>
+          <div class="field"><label>Mission</label><textarea id="questBody" rows="4" required placeholder="what should Gray do?"></textarea></div>
           <div class="field-row">
-            <div class="field"><label>Place</label><input type="text" id="questPlace"></div>
-            <div class="field"><label>Food / item</label><input type="text" id="questFood"></div>
+            <div class="field"><label>Place</label><input type="text" id="questPlace" placeholder="optional"></div>
+            <div class="field"><label>Food / item</label><input type="text" id="questFood" placeholder="optional"></div>
           </div>
-          <button type="submit" class="btn primary">Send quest</button>
+          <button type="submit" class="btn primary quest-send-btn">✦ Send quest (+25 XP)</button>
         </form>
       </div>`;
     } else if(isGuest()){
-      html += `<p class="empty-hint">Guest watch-only — log in to send quests.</p>`;
+      html += `<p class="empty-hint">Log in to send quests.</p>`;
     } else {
       html += `<p class="empty-hint">Log in with your name and console key to send quests.</p>`;
     }
 
-    html += `<section><h3 class="viewer-wizard-title">Open quests</h3>`;
-    html += open.length ? `<div class="quest-list">${open.map(q => this.questRowHtml(q)).join('')}</div>` : `<p class="empty-hint">No open quests.</p></section>`;
-    host.innerHTML = html;
+    html += `<section class="quest-open-section"><h3 class="viewer-wizard-title quest-section-title">Open quests</h3>`;
+    html += open.length ? `<div class="quest-list quest-page-list">${open.map(q => this.questRowHtml(q)).join('')}</div>` : `<p class="empty-hint">No open quests.</p></section>`;
+    host.innerHTML = `<div class="quest-page-wrap">${html}</div>`;
 
     document.getElementById('questForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitQuest(); });
     host.querySelectorAll('[data-quest-action]').forEach(btn => btn.addEventListener('click', () => this.handleQuestAction(btn.dataset.questId, btn.dataset.questAction)));
@@ -2481,6 +2505,47 @@ const ViewerWorld = {
     if(typeof renderCoderNotifyRail === 'function') renderCoderNotifyRail();
   },
 
+  renderXpRequests(){
+    const host = document.getElementById('xpRequestSpread');
+    if(!host) return;
+    const mine = getMyCoderCard();
+    if(!mine){
+      host.innerHTML = `<p class="empty-hint">Log in to request bonus XP.</p>`;
+      return;
+    }
+    const lvl = coderLevelFromPoints(mine.points);
+    host.innerHTML = `
+      <div class="xp-page-wrap" style="--xp-neon:#fbbf24">
+        <header class="xp-page-hero sketch-card">
+          <p class="xp-page-kicker">// off-site wins</p>
+          <h3 class="viewer-wizard-title">Request bonus XP</h3>
+          <p class="field-hint">Met up, called, sent a rec I loved, birthday — tell me what happened. I read every case.</p>
+          <div class="xp-page-level">Lv ${lvl.level} · ${lvl.xpToNext} XP to next level</div>
+        </header>
+        ${renderCoderXpGuide()}
+        <section class="xp-request-board sketch-card">
+          <form id="xpRequestForm">
+            <div class="field">
+              <label>Reason</label>
+              <select id="xpRequestReason" required>${getXpRequestOptionsHtml()}</select>
+            </div>
+            <div class="field">
+              <label>Your case</label>
+              <textarea id="xpRequestDesc" rows="4" required placeholder="What did you do? Be specific."></textarea>
+            </div>
+            <button type="submit" class="btn primary">Send XP request</button>
+          </form>
+        </section>
+        <section class="xp-history-board sketch-card">
+          <h3 class="viewer-wizard-title">XP history</h3>
+          ${renderXpHistoryRail(mine.xpHistory)}
+        </section>
+      </div>`;
+    const nextEl = host.querySelector('#coderXpToNext');
+    if(nextEl) nextEl.textContent = String(lvl.xpToNext);
+    host.querySelector('#xpRequestForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitXpRequest(); });
+  },
+
   renderInbox(){
     const host = document.getElementById('inboxDrawerSpread') || document.getElementById('inboxSpread');
     if(!host) return;
@@ -2532,20 +2597,27 @@ const ViewerWorld = {
     }
 
     host.innerHTML = `
-      <div class="inbox-compose sketch-card">
-        <form id="inboxComposeForm">
-          <div class="field-row">
+      <div class="inbox-page-layout">
+        <aside class="inbox-page-compose sketch-card">
+          <h3 class="viewer-wizard-title">New message</h3>
+          <form id="inboxComposeForm">
             <div class="field"><label>To</label><select id="inboxTo" required>${recipientOptions}</select></div>
-          </div>
-          <div class="field"><label>Message</label><textarea id="inboxBody" rows="3" required placeholder="Private message…"></textarea></div>
-          <button type="submit" class="btn primary">Send message</button>
-        </form>
-      </div>
-      ${adminPanels}
-      <section class="inbox-thread sketch-card">
-        <div class="inbox-msg-list">${msgList}</div>
-        ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
-      </section>`;
+            <div class="field"><label>Message</label><textarea id="inboxBody" rows="4" required placeholder="Private message…"></textarea></div>
+            <button type="submit" class="btn primary">Send</button>
+          </form>
+        </aside>
+        <main class="inbox-page-main">
+          ${adminPanels}
+          <section class="inbox-thread sketch-card">
+            <header class="inbox-thread-head">
+              <h3 class="viewer-wizard-title">Inbox</h3>
+              ${unread.length ? `<span class="inbox-unread-pill">${unread.length} unread</span>` : ''}
+            </header>
+            <div class="inbox-msg-list neon-scroll">${msgList}</div>
+            ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
+          </section>
+        </main>
+      </div>`;
 
     host.querySelector('#inboxComposeForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitInboxMessage(); });
     host.querySelector('#markInboxReadBtn')?.addEventListener('click', () => markInboxRead(userId, unread.map(m => m.id)));

@@ -13,10 +13,6 @@ const GameHub = {
     document.getElementById('enterWatchMode')?.addEventListener('click', () => this.enterWatchMode());
     document.getElementById('enterGameMode')?.addEventListener('click', () => this.showGameLogin());
     document.getElementById('loginBackToFork')?.addEventListener('click', () => this.showLandingFork());
-    document.getElementById('switchToGameBanner')?.addEventListener('click', () => {
-      this.showLandingFork(true);
-      if(typeof showEntryGate === 'function') showEntryGate({ force: true });
-    });
     document.getElementById('chatSendForm')?.addEventListener('submit', e => {
       e.preventDefault();
       this.sendChatMessage();
@@ -62,7 +58,7 @@ const GameHub = {
     document.body.classList.toggle('is-watch-mode', watch);
     document.body.classList.toggle('is-game-mode', game && !isAdmin());
     document.querySelectorAll('.game-only-nav').forEach(el => el.classList.toggle('hidden', watch));
-    document.querySelectorAll('.watch-only-banner').forEach(el => el.classList.toggle('hidden', !watch));
+    document.querySelectorAll('.watch-hide-nav').forEach(el => el.classList.toggle('hidden', watch));
     document.querySelectorAll('.sidebar-console-wrap').forEach(el => {
       el.classList.toggle('hidden', watch || (!isAdmin() && !isCoderLoggedIn()));
     });
@@ -117,13 +113,93 @@ function mergeHubVisitorData(remote){
 }
 
 function ensurePlayerCollection(c){
-  if(!c) return { places: [], skills: [], friends: [] };
-  if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], friends: [] };
+  if(!c) return { places: [], skills: [], media: [], friends: [] };
+  if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], media: [], friends: [] };
   if(!Array.isArray(c.collection.places)) c.collection.places = [];
   if(!Array.isArray(c.collection.skills)) c.collection.skills = [];
+  if(!Array.isArray(c.collection.media)) c.collection.media = [];
   if(!Array.isArray(c.collection.friends)) c.collection.friends = [];
   return c.collection;
 }
+
+function buildCollectionPlaceFlip(p, i){
+  const item = {
+    id: p.id || uid('cplace'),
+    name: p.name || 'Place',
+    unlocked: true,
+    vibe: p.vibe || '',
+    placeCard: {
+      level: p.level || 1,
+      vibeRank: p.vibeRank || 3,
+      experienceRank: p.experienceRank || 3,
+      utilityRank: p.utilityRank || 3,
+      description: p.description || p.vibe || '',
+    },
+    image: p.image || '',
+  };
+  if(typeof buildFlipPlaceCard === 'function') return buildFlipPlaceCard(item, i);
+  return `<div class="col-card-fallback">${esc(item.name)}</div>`;
+}
+
+function buildCollectionSkillFlip(s, i){
+  const skill = {
+    id: s.id || uid('cskill'),
+    name: s.name || 'Skill',
+    color: s.color || '#7c4dff',
+    hours: s.hours || 0,
+    milestones: [],
+  };
+  if(typeof buildFlipSkillCard === 'function') return buildFlipSkillCard(skill, i);
+  return `<div class="col-card-fallback">${esc(skill.name)}</div>`;
+}
+
+function buildCollectionMediaFlip(m, i){
+  const accent = stableNeon(m.id || m.title, i);
+  const tilt = ((i % 5) * 1.1 - 2.2).toFixed(1);
+  const rating = m.rating ? `${m.rating}/5` : '';
+  return `<figure class="poke-flip media-col-flip" style="--pc-accent:${accent};--tilt:${tilt}deg">
+    <div class="poke-flip-scene"><div class="poke-flip-inner">
+      <div class="poke-flip-face poke-flip-front">
+        <div class="pc-front mcc-front" style="--pc-accent:${accent}">
+          <div class="pc-frame-glow"></div>
+          <div class="pc-head pc-head-simple"><span class="pc-name">${esc(m.title || 'Media')}</span><span class="pc-lv">${esc(m.medium || 'log')}</span></div>
+          <div class="pc-art">${m.image ? `<div class="card-photo-frame"><img src="${esc(m.image)}" alt=""></div>` : `<span class="pc-art-ph">▶</span>`}</div>
+          ${rating ? `<p class="pc-blurb">${esc(rating)}</p>` : ''}
+          <span class="flip-hint-front">↻ review</span>
+        </div>
+      </div>
+      <div class="poke-flip-face poke-flip-back">
+        <div class="pc-back mcc-back" style="--pc-accent:${accent}">
+          <div class="pc-back-title">${esc(m.title || '')}</div>
+          <div class="pc-row"><span>Medium</span><span>${esc(m.medium || '—')}</span></div>
+          ${m.rating ? `<div class="pc-row"><span>Rating</span><span>${esc(rating)}</span></div>` : ''}
+          ${m.review ? `<div class="pc-block"><div class="pc-block-title">Notes</div><p>${esc(m.review)}</p></div>` : ''}
+          <span class="flip-hint-back">flip back</span>
+        </div>
+      </div>
+    </div></div>
+  </figure>`;
+}
+
+GameHub.mirrorUpdateToChat = function(text, mine){
+  if(!mine || !text) return;
+  ensureHubState();
+  const msg = {
+    id: uid('chat'),
+    characterId: mine.id,
+    name: mine.name,
+    text: `📡 ${text}`,
+    cardColor: mine.cardColor || '#38bdf8',
+    avatar: mine.avatar || mine.image || '',
+    at: new Date().toISOString(),
+    isUpdate: true,
+  };
+  state.chatMessages.push(msg);
+  state.chatMessages = state.chatMessages.slice(-400);
+  saveState();
+  postVisitorData('postChatMessage', msg);
+  if(document.body.dataset.activeView === 'chat') this.renderChat();
+};
 
 function getPlayerCollectionPlaces(c){
   return ensurePlayerCollection(c).places;
@@ -140,33 +216,49 @@ GameHub.renderChat = function(){
   const host = document.getElementById('chatSpread');
   if(!host) return;
   if(!isCoderLoggedIn() && !isAdmin()){
-    host.innerHTML = '<p class="empty-hint">Log in to play the game and join the chat room.</p>';
+    host.innerHTML = '<p class="empty-hint">Log in to join the coder chat.</p>';
     return;
   }
   ensureHubState();
   const msgs = (state.chatMessages || []).slice().sort((a, b) => (a.at || '').localeCompare(b.at || '')).slice(-120);
   const online = typeof getOnlineCoderIds === 'function' ? getOnlineCoderIds().size : 0;
   host.innerHTML = `
-    <header class="chat-room-head sketch-card">
-      <h3 class="viewer-wizard-title">Game chat</h3>
-      <p class="field-hint">Talk in real time — your player card icon shows beside every message. Occasionally funny lines earn +1–2 XP.</p>
-      ${online ? `<span class="chat-online-pill">${online} online</span>` : ''}
-    </header>
-    <div class="chat-messages" id="chatMessages">${msgs.map(m => this.renderChatLine(m)).join('') || '<p class="empty-hint chat-empty">Say hi — the room is quiet.</p>'}</div>
-    <form class="chat-compose sketch-card" id="chatSendForm">
-      <textarea id="chatInput" rows="2" required placeholder="type something…" maxlength="500"></textarea>
-      <button type="submit" class="btn primary">Send</button>
-    </form>`;
+    <div class="chat-room-wrap">
+      <header class="chat-room-head">
+        <div class="chat-room-title-block">
+          <p class="chat-room-kicker">// live room</p>
+          <h3 class="chat-room-title">Coder chat</h3>
+        </div>
+        ${online ? `<span class="chat-online-pill"><span class="chat-online-dot"></span>${online} online</span>` : ''}
+      </header>
+      <div class="chat-messages neon-scroll" id="chatMessages">${msgs.map(m => this.renderChatLine(m)).join('') || '<p class="empty-hint chat-empty">Say hi — the room is quiet.</p>'}</div>
+      <form class="chat-compose" id="chatSendForm">
+        <div class="chat-compose-inner">
+          <textarea id="chatInput" rows="2" required placeholder="say something…" maxlength="500"></textarea>
+          <button type="submit" class="btn primary chat-send-btn">Send</button>
+        </div>
+        <p class="chat-compose-hint">Funny lines sometimes earn +1–2 XP. Updates echo here automatically.</p>
+      </form>
+    </div>`;
   const box = host.querySelector('.chat-messages');
   if(box) box.scrollTop = box.scrollHeight;
 };
 
 GameHub.renderChatLine = function(m){
-  const thumb = m.characterId ? chatAuthorThumb(m.characterId) : `<span class="chat-author-name">${esc(m.name || 'Gray')}</span>`;
+  const c = m.characterId && typeof getCoderByIdAny === 'function' ? getCoderByIdAny(m.characterId) : null;
+  const accent = m.cardColor || c?.cardColor || '#38bdf8';
+  const avatar = c?.avatar || c?.image || m.avatar;
+  const thumb = m.characterId
+    ? `<div class="chat-avatar" style="--chat-neon:${esc(accent)}">${avatar ? `<img src="${esc(avatar)}" alt="">` : `<span>${esc((m.name || '?').charAt(0))}</span>`}</div>`
+    : `<div class="chat-avatar is-gray"><span>G</span></div>`;
   const xpNote = m.xpAwarded ? `<span class="chat-xp-drop">+${m.xpAwarded} XP</span>` : '';
-  return `<article class="chat-line" style="--chat-neon:${esc(m.cardColor || '#38bdf8')}">
-    <div class="chat-line-head">${thumb}<time>${esc(new Date(m.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }))}</time>${xpNote}</div>
-    <p class="chat-line-text">${esc(m.text)}</p>
+  const updateTag = m.isUpdate ? `<span class="chat-update-tag">update</span>` : '';
+  return `<article class="chat-line${m.isUpdate ? ' is-update' : ''}" style="--chat-neon:${esc(accent)}">
+    ${thumb}
+    <div class="chat-line-body">
+      <div class="chat-line-head"><strong class="chat-author-name">${esc(m.name || 'Gray')}</strong>${updateTag}<time>${esc(new Date(m.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }))}</time>${xpNote}</div>
+      <p class="chat-line-text">${esc(m.text)}</p>
+    </div>
   </article>`;
 };
 
@@ -235,61 +327,97 @@ GameHub.renderProfileCollections = function(coderId){
   const col = ensurePlayerCollection(c);
   const isMine = typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId;
   const canEdit = isMine || isAdmin();
-  const placeRows = col.places.map(p => `
-    <li class="pcol-place"><strong>${esc(p.name)}</strong>${p.vibe ? `<span>${esc(p.vibe)}</span>` : ''}</li>`).join('');
-  const skillRows = col.skills.map(s => `
-    <li class="pcol-skill"><strong>${esc(s.name)}</strong>${s.tier ? `<span class="pcol-tier">${esc(s.tier)}</span>` : ''}</li>`).join('');
-  const friendRows = col.friends.map(fid => {
+  const placeDeck = col.places.map((p, i) => buildCollectionPlaceFlip(p, i)).join('');
+  const skillDeck = col.skills.map((s, i) => buildCollectionSkillFlip({ ...s, hours: parseFloat(s.hours) || 0, color: s.color || '#7c4dff' }, i)).join('');
+  const mediaDeck = col.media.map((m, i) => buildCollectionMediaFlip(m, i)).join('');
+  const friendDeck = col.friends.map((fid, i) => {
     const f = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(fid) : null;
-    if(!f) return '';
-    return `<li><button type="button" class="btn pcol-friend" data-coder-board="${esc(fid)}">${esc(f.name)}</button></li>`;
+    if(!f || typeof buildFlipPlayerCard !== 'function') return '';
+    return buildFlipPlayerCard(f, 'character', i, { accent: f.cardColor });
   }).join('');
   const editBlock = canEdit ? `
-    <form class="pcol-add-form sketch-card" data-pcol-form="${esc(coderId)}">
-      <h4>Add to collection</h4>
-      <div class="field-row">
-        <div class="field"><label>Place name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div>
-        <div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="optional"></div>
+    <details class="col-add-studio sketch-card">
+      <summary class="col-add-toggle">+ Add to collection</summary>
+      <div class="col-add-panels" data-pcol-form="${esc(coderId)}">
+        <div class="col-add-section">
+          <h4>Place card</h4>
+          <div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div>
+          <div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div>
+          <button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button>
+        </div>
+        <div class="col-add-section">
+          <h4>Skill card</h4>
+          <div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div>
+          <div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div>
+          <button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button>
+        </div>
+        <div class="col-add-section">
+          <h4>Media card</h4>
+          <div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div>
+          <div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div>
+          <div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div>
+          <div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div>
+          <button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button>
+        </div>
+        <div class="col-add-section">
+          <h4>Coder card (friend)</h4>
+          <p class="field-hint">Collect another coder who already has an account — no creating new people.</p>
+          <select class="pcol-friend-pick"><option value="">— pick coder —</option>
+            ${(state.viewerCharacters || []).filter(x => x.id !== coderId).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn primary" data-pcol-add-friend="${esc(coderId)}">Collect coder card</button>
+        </div>
       </div>
-      <button type="button" class="btn" data-pcol-add-place="${esc(coderId)}">+ Place card</button>
-      <div class="field-row" style="margin-top:10px">
-        <div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="e.g. piano"></div>
-        <div class="field"><label>Tier</label><input type="text" class="pcol-skill-tier" placeholder="bronze, gold…"></div>
-      </div>
-      <button type="button" class="btn" data-pcol-add-skill="${esc(coderId)}">+ Skill card</button>
-      <div class="field" style="margin-top:10px"><label>Link player card (friend)</label>
-        <select class="pcol-friend-pick"><option value="">— pick —</option>
-          ${(state.viewerCharacters || []).filter(x => x.id !== coderId).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
-        </select>
-      </div>
-      <button type="button" class="btn" data-pcol-add-friend="${esc(coderId)}">+ Link friend</button>
-    </form>` : '';
-  return `<section class="coder-board-section sketch-card coder-collections">
-    <h3>Collection</h3>
-    <div class="pcol-grid">
-      <div><h4>Place cards</h4><ul class="pcol-list">${placeRows || '<li class="empty-hint">None yet</li>'}</ul></div>
-      <div><h4>Skill cards</h4><ul class="pcol-list">${skillRows || '<li class="empty-hint">None yet</li>'}</ul></div>
-      <div><h4>Player friends</h4><ul class="pcol-list pcol-friends">${friendRows || '<li class="empty-hint">None linked</li>'}</ul></div>
-    </div>
+    </details>` : '';
+  return `<div class="collection-hub">
+    <nav class="col-cat-tabs">
+      <button type="button" class="btn col-cat-tab is-active" data-col-cat="places">Places (${col.places.length})</button>
+      <button type="button" class="btn col-cat-tab" data-col-cat="skills">Skills (${col.skills.length})</button>
+      <button type="button" class="btn col-cat-tab" data-col-cat="media">Media (${col.media.length})</button>
+      <button type="button" class="btn col-cat-tab" data-col-cat="coders">Coders (${col.friends.length})</button>
+    </nav>
+    <div class="col-cat-panel is-active" data-col-panel="places"><div class="card-deck col-card-deck">${placeDeck || '<p class="empty-hint">No place cards yet — add places you\'ve been.</p>'}</div></div>
+    <div class="col-cat-panel" data-col-panel="skills"><div class="card-deck col-card-deck">${skillDeck || '<p class="empty-hint">No skill cards yet.</p>'}</div></div>
+    <div class="col-cat-panel" data-col-panel="media"><div class="card-deck col-card-deck">${mediaDeck || '<p class="empty-hint">No media logged yet.</p>'}</div></div>
+    <div class="col-cat-panel" data-col-panel="coders"><div class="card-deck col-card-deck">${friendDeck || '<p class="empty-hint">No coder cards collected — link friends who play.</p>'}</div></div>
     ${editBlock}
-  </section>`;
+  </div>`;
 };
 
 GameHub.bindProfileCollections = function(root, coderId){
   const host = root || document;
+  host.querySelectorAll('.col-cat-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const hub = tab.closest('.collection-hub');
+      if(!hub) return;
+      hub.querySelectorAll('.col-cat-tab').forEach(t => t.classList.remove('is-active'));
+      hub.querySelectorAll('.col-cat-panel').forEach(p => p.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      hub.querySelector(`[data-col-panel="${tab.dataset.colCat}"]`)?.classList.add('is-active');
+    });
+  });
   host.querySelector(`[data-pcol-add-place="${coderId}"]`)?.addEventListener('click', () => {
     const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
     const name = form?.querySelector('.pcol-place-name')?.value?.trim();
     const vibe = form?.querySelector('.pcol-place-vibe')?.value?.trim();
     if(!name) return;
-    this.addCollectionPlace(coderId, { name, vibe });
+    this.addCollectionPlace(coderId, { name, vibe, description: vibe });
   });
   host.querySelector(`[data-pcol-add-skill="${coderId}"]`)?.addEventListener('click', () => {
     const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
     const name = form?.querySelector('.pcol-skill-name')?.value?.trim();
-    const tier = form?.querySelector('.pcol-skill-tier')?.value?.trim();
+    const hours = form?.querySelector('.pcol-skill-hours')?.value;
     if(!name) return;
-    this.addCollectionSkill(coderId, { name, tier });
+    this.addCollectionSkill(coderId, { name, hours: parseFloat(hours) || 0 });
+  });
+  host.querySelector(`[data-pcol-add-media="${coderId}"]`)?.addEventListener('click', () => {
+    const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
+    const title = form?.querySelector('.pcol-media-title')?.value?.trim();
+    const medium = form?.querySelector('.pcol-media-medium')?.value?.trim();
+    const rating = form?.querySelector('.pcol-media-rating')?.value;
+    const review = form?.querySelector('.pcol-media-review')?.value?.trim();
+    if(!title) return;
+    this.addCollectionMedia(coderId, { title, medium, rating: rating ? parseInt(rating, 10) : 0, review });
   });
   host.querySelector(`[data-pcol-add-friend="${coderId}"]`)?.addEventListener('click', () => {
     const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
@@ -297,11 +425,7 @@ GameHub.bindProfileCollections = function(root, coderId){
     if(!fid) return;
     this.addCollectionFriend(coderId, fid);
   });
-  host.querySelectorAll('[data-coder-board]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if(typeof navigateToCoderBoard === 'function') navigateToCoderBoard(btn.dataset.coderBoard);
-    });
-  });
+  if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
 };
 
 GameHub.savePlayerCollection = function(coderId){
@@ -314,18 +438,28 @@ GameHub.savePlayerCollection = function(coderId){
 GameHub.addCollectionPlace = function(coderId, data){
   const c = (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
-  ensurePlayerCollection(c).places.unshift({ id: uid('pplace'), name: data.name, vibe: data.vibe || '', at: new Date().toISOString() });
+  ensurePlayerCollection(c).places.unshift({ id: uid('pplace'), name: data.name, vibe: data.vibe || '', description: data.description || data.vibe || '', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
-  if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
-  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderViewerCard();
+  if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_place');
+  this.refreshProfile(coderId);
 };
 
 GameHub.addCollectionSkill = function(coderId, data){
   const c = (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
-  ensurePlayerCollection(c).skills.unshift({ id: uid('pskill'), name: data.name, tier: data.tier || '', at: new Date().toISOString() });
+  ensurePlayerCollection(c).skills.unshift({ id: uid('pskill'), name: data.name, hours: data.hours || 0, color: data.color || '#7c4dff', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
-  if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
+  if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_skill');
+  this.refreshProfile(coderId);
+};
+
+GameHub.addCollectionMedia = function(coderId, data){
+  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  if(!c) return;
+  ensurePlayerCollection(c).media.unshift({ id: uid('pmedia'), title: data.title, medium: data.medium || '', rating: data.rating || 0, review: data.review || '', at: new Date().toISOString() });
+  this.savePlayerCollection(coderId);
+  if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_media');
+  this.refreshProfile(coderId);
 };
 
 GameHub.addCollectionFriend = function(coderId, friendId){
@@ -335,7 +469,13 @@ GameHub.addCollectionFriend = function(coderId, friendId){
   if(col.friends.includes(friendId)) return;
   col.friends.unshift(friendId);
   this.savePlayerCollection(coderId);
+  if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 10, 'friend_card');
+  this.refreshProfile(coderId);
+};
+
+GameHub.refreshProfile = function(coderId){
   if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
+  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderViewerCard();
 };
 
 GameHub.renderPressSubmitForm = function(){
@@ -344,7 +484,7 @@ GameHub.renderPressSubmitForm = function(){
   if(!mine) return '';
   return `<section class="press-submit-board sketch-card">
     <h3 class="viewer-wizard-title">Submit to The Press</h3>
-    <p class="field-hint">Write something — I read every submission and publish what fits.</p>
+    <p class="field-hint">Write an article and send it in — <strong>I read everything</strong> and choose what gets published on The Press.</p>
     <form id="pressSubmitForm">
       <div class="field"><label>Headline</label><input type="text" id="pressSubmitTitle" required></div>
       <div class="field"><label>Excerpt</label><input type="text" id="pressSubmitExcerpt" placeholder="one-line teaser"></div>
