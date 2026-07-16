@@ -1,6 +1,34 @@
 /* Exported from Gray Areas — commit this file and redeploy */
 const SITE_STATE = {
-  "entries": {},
+  "entries": {
+    "2026-07-16": {
+      "stream": {
+        "startedAt": "2026-07-16T09:25:35.562Z",
+        "endedAt": null,
+        "nodes": [
+          {
+            "id": "n-wake-1784193935562",
+            "at": "2026-07-16T09:25:35.562Z",
+            "type": "wake",
+            "text": "Day started"
+          }
+        ]
+      },
+      "dayStartSnapshot": {
+        "at": "2026-07-16T09:25:35.562Z",
+        "steps": 0,
+        "workHours": 0,
+        "hobbyHours": 0,
+        "skillHours": {
+          "mandarin": 0,
+          "skateboarding": 0,
+          "writing": 0,
+          "creatives": 0,
+          "running": 0
+        }
+      }
+    }
+  },
   "skillHours": {},
   "pinboard": [],
   "arrivalDate": "2026-08-21",
@@ -35,7 +63,7 @@ const SITE_STATE = {
       "selfDescription": "Dreads, red bandana, young guy, not intimidating, smiling",
       "vibe": "Very chilled, can be everywhere and get on with everyone.",
       "quote": "I promise I don't have a fringe kink",
-      "points": 9,
+      "points": 6,
       "questsSent": 0,
       "questsCompleted": 0,
       "loginCount": 0,
@@ -45,7 +73,7 @@ const SITE_STATE = {
       "lookPrompt": "Dreads, red bandana, young guy, not intimidating, smiling",
       "cardDescription": "The God TM",
       "pokeCard": {
-        "level": 0,
+        "level": 1,
         "mbti": "No Clue",
         "spiritPrompt": "Chameleon",
         "colorPalette": "Red",
@@ -54,22 +82,22 @@ const SITE_STATE = {
         "abilities": [
           {
             "name": "So Socially Adaptable",
-            "effect": "Passive â So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
+            "effect": "Passive Ã¢ÂÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat."
           }
         ],
         "moves": [
           {
             "name": "Art",
-            "effect": "Channel art â tactical edge when Gray needs it."
+            "effect": "Channel art Ã¢ÂÂ tactical edge when Gray needs it."
           }
         ],
         "weakness": {
           "name": "Fringes",
-          "effect": "Fringe Phobia â double impact from opponents with fringe aesthetics; your focus shatters."
+          "effect": "Fringe Phobia Ã¢ÂÂ double impact from opponents with fringe aesthetics; your focus shatters."
         },
         "resistance": {
           "name": "Rocks",
-          "effect": "Rock-solid â immune to intimidation and pressure tactics. Rocks does not move you."
+          "effect": "Rock-solid Ã¢ÂÂ immune to intimidation and pressure tactics. Rocks does not move you."
         },
         "retreatCost": "1",
         "quote": "I promise I don't have a fringe kink",
@@ -82,18 +110,11 @@ const SITE_STATE = {
       "strengths": "Art, So Socially adaptable",
       "weaknesses": "Fringes",
       "resistances": "Rocks",
-      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
+      "cardBlob": "Character Card: Nick, The Rock-Star\n\nLevel: 1\nMBTI: No Clue\nSpirit Animal: Chameleon\nColour Palette: Red\nCharacter Vibe: Very chilled, can be everywhere and get on with everyone.\n\nAbilities and Moves:\n\nSo Socially Adaptable: Passive ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ So Socially adaptable. You read the room and blend in; opponents struggle to isolate you as a threat.\nArt: Channel art ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ tactical edge when Gray needs it.\n\nStats and Conditions:\n\nWeakness: Fringes. Fringe Phobia ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double impact from opponents with fringe aesthetics; your focus shatters.\nResistance: Rocks. Rock-solid ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ immune to intimidation and pressure tactics. Rocks does not move you.\nRetreat Cost: 1\n\nQuote:\n\n\"I promise I don't have a fringe kink\"",
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person",
       "xpHistory": [
-        {
-          "id": "xp-1784149184320-lbux",
-          "at": "2026-07-15T20:59:44.320Z",
-          "amount": 3,
-          "reason": "login",
-          "label": "Daily login"
-        },
         {
           "id": "xp-1784136599406-b9ty",
           "at": "2026-07-15T17:29:59.406Z",
@@ -143,17 +164,17 @@ const SITE_STATE = {
         "abilities": [
           {
             "name": "Big D*ck",
-            "effect": "Big d*ck is your edge ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room."
+            "effect": "Big d*ck is your edge ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room."
           }
         ],
         "moves": [],
         "weakness": {
           "name": "Too Cool",
-          "effect": "Too Cool ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder."
+          "effect": "Too Cool ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder."
         },
         "resistance": {
           "name": "Anesthetic",
-          "effect": "Immune to anesthetic ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you shrug off what would bend others."
+          "effect": "Immune to anesthetic ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you shrug off what would bend others."
         },
         "retreatCost": "1",
         "quote": "Sup Slags",
@@ -176,7 +197,7 @@ const SITE_STATE = {
           "label": "Daily login"
         }
       ],
-      "cardBlob": "Character Card: Rena, Ms\n\nLevel: 1\nMBTI: INFP\nSpirit Animal: Whale Shark\nFavourite colour: Earth Tones\nCharacter Vibe: Whimsigoth lol\n\nAbilities and Moves:\n\nBig D*ck: Big d*ck is your edge ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room.\n\nStats and Conditions:\n\nWeakness: Too Cool. Too Cool ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder.\nResistance: Anesthetic. Immune to anesthetic ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you shrug off what would bend others.\nRetreat Cost: 1\n\nQuote:\n\n\"Sup Slags\"",
+      "cardBlob": "Character Card: Rena, Ms\n\nLevel: 1\nMBTI: INFP\nSpirit Animal: Whale Shark\nFavourite colour: Earth Tones\nCharacter Vibe: Whimsigoth lol\n\nAbilities and Moves:\n\nBig D*ck: Big d*ck is your edge ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ when the board gets heavy, you steady the room.\n\nStats and Conditions:\n\nWeakness: Too Cool. Too Cool ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ double damage from too cool; high-pressure days hit harder.\nResistance: Anesthetic. Immune to anesthetic ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ you shrug off what would bend others.\nRetreat Cost: 1\n\nQuote:\n\n\"Sup Slags\"",
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person"
