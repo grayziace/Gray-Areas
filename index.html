@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260716b">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -163,13 +163,14 @@
     <nav class="node-nav" id="tabs">
       <button data-view="profile" class="node-btn" style="--nc:#ff4fd8"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◎</span><span class="node-label">Player Profile</span></button>
       <button data-view="sync" class="node-btn active" style="--nc:#3ad6e0"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⊛</span><span class="node-label">Coming To You Live</span></button>
-      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▤</span><span class="node-label">Daily Log</span></button>
+      <button data-view="ledger" class="node-btn" style="--nc:#9b5cff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▤</span><span class="node-label">Scrapbook</span></button>
       <button data-view="places" class="node-btn" style="--nc:#4fa3ff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">⌖</span><span class="node-label">Place Cards</span></button>
       <button data-view="characters" class="node-btn" style="--nc:#e94ff5"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◆</span><span class="node-label">Coder Cards</span></button>
       <button data-view="skills" class="node-btn" style="--nc:#7c4dff"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Skill Cards</span></button>
       <button data-view="drama" class="node-btn" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▶</span><span class="node-label">Media Log</span></button>
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▥</span><span class="node-label">The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▣</span><span class="node-label">Photo Wall</span></button>
+      <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
       <div class="sidebar-nav-break" aria-hidden="true"></div>
       <button data-view="instructions" class="node-btn watch-hide-nav game-only-nav" style="--nc:#e8c547"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">?</span><span class="node-label">Instructions</span></button>
       <button data-view="comm" class="node-btn game-only-nav" style="--nc:#38bdf8"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◈</span><span class="node-label">Community</span></button>
@@ -179,7 +180,6 @@
       <button data-view="quests" class="node-btn game-only-nav" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
       <button data-view="xp-requests" class="node-btn game-only-nav" style="--nc:#fbbf24"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Bonus XP</span></button>
       <button data-view="inbox" class="node-btn inbox-nav game-only-nav" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Messages <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
-      <button data-view="vlog" class="node-btn admin-only hidden" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
       <div class="sidebar-console-wrap">
         <label class="sidebar-console-label" for="communityConsoleInput">// console</label>
         <div class="sidebar-console-row">
@@ -233,41 +233,16 @@
       <div class="mind-channel-body sys-broken" id="mindContent"></div>
     </section>
 
-    <section class="view neon-section" id="view-ledger" style="--sec-neon:#9b5cff">
-      <h2 class="view-title sketch-title">Daily Log</h2>
-      <div class="log-header-bar">
-        <div class="log-tally" id="logTally">0 days logged</div>
-        <div class="log-view-tabs">
-          <button type="button" class="btn log-view-tab is-active" data-log-view="book">Scrapbook</button>
-          <button type="button" class="btn log-view-tab" data-log-view="month">Month</button>
-          <button type="button" class="btn log-view-tab" data-log-view="week">Week</button>
-          <button type="button" class="btn log-view-tab" data-log-view="day">Day</button>
-        </div>
-        <div class="log-cal-nav" id="logCalNavMonth">
-          <button type="button" class="btn cal-nav-btn" id="calPrev" aria-label="Previous month">‹</button>
-          <span class="log-month-label" id="monthLabel"></span>
-          <button type="button" class="btn cal-nav-btn" id="calNext" aria-label="Next month">›</button>
-        </div>
-        <div class="log-cal-nav hidden" id="logCalNavWeek">
-          <button type="button" class="btn cal-nav-btn" id="logWeekPrev" aria-label="Previous week">‹</button>
-          <span class="log-month-label" id="weekLabel">Week</span>
-          <button type="button" class="btn cal-nav-btn" id="logWeekNext" aria-label="Next week">›</button>
-        </div>
-        <div class="log-cal-nav hidden" id="logCalNavDay">
-          <button type="button" class="btn cal-nav-btn" id="logDayPrev" aria-label="Previous day">‹</button>
-          <span class="log-month-label" id="dayLabel">Day</span>
-          <button type="button" class="btn cal-nav-btn" id="logDayNext" aria-label="Next day">›</button>
-        </div>
-      </div>
-      <div class="log-calendar" id="logCalendar"></div>
+    <section class="view neon-section scrapbook-view" id="view-ledger" style="--sec-neon:#9b5cff">
+      <div class="log-calendar scrapbook-host" id="logCalendar"></div>
       <div id="ledgerDayPreview" class="ledger-day-preview hidden"></div>
       <div class="log-edit-bar admin-only hidden" id="logEditBar">
-        <span class="log-edit-hint" id="logEditHint">Click any day to edit it</span>
+        <span class="log-edit-hint" id="logEditHint">Player edit mode — flip pages with arrows, edit below</span>
         <button type="button" class="btn" id="editTodayBtn">Jump to today</button>
       </div>
       <div class="daily-log-editor admin-only hidden" id="dailyLogEditor">
         <input type="hidden" id="logDateKey" value="">
-        <h3 class="log-editor-title" id="logEditorTitle">Daily log</h3>
+        <h3 class="log-editor-title" id="logEditorTitle">Scrapbook editor</h3>
         <div class="day-form-grid">
           <div class="field field-mood"><label>Current mood</label><div id="logMoodPicker"></div></div>
           <div class="field field-steps">
@@ -299,7 +274,6 @@
           <button class="btn primary" id="saveLog" type="button">Save day</button>
         </div>
       </div>
-      <p class="gallery-hint">Month / Week / Day views. Click any day to edit — plan timed to-dos, log people &amp; places, drop pulses on Coming To You Live.</p>
     </section>
 
     <section class="view neon-section" id="view-places" style="--sec-neon:#4fa3ff">
@@ -436,9 +410,9 @@
       <div id="inboxSpread"></div>
     </section>
 
-    <section class="view neon-section admin-only hidden" id="view-vlog" style="--sec-neon:#f97316">
+    <section class="view neon-section" id="view-vlog" style="--sec-neon:#f97316">
       <h2 class="view-title sketch-title">Video Log</h2>
-      <p class="gallery-hint">Player Gray only — video notes and short clips.</p>
+      <p class="gallery-hint" id="vlogViewHint">Video notes from the Player — watch anytime. Only I can post new entries.</p>
       <div id="vlogSpread"></div>
       <div id="vlogOverloadHost" class="vlog-overload-host admin-only hidden"></div>
     </section>
@@ -450,12 +424,7 @@
 <div class="coder-notify-backdrop hidden" id="coderNotifyBackdrop" aria-hidden="true"></div>
 <aside class="coder-notify-drawer hidden" id="coderNotifyRail" aria-label="Coder activity"></aside>
 
-<div class="corner-fab-stack" aria-label="Quick actions">
-  <button type="button" class="corner-fab inbox-fab" id="inboxFab" hidden title="Private messages — inbox" aria-label="Private messages">
-    <span class="corner-fab-icon" aria-hidden="true">✉</span>
-    <span class="inbox-fab-badge inbox-badge hidden" id="inboxFabBadge">0</span>
-    <span class="corner-fab-label">Inbox</span>
-  </button>
+<div class="corner-fab-stack hidden" aria-label="Quick actions">
   <button type="button" class="corner-fab rewards-fab" id="grayRewardsFab" hidden title="Rewards vault (Player Gray only)" aria-label="Rewards vault">
     <span class="corner-fab-icon" aria-hidden="true">★</span>
     <span class="corner-fab-label">Vault</span>
@@ -850,7 +819,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++];
+    s.src = files[i++] + '?v=20260716b';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

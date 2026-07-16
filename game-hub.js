@@ -88,6 +88,7 @@ function isGameMode(){
 function ensureHubState(){
   if(!state.chatMessages) state.chatMessages = [];
   if(!state.pressSubmissions) state.pressSubmissions = [];
+  if(!state.friendRequests) state.friendRequests = [];
 }
 
 function mergeHubVisitorData(remote){
@@ -110,6 +111,15 @@ function mergeHubVisitorData(remote){
     state.pressSubmissions = state.pressSubmissions.slice(0, 80);
   }
   mergeCoderPresence(remote.coderPresence);
+  if(Array.isArray(remote.friendRequests)){
+    remote.friendRequests.forEach(r => {
+      if(!r?.id) return;
+      const i = (state.friendRequests || []).findIndex(x => x.id === r.id);
+      if(i >= 0) state.friendRequests[i] = { ...state.friendRequests[i], ...r };
+      else (state.friendRequests = state.friendRequests || []).unshift(r);
+    });
+    state.friendRequests = state.friendRequests.slice(0, 200);
+  }
 }
 
 function ensurePlayerCollection(c){
@@ -321,6 +331,119 @@ GameHub.stopChatPoll = function(){
   this.chatPollTimer = null;
 };
 
+GameHub.getFriendRelation = function(myId, targetId){
+  if(!myId || !targetId || myId === targetId) return 'self';
+  const mine = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(myId) : null;
+  if(mine && ensurePlayerCollection(mine).friends.includes(targetId)) return 'friends';
+  const reqs = state.friendRequests || [];
+  const sent = reqs.find(r => r.status === 'pending' && r.fromId === myId && r.toId === targetId);
+  if(sent) return 'sent';
+  const recv = reqs.find(r => r.status === 'pending' && r.fromId === targetId && r.toId === myId);
+  if(recv) return 'received';
+  return 'none';
+};
+
+GameHub.sendFriendRequest = async function(fromId, toId){
+  if(!fromId || !toId || fromId === toId) return false;
+  if(this.getFriendRelation(fromId, toId) !== 'none') return false;
+  const from = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(fromId) : null;
+  const to = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(toId) : null;
+  if(!from || !to) return false;
+  ensureHubState();
+  const req = {
+    id: uid('fr'),
+    fromId,
+    toId,
+    fromName: from.name || 'Coder',
+    toName: to.name || 'Coder',
+    status: 'pending',
+    at: new Date().toISOString(),
+  };
+  state.friendRequests.unshift(req);
+  saveState();
+  if(typeof postVisitorData === 'function') await postVisitorData('sendFriendRequest', req);
+  if(typeof renderCharacters === 'function') renderCharacters();
+  return true;
+};
+
+GameHub.respondFriendRequest = async function(requestId, accept){
+  const req = (state.friendRequests || []).find(r => r.id === requestId);
+  if(!req || req.status !== 'pending') return false;
+  req.status = accept ? 'accepted' : 'declined';
+  req.respondedAt = new Date().toISOString();
+  if(accept){
+    this.addCollectionFriend(req.fromId, req.toId);
+    this.addCollectionFriend(req.toId, req.fromId);
+  }
+  saveState();
+  if(typeof postVisitorData === 'function') await postVisitorData('respondFriendRequest', req);
+  if(typeof renderCharacters === 'function') renderCharacters();
+  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderViewerCard?.();
+  if(typeof renderCoderBoardPage === 'function' && typeof coderBoardId !== 'undefined') renderCoderBoardPage(coderBoardId);
+  return true;
+};
+
+GameHub.renderFriendRequestInbox = function(coderId){
+  const incoming = (state.friendRequests || []).filter(r => r.status === 'pending' && r.toId === coderId);
+  if(!incoming.length) return '';
+  return `<section class="friend-request-inbox sketch-card">
+    <h4 class="viewer-wizard-title">Friend requests</h4>
+    <ul class="friend-request-list">${incoming.map(r => `
+      <li class="friend-request-row">
+        <span><strong>${esc(r.fromName || 'Coder')}</strong> wants to connect</span>
+        <div class="friend-request-actions">
+          <button type="button" class="btn primary" data-fr-accept="${esc(r.id)}">Accept</button>
+          <button type="button" class="btn" data-fr-decline="${esc(r.id)}">Decline</button>
+        </div>
+      </li>`).join('')}</ul>
+  </section>`;
+};
+
+GameHub.bindFriendRequests = function(host){
+  if(!host) return;
+  host.querySelectorAll('[data-fr-accept]').forEach(btn => {
+    btn.addEventListener('click', () => this.respondFriendRequest(btn.dataset.frAccept, true));
+  });
+  host.querySelectorAll('[data-fr-decline]').forEach(btn => {
+    btn.addEventListener('click', () => this.respondFriendRequest(btn.dataset.frDecline, false));
+  });
+};
+
+GameHub.renderCollectionSection = function(coderId, section){
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
+  if(!c) return '';
+  const col = ensurePlayerCollection(c);
+  const isMine = typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId;
+  const canEdit = isMine || isAdmin();
+  const empty = msg => `<p class="empty-hint">${msg}</p>`;
+  if(section === 'places'){
+    const deck = col.places.map((p, i) => buildCollectionPlaceFlip(p, i)).join('');
+    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add place</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div><div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div><button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button></div></details>` : '';
+    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No place cards yet.')}</div>${add}</div>`;
+  }
+  if(section === 'skills'){
+    const deck = col.skills.map((s, i) => buildCollectionSkillFlip({ ...s, hours: parseFloat(s.hours) || 0, color: s.color || '#7c4dff' }, i)).join('');
+    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add skill</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div><div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div><button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button></div></details>` : '';
+    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No skill cards yet.')}</div>${add}</div>`;
+  }
+  if(section === 'media'){
+    const deck = col.media.map((m, i) => buildCollectionMediaFlip(m, i)).join('');
+    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add media</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div><div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div><div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div><div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div><button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button></div></details>` : '';
+    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck">${deck || empty('No media logged yet.')}</div>${add}</div>`;
+  }
+  if(section === 'friends'){
+    const friendDeck = col.friends.map((fid, i) => {
+      const f = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(fid) : null;
+      if(!f || typeof buildFlipPlayerCard !== 'function') return '';
+      const viewBtn = `<button type="button" class="btn profile-friend-view" data-coder-board="${esc(fid)}">View log →</button>`;
+      return `<div class="profile-friend-card">${buildFlipPlayerCard(f, 'character', i, { accent: f.cardColor })}${viewBtn}</div>`;
+    }).join('');
+    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Collect coder card</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><p class="field-hint">Pick someone who already has an account — or grab them from Coder Cards.</p><select class="pcol-friend-pick"><option value="">— pick coder —</option>${(state.viewerCharacters || []).filter(x => x.id !== coderId).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select><button type="button" class="btn primary" data-pcol-add-friend="${esc(coderId)}">Collect coder card</button></div></details>` : '';
+    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck profile-friend-deck">${friendDeck || empty('No coder cards collected yet — find friends in Coder Cards.')}</div>${add}</div>`;
+  }
+  return '';
+};
+
 GameHub.renderProfileCollections = function(coderId){
   const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
   if(!c) return '';
@@ -424,6 +547,12 @@ GameHub.bindProfileCollections = function(root, coderId){
     const fid = form?.querySelector('.pcol-friend-pick')?.value;
     if(!fid) return;
     this.addCollectionFriend(coderId, fid);
+  });
+  host.querySelectorAll('[data-coder-board]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if(typeof navigateToCoderBoard === 'function') navigateToCoderBoard(btn.dataset.coderBoard);
+    });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
 };

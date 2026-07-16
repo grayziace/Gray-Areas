@@ -335,6 +335,7 @@ function ensureViewerState(){
   if(!state.videoDiary) state.videoDiary = [];
   if(!state.inboxMessages) state.inboxMessages = [];
   if(!state.xpRequests) state.xpRequests = [];
+  if(!state.friendRequests) state.friendRequests = [];
 }
 
 function getInboxUserId(){
@@ -588,25 +589,7 @@ function showWelcomeCoder(card){
 }
 
 function showUnreadInboxPopup(userId){
-  const unread = getUnreadInboxForUser(userId);
-  if(!unread.length) return;
-  try{
-    const key = 'ga-inbox-popup:' + userId;
-    if(sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, '1');
-  }catch(e){}
-  const preview = unread.slice(0, 3).map(m =>
-    `<div class="inbox-popup-msg"><strong>${esc(displayInboxName(m.fromName))}</strong><p>${esc((m.body || '').slice(0, 160))}${(m.body || '').length > 160 ? '…' : ''}</p></div>`,
-  ).join('');
-  const more = unread.length > 3 ? `<p class="field-hint">+ ${unread.length - 3} more in your inbox</p>` : '';
-  showWelcomeModal(
-    unread.length === 1 ? 'New message for you' : `${unread.length} new messages`,
-    `${preview}${more}`,
-    { onDismiss: () => {
-      markInboxRead(userId, unread.map(m => m.id));
-      if(typeof openInboxDrawer === 'function') openInboxDrawer();
-    }},
-  );
+  if(typeof updateInboxBadge === 'function') updateInboxBadge();
 }
 
 async function markInboxRead(userId, ids){
@@ -1125,11 +1108,7 @@ async function fetchVisitorData(){
 }
 
 function maybeShowInboxPopupOnLoad(){
-  const userId = getInboxUserId();
-  if(!userId || isCreatingCard()) return;
-  const unread = getUnreadInboxForUser(userId);
-  if(!unread.length) return;
-  setTimeout(() => showUnreadInboxPopup(userId), 500);
+  if(typeof updateInboxBadge === 'function') updateInboxBadge();
 }
 
 async function postVisitorData(action, data){
@@ -1342,55 +1321,84 @@ function getInstructionsHtml(){
 
 function buildDefaultInstructionsHtml(){
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing Gray's site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed.</p></div>`;
+    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed.</p></div>`;
   }
   const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make my profile →</button>` : '';
   const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : '';
   const loginBtn = isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : '';
   return `
     <div class="instructions-panel sketch-card instructions-gray-voice instructions-full">
-      <p class="instructions-kicker">How this works</p>
-      <p class="instructions-p">Gray is the <strong>Player</strong> — you're a <strong>Coder</strong>. Gray's life is the game world; you play alongside with your own profile, quests, messages, and collection.</p>
+      <p class="instructions-kicker">From me to you</p>
+      <p class="instructions-p">I'm the <strong>Player</strong> — you're a <strong>Coder</strong>. My life is the game world. You play alongside with your own profile, quests, messages, and collection. Poke around my site first, then use the game sidebar when you're ready.</p>
 
       <h3 class="viewer-wizard-title">Getting started</h3>
       <ol class="instructions-steps">
-        <li><strong>Make my profile</strong> — summon your coder card (character + spirit animal). Pick a unique console key.</li>
-        <li><strong>Log in</strong> each visit with name + key, or console <code>Name::key</code>.</li>
-        <li>Explore Gray's site (Coming To You Live, Daily Log scrapbook, cards, Press) — then use the game sidebar to play.</li>
+        <li><strong>Make my profile</strong> — summon your coder card (character + spirit animal). Pick a console key only you know.</li>
+        <li><strong>Log in</strong> each visit with name + key, or type <code>Name::key</code> in the console.</li>
+        <li>Flip through my Daily Log scrapbook, watch Coming To You Live, browse my decks — then play from the sidebar.</li>
       </ol>
 
-      <h3 class="viewer-wizard-title">Game sidebar (coders)</h3>
+      <h3 class="viewer-wizard-title">Game sidebar</h3>
       <ul class="instructions-nav-list">
-        <li><strong>My Profile</strong> — your flip card, XP chips, updates (photo/video live capture), collection, gallery</li>
-        <li><strong>Quests</strong> — send missions: places, food, comfort, media recs, or <strong>code something new into the website</strong> (+25 XP, +75 when Gray completes)</li>
-        <li><strong>Messages</strong> — DM Gray or <strong>friends</strong> (collect coder cards in Collection first)</li>
-        <li><strong>Chat</strong> — live room; your updates echo here automatically</li>
-        <li><strong>Community</strong> — public pinboard with polls and media</li>
+        <li><strong>My Profile</strong> — your flip card, neon side banners for updates, photos, friends, skills, media, places</li>
+        <li><strong>Quests</strong> — send me missions: places, food, comfort, media recs, or <strong>code something new into the website</strong></li>
+        <li><strong>Messages</strong> — DM me or friends you've collected as coder cards</li>
+        <li><strong>Chat</strong> — live room; your public updates echo here automatically</li>
+        <li><strong>Community</strong> — pinboard with polls and media</li>
         <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, calls, birthdays…)</li>
       </ul>
 
       <h3 class="viewer-wizard-title">Collection</h3>
-      <p class="instructions-p">Build <strong>place</strong>, <strong>skill</strong>, and <strong>media</strong> cards (Pokémon-style flips). Collect other <em>coders'</em> cards as <strong>friends</strong> — you can't invent new people, only link accounts that already exist. Friends show up in Messages.</p>
+      <p class="instructions-p">Build <strong>place</strong>, <strong>skill</strong>, and <strong>media</strong> flip cards. Collect other coders' cards as <strong>friends</strong> from Coder Cards — you can't invent new people, only link accounts that exist. Friends unlock in Messages.</p>
 
       <h3 class="viewer-wizard-title">The Press</h3>
-      <p class="instructions-p">Write an article on The Press page and submit — <strong>Gray reads everything</strong> and chooses what gets published.</p>
+      <p class="instructions-p">Write an article on The Press page and submit — <strong>I read everything</strong> and choose what gets published.</p>
 
       <h3 class="viewer-wizard-title">XP &amp; levelling</h3>
-      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection, and card edits earn XP automatically. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually.</p>
+      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection, and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually.</p>
 
-      <h3 class="viewer-wizard-title">Gray's world (everyone)</h3>
+      <h3 class="viewer-wizard-title">My world (everyone)</h3>
       <ul class="instructions-nav-list">
-        <li><strong>Player Profile</strong> — Gray's hero card and stats</li>
-        <li><strong>Coming To You Live</strong> — live transmission; when the day ends it becomes the sealed transmission log</li>
-        <li><strong>Daily Log</strong> — scrapbook of each day (pulses, photos, writing stuck on like stickers)</li>
-        <li><strong>Place / Coder / Skill / Media Cards</strong> — Gray's decks</li>
+        <li><strong>Player Profile</strong> — my hero card and stats</li>
+        <li><strong>Coming To You Live</strong> — live transmission; when I seal the day it becomes the log</li>
+        <li><strong>Daily Log</strong> — scrapbook pages: pulses, photos, writing stuck on like stickers</li>
+        <li><strong>Place / Coder / Skill / Media Cards</strong> — my decks; click any coder to view their profile</li>
         <li><strong>Photo Wall</strong> — flip photos</li>
+        <li><strong>Video Log</strong> — my video notes (I post; you can watch anytime)</li>
       </ul>
-      <p class="instructions-p instructions-note">Only Gray (Player mode) gets System Overload, Video Log, and the vault.</p>
       ${cardBtn}
       ${questBtn}
       ${loginBtn}
     </div>`;
+}
+
+function renderCoderComposeForm(){
+  return `<section class="live-pulse-board coder-update-board sketch-card">
+    <div class="live-pulse-head">
+      <div>
+        <h3 class="live-pulse-title">Drop an update</h3>
+        <p class="live-pulse-hint">Public → Community + chat. Private → my inbox. Snap photo or video live with the buttons below.</p>
+      </div>
+    </div>
+    <form id="playerStatusForm" class="coder-update-form">
+      <div class="field"><label>What's happening?</label><textarea id="playerStatusText" rows="3" required placeholder="working on… feeling… just saw…"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Visibility</label>
+          <select id="playerStatusVis">
+            <option value="public">Public — Community + chat</option>
+            <option value="private">Private — message Gray</option>
+          </select>
+        </div>
+        <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
+      </div>
+      <div class="pin-media-btns coder-media-btns">
+        <button type="button" class="btn pulse-quick-btn" id="statusTakePhoto">📷 Take photo now</button>
+        <button type="button" class="btn pulse-quick-btn" id="statusTakeVideo">🎬 Record video now</button>
+      </div>
+      <div id="statusMediaPreview" class="pin-media-preview hidden"></div>
+      <button type="submit" class="btn primary">Post update</button>
+    </form>
+  </section>`;
 }
 
 function logCoderActivity(type, payload = {}){
@@ -1728,93 +1736,21 @@ const ViewerWorld = {
       return;
     }
 
-    const lvl = coderLevelFromPoints(mine.points);
-    const myRank = typeof getCoderXpRank === 'function' ? getCoderXpRank(mine.id) : null;
-    const myRankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(myRank) : null;
-    const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(mine) : String(mine.points || 0);
-    const myPosts = typeof getCoderPosts === 'function' ? getCoderPosts(mine.id).filter(p => p.characterId === mine.id) : [];
-    const myQuests = typeof getCoderQuests === 'function' ? getCoderQuests(mine.id) : (state.quests || []).filter(q => q.fromCharacterId === mine.id);
-    const galleryHtml = typeof renderCoderGalleryGrid === 'function' ? renderCoderGalleryGrid(mine.id) : '';
-    const profNeon = mine.cardColor || '#fcd34d';
-    const lvlPct = Math.round((lvl.progress || 0) * 100);
-    host.innerHTML = `
-      <div class="coder-profile-live" style="--cp-neon:${esc(profNeon)}">
-        <div class="profile-hero-wrap coder-profile-stage-wrap">
-          <div class="about-stage profile-stage coder-profile-stage">
-            <div class="coder-profile-card-slot">${typeof buildFlipPlayerCard === 'function' ? buildFlipPlayerCard(mine, 'character', 0, { accent: mine.cardColor, xpRank: myRank, rankNeon: myRankNeon }) : ''}</div>
-            <div class="profile-id-strip coder-profile-chips">
-              <span class="profile-id-chip" style="--pic-neon:${esc(profNeon)}">${xpDisplay} XP</span>
-              <span class="profile-id-chip" style="--pic-neon:#3ad6e0">LV ${lvl.level}</span>
-              ${myRank && myRank <= 3 && myRankNeon ? `<span class="profile-id-chip" style="--rank-neon:${esc(myRankNeon)}">#${myRank} deck</span>` : myRank ? `<span class="profile-id-chip">#${myRank}</span>` : ''}
-              <button type="button" class="btn profile-id-chip profile-edit-chip" id="editMyCardBtn">Edit profile</button>
-            </div>
-            <div class="coder-profile-level-bar">
-              <div class="profile-level-track"><div class="profile-level-fill" style="width:${lvlPct}%"></div></div>
-              <span class="profile-xp-next">${lvl.xpToNext} XP to next level</span>
-            </div>
-          </div>
-        </div>
-        <section class="live-pulse-board coder-update-board sketch-card">
-          <div class="live-pulse-head">
-            <div>
-              <h3 class="live-pulse-title">Drop an update</h3>
-              <p class="live-pulse-hint">Public → Community + chat. Private → Gray's inbox. <strong>Record photo or video now</strong> with the buttons below.</p>
-            </div>
-          </div>
-          <form id="playerStatusForm" class="coder-update-form">
-            <div class="field"><label>What's happening?</label><textarea id="playerStatusText" rows="3" required placeholder="working on… feeling… just saw…"></textarea></div>
-            <div class="field-row">
-              <div class="field"><label>Visibility</label>
-                <select id="playerStatusVis">
-                  <option value="public">Public — Community + chat</option>
-                  <option value="private">Private — message Gray</option>
-                </select>
-              </div>
-              <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
-            </div>
-            <div class="pin-media-btns coder-media-btns">
-              <button type="button" class="btn pulse-quick-btn" id="statusTakePhoto">📷 Take photo now</button>
-              <button type="button" class="btn pulse-quick-btn" id="statusTakeVideo">🎬 Record video now</button>
-            </div>
-            <div id="statusMediaPreview" class="pin-media-preview hidden"></div>
-            <button type="submit" class="btn primary">Post update</button>
-          </form>
-        </section>
-        <nav class="my-card-tabs profile-tabs coder-profile-tabs">
-          <button type="button" class="btn my-card-tab is-active" data-mc-tab="posts">Updates (${myPosts.length})</button>
-          <button type="button" class="btn my-card-tab" data-mc-tab="gallery">Photos</button>
-          <button type="button" class="btn my-card-tab" data-mc-tab="collection">Collection</button>
-          <button type="button" class="btn my-card-tab" data-mc-tab="quests">Quests (${myQuests.length})</button>
-        </nav>
-        <section class="my-card-panel is-active" data-mc-panel="posts">
-          ${renderCoderUpdateFeed(myPosts, profNeon)}
-        </section>
-        <section class="my-card-panel" data-mc-panel="gallery">${galleryHtml}</section>
-        <section class="my-card-panel" data-mc-panel="collection">${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(mine.id) : ''}</section>
-        <section class="my-card-panel" data-mc-panel="quests">
-          <ul class="my-card-quest-list quest-mini-list">${myQuests.map(q => {
-            const type = QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5];
-            return `<li class="quest-mini-row" style="--qc-neon:${type.neon}"><span class="quest-mini-type">${type.icon} ${esc(type.label)}</span><strong>${esc(q.title)}</strong><span class="quest-mini-st">${esc(q.status)}</span></li>`;
-          }).join('') || '<li class="empty-hint">No quests sent yet — head to Quests.</li>'}</ul>
-        </section>
-        <div class="viewer-card-stats sketch-card profile-stats-strip">
-          <div class="vcs-row"><span>Quests sent</span><strong>${mine.questsSent || 0}</strong></div>
-          <div class="vcs-row"><span>Quests completed</span><strong>${mine.questsCompleted || 0}</strong></div>
-          ${mine.birthday ? `<div class="vcs-row"><span>Birthday</span><strong>${formatBirthdayDisplay(mine.birthday)}</strong></div>` : ''}
-        </div>
-      </div>`;
+    host.innerHTML = typeof renderCoderProfileShell === 'function'
+      ? renderCoderProfileShell(mine, { isMine: true, showCompose: true })
+      : '';
+    const composeSlot = host.querySelector('#coderComposeSlot');
+    if(composeSlot) composeSlot.innerHTML = renderCoderComposeForm();
+    if(typeof GameHub !== 'undefined'){
+      const frHost = host.querySelector('.profile-site-main');
+      const frHtml = GameHub.renderFriendRequestInbox(mine.id);
+      if(frHost && frHtml) frHost.insertAdjacentHTML('afterbegin', frHtml);
+      GameHub.bindFriendRequests(host);
+    }
+    if(typeof bindCoderProfileSite === 'function') bindCoderProfileSite(host, mine.id, { isMine: true });
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => this.openMyCardEditor(mine.id));
-    host.querySelectorAll('.my-card-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        host.querySelectorAll('.my-card-tab').forEach(t => t.classList.remove('is-active'));
-        host.querySelectorAll('.my-card-panel').forEach(p => p.classList.remove('is-active'));
-        tab.classList.add('is-active');
-        host.querySelector(`[data-mc-panel="${tab.dataset.mcTab}"]`)?.classList.add('is-active');
-      });
-    });
     host.querySelector('#playerStatusForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitPlayerStatus(); });
-    if(typeof GameHub !== 'undefined') GameHub.bindProfileCollections(host, mine.id);
     host.querySelector('#statusTakePhoto')?.addEventListener('click', () => {
       if(typeof MediaCapture === 'undefined') return;
       MediaCapture.open({ mode: 'photo', onResult: r => { this.statusMedia = { photo: r.dataUrl, video: '' }; this.renderStatusMediaPreview(); }});
@@ -2342,7 +2278,13 @@ const ViewerWorld = {
 
   renderVlog(){
     const host = document.getElementById('vlogSpread');
+    const hint = document.getElementById('vlogViewHint');
     if(!host) return;
+    if(hint){
+      hint.textContent = isAdmin()
+        ? 'Your video notes — everyone can watch. Record or upload below.'
+        : 'Video notes from me — watch anytime. Only I can post new entries.';
+    }
     const entries = (state.videoDiary || []).slice().reverse();
     let html = '';
     if(isAdmin()){

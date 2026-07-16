@@ -120,18 +120,12 @@ function unlockAdmin(opts = {}){
 
 function syncCornerFabVisibility(){
   const admin = isAdmin();
-  const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const stack = document.querySelector('.corner-fab-stack');
-  const inboxFab = document.getElementById('inboxFab');
   const rewardsFab = document.getElementById('grayRewardsFab');
 
   if(stack){
-    stack.classList.toggle('hidden', !admin && !canInbox);
-    stack.setAttribute('aria-hidden', (!admin && !canInbox) ? 'true' : 'false');
-  }
-  if(inboxFab){
-    inboxFab.hidden = !canInbox;
-    inboxFab.style.display = canInbox && !admin ? 'flex' : (admin ? 'none' : 'none');
+    stack.classList.toggle('hidden', !admin);
+    stack.setAttribute('aria-hidden', admin ? 'false' : 'true');
   }
   if(rewardsFab){
     rewardsFab.classList.remove('hidden');
@@ -983,15 +977,9 @@ const DailyLog = {
     document.getElementById('logEditHint').textContent = `Editing ${fmtDateLong(key)}`;
 
     const preview = document.getElementById('ledgerDayPreview');
-    const stream = getDayStream(key);
     if(preview){
-      if(stream.endedAt || getPlannedTodosForDay(key).length){
-        preview.classList.remove('hidden');
-        preview.innerHTML = buildDayDetailHTML(key, e);
-      } else {
-        preview.classList.add('hidden');
-        preview.innerHTML = '';
-      }
+      preview.classList.add('hidden');
+      preview.innerHTML = '';
     }
 
     this.renderPlannedSection(key);
@@ -2462,6 +2450,11 @@ function navigateToView(view){
   }
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
   if(view === 'vlog' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
+  if(view === 'ledger'){
+    setLogViewMode('book');
+    if(!getLogFocusKey()) setLogFocusKey(todayKey());
+    renderLedger();
+  }
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
   if(view === 'sync' && isAdmin()) scheduleLiveViewRefresh();
 }
@@ -2496,7 +2489,6 @@ function bootApp(){
   try{ initCommunityCommentModal(); }catch(err){ console.error('Community comment modal failed:', err); }
   document.getElementById('toggleCoderNotify')?.addEventListener('click', toggleCoderNotify);
   document.getElementById('coderNotifyBackdrop')?.addEventListener('click', closeCoderNotify);
-  document.getElementById('inboxFab')?.addEventListener('click', toggleInboxDrawer);
   document.getElementById('inboxDrawerBackdrop')?.addEventListener('click', closeInboxDrawer);
   document.getElementById('closeInboxDrawer')?.addEventListener('click', closeInboxDrawer);
   document.getElementById('grayRewardsFab')?.addEventListener('click', toggleGrayRewardsDrawer);
@@ -4006,30 +3998,107 @@ function getPulseNodeTitle(node){
   return node.text || '';
 }
 
+function scrapItemLayout(i){
+  const slots = [
+    { left: 3, top: 4, z: 2, rot: -5.2, w: 240 },
+    { left: 34, top: 2, z: 4, rot: 3.1, w: 220 },
+    { left: 62, top: 10, z: 3, rot: -2.8, w: 200 },
+    { left: 6, top: 34, z: 6, rot: 4.5, w: 280 },
+    { left: 42, top: 28, z: 7, rot: -4.1, w: 260 },
+    { left: 68, top: 38, z: 5, rot: 2.2, w: 210 },
+    { left: 14, top: 58, z: 8, rot: -3.6, w: 250 },
+    { left: 48, top: 54, z: 6, rot: 5.4, w: 230 },
+    { left: 72, top: 62, z: 4, rot: -1.8, w: 190 },
+    { left: 24, top: 76, z: 5, rot: 3.8, w: 270 },
+  ];
+  const s = slots[i % slots.length];
+  const bump = Math.floor(i / slots.length) * 14;
+  return { left: s.left, top: s.top + bump, z: s.z + Math.floor(i / slots.length), rot: s.rot + ((i % 3) - 1) * 0.8, w: s.w };
+}
+
 function buildPulseScrapSticker(node, i, refDayKey){
   const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
-  const rot = ((i % 7) * 1.6 - 4.8).toFixed(1);
-  const left = ((i * 19 + 3) % 58).toFixed(0);
-  const top = ((i * 27 + 5) % 42).toFixed(0);
+  const lay = scrapItemLayout(i);
   const title = getPulseNodeTitle(node);
   const body = node.body || node.data?.body || '';
-  const isWriting = ['note', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (body && body.length > 100);
-  const sizeClass = isWriting ? 'is-writing' : (node.photo ? 'is-photo' : '');
+  const isWriting = ['note', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (body && body.length > 80);
   const when = fmtNodeStamp(node.at, refDayKey);
-  return `<article class="day-scrap-sticker ${sizeClass}" style="--ds-neon:${meta.neon};--ds-rot:${rot}deg;--ds-left:${left}%;--ds-top:${top}%">
-    <div class="day-scrap-tape" aria-hidden="true"></div>
-    <header class="day-scrap-sticker-head">
-      <span class="day-scrap-type">${meta.icon} ${meta.label}</span>
+  const tapeRot = ((i % 4) * 4 - 6).toFixed(1);
+  return `<article class="cyber-scrap-item cyber-scrap-note${isWriting ? ' is-writing' : ''}${node.photo ? ' has-photo' : ''}" style="--cs-neon:${meta.neon};--cs-rot:${lay.rot}deg;--cs-left:${lay.left}%;--cs-top:${lay.top}%;--cs-z:${lay.z};--cs-w:${isWriting ? Math.min(lay.w + 80, 360) : lay.w}px">
+    <div class="cyber-tape" style="--tape-rot:${tapeRot}deg" aria-hidden="true"></div>
+    <header class="cyber-scrap-head">
+      <span class="cyber-scrap-type">${meta.icon} ${meta.label}</span>
       <time>${esc(when)}</time>
     </header>
-    ${title ? `<h4 class="day-scrap-title">${esc(title)}</h4>` : ''}
-    ${body ? `<div class="day-scrap-body">${esc(body)}</div>` : ''}
-    ${!body && node.text && node.text !== title ? `<p class="day-scrap-text">${esc(node.text)}</p>` : ''}
-    ${node.photo ? `<div class="day-scrap-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : ''}
+    ${title ? `<h4 class="cyber-scrap-title">${esc(title)}</h4>` : ''}
+    ${body ? `<div class="cyber-scrap-body cyber-hand">${esc(body)}</div>` : ''}
+    ${!body && node.text && node.text !== title ? `<p class="cyber-scrap-text cyber-hand">${esc(node.text)}</p>` : ''}
+    ${node.photo ? `<div class="cyber-scrap-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : ''}
   </article>`;
 }
 
-function buildDayScrapbookHTML(key, e){
+function renderScrapbookDoneTodos(key){
+  const todos = getPlannedTodosForDay(key).filter(t => t.done);
+  if(!todos.length) return '';
+  return `<div class="cyber-pocket cyber-pocket--done">
+    <div class="cyber-pocket-flap">done today</div>
+    <ul class="cyber-pocket-list">${todos.map((t, i) => {
+      const rot = ((i % 4) * 1.6 - 2.4).toFixed(1);
+      return `<li class="cyber-pocket-slip" style="--slip-rot:${rot}deg"><span>✓</span>${esc(t.text)}</li>`;
+    }).join('')}</ul>
+  </div>`;
+}
+
+function renderScrapbookPendingTodos(key){
+  const todos = getPlannedTodosForDay(key).filter(t => !t.done);
+  if(!todos.length) return '';
+  return `<div class="cyber-pocket cyber-pocket--pending">
+    <div class="cyber-pocket-flap">still on the list</div>
+    <ul class="cyber-pocket-list">${todos.map(t => `<li class="cyber-pocket-slip is-pending">${esc(t.text)}</li>`).join('')}</ul>
+  </div>`;
+}
+
+function buildScrapbookChrome(key, nav = {}){
+  const d = new Date(key + 'T12:00:00');
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+  const monthYear = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const prevKey = nav.prevKey || addDaysToKey(key, -1);
+  const nextKey = nav.nextKey || addDaysToKey(key, 1);
+  return `<header class="cyber-scrap-chrome">
+    <button type="button" class="btn cyber-scrap-flip" data-scrap-day="${prevKey}" aria-label="Previous day">‹ flip</button>
+    <div class="cyber-scrap-date">
+      <span class="cyber-scrap-weekday">${esc(weekday)}</span>
+      <span class="cyber-scrap-month">${esc(monthYear)}</span>
+    </div>
+    <button type="button" class="btn cyber-scrap-flip" data-scrap-day="${nextKey}" aria-label="Next day">flip ›</button>
+  </header>`;
+}
+
+function buildEmptyScrapbookPage(key, nav){
+  const d = new Date(key + 'T12:00:00');
+  return `<div class="cyber-scrapbook">
+    <div class="cyber-scrap-page">
+      <div class="cyber-scrap-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+      ${buildScrapbookChrome(key, nav)}
+      <div class="cyber-scrap-spread">
+        <aside class="cyber-scrap-pocket-panel">
+          <div class="cyber-pocket cyber-pocket--transmission">
+            <div class="cyber-pocket-flap">// transmission</div>
+            <p class="cyber-pocket-empty">Nothing yet — start on Coming To You Live.</p>
+          </div>
+          ${renderScrapbookDoneTodos(key)}
+        </aside>
+        <main class="cyber-scrap-main">
+          <div class="cyber-kraft-surface">
+            <p class="cyber-scrap-empty">Blank page · ${esc(d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))}<br>Posts from CTYL stick here live — writing, photos, everything haphazard.</p>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildDayScrapbookHTML(key, e, nav = {}){
   const n = normalizeEntry(e);
   const stream = getDayStream(key);
   const planned = getPlannedTodosForDay(key);
@@ -4037,91 +4106,81 @@ function buildDayScrapbookHTML(key, e){
   const completed = !!stream.endedAt;
   const pulses = stream.nodes.filter(nd => nd.type !== 'wake' && nd.type !== 'sleep');
   const hasContent = !!(moodId || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || pulses.length || n.dayReflection?.favoriteThing || planned.length);
-  if(!hasContent){
-    return '<p class="empty-day">No scraps yet — start your day on Coming To You Live, drop pulses (<strong>Big update</strong> for long writing), then seal the day.</p>';
-  }
+  if(!hasContent) return buildEmptyScrapbookPage(key, nav);
+
   const duration = fmtDayDuration(stream) || fmtDurationMs(n.daySummary?.durationMs);
   const deltas = n.daySummary?.deltas?.length ? n.daySummary.deltas : computeDayScoreDeltas(key);
+  const stickerStart = pulses.length;
+  const photoStickers = (n.photos || []).map((p, i) => {
+    const src = typeof p === 'string' ? p : p.src;
+    const idx = stickerStart + i;
+    const lay = scrapItemLayout(idx);
+    return `<figure class="cyber-scrap-item cyber-scrap-polaroid" style="--cs-rot:${(lay.rot + 2).toFixed(1)}deg;--cs-left:${lay.left}%;--cs-top:${(lay.top + 4)}%;--cs-z:${lay.z + 1}">
+      <div class="cyber-tape" aria-hidden="true"></div>
+      <img src="${esc(src)}" alt="" loading="lazy">
+    </figure>`;
+  }).join('');
 
-  let html = `<div class="day-scrapbook-page" style="--db-mood:${moodColor(moodId)}">
-    <header class="day-scrapbook-cover">
-      <span class="day-scrapbook-status${completed ? ' is-sealed' : ''}">${completed ? '◉ Transmission sealed' : '◎ Day in progress'}</span>
-      <h3 class="day-scrapbook-date">${fmtDateLong(key)}</h3>
-      ${moodId ? `<span class="day-scrapbook-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
-      ${stream.startedAt ? `<span class="day-scrapbook-span">Wake ${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → Sleep ${fmtNodeStamp(stream.endedAt, key)}` : ''}${duration ? ` · ${duration}` : ''}</span>` : ''}
-    </header>
-    ${renderDayScoreChips(deltas)}
-    ${renderDayReflectionHTML(n.dayReflection)}`;
+  const statusStamp = completed ? 'SEALED' : (stream.startedAt ? 'LIVE' : 'OPEN');
+  const spanLine = stream.startedAt
+    ? `${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → ${fmtNodeStamp(stream.endedAt, key)}` : ''}${duration ? ` · ${duration}` : ''}`
+    : '';
 
-  if(pulses.length){
-    html += `<section class="day-scrapbook-transmission">
-      <h4 class="day-scrapbook-section-kicker">${completed ? 'Transmission log' : 'Live transmission'}</h4>
-      <div class="day-transmission-rail">${HomeCheckIn.renderTimeline(stream, key)}</div>
-    </section>
-    <section class="day-scrapbook-board">
-      <h4 class="day-scrapbook-section-kicker">Scrapbook</h4>
-      <div class="day-scrapbook-canvas">
-        ${pulses.map((node, i) => buildPulseScrapSticker(node, i, key)).join('')}
-        ${(n.photos || []).map((p, i) => {
-          const src = typeof p === 'string' ? p : p.src;
-          const rot = ((i * 4.3) % 12 - 6).toFixed(1);
-          const left = ((i * 31 + 8) % 55).toFixed(0);
-          const top = ((i * 22 + 12) % 50).toFixed(0);
-          return `<figure class="day-scrap-polaroid" style="--ds-rot:${rot}deg;--ds-left:${left}%;--ds-top:${top}%"><img src="${esc(src)}" alt="" loading="lazy"></figure>`;
-        }).join('')}
+  return `<div class="cyber-scrapbook" style="--db-mood:${moodColor(moodId)}">
+    <div class="cyber-scrap-page">
+      <div class="cyber-scrap-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+      ${buildScrapbookChrome(key, nav)}
+      <div class="cyber-scrap-stamp${completed ? ' is-sealed' : ''}" aria-hidden="true">${statusStamp}</div>
+      ${moodId ? `<div class="cyber-mood-wax" style="--wax-color:${moodColor(moodId)}" title="${esc(moodLabel(moodId))}">${moodIcon(moodId)}</div>` : ''}
+      ${spanLine ? `<div class="cyber-scrap-span">${esc(spanLine)}</div>` : ''}
+      ${renderDayScoreChips(deltas)}
+      <div class="cyber-scrap-spread">
+        <aside class="cyber-scrap-pocket-panel">
+          <div class="cyber-pocket cyber-pocket--transmission">
+            <div class="cyber-pocket-flap">${completed ? 'transmission log' : 'live transmission'}</div>
+            <div class="cyber-pocket-timeline">${pulses.length ? HomeCheckIn.renderTimeline(stream, key) : '<p class="cyber-pocket-empty">No pulses yet.</p>'}</div>
+          </div>
+          ${renderScrapbookDoneTodos(key)}
+          ${renderScrapbookPendingTodos(key)}
+        </aside>
+        <main class="cyber-scrap-main">
+          <div class="cyber-kraft-surface">
+            <div class="cyber-scrap-canvas">
+              ${pulses.map((node, i) => buildPulseScrapSticker(node, i, key)).join('')}
+              ${photoStickers}
+              ${n.diary ? `<section class="cyber-scrap-item cyber-scrap-diary" style="--cs-left:8%;--cs-top:82%;--cs-z:9;--cs-rot:-2deg;--cs-w:320px"><div class="cyber-tape" aria-hidden="true"></div><h4>diary</h4><p class="cyber-hand">${esc(n.diary)}</p></section>` : ''}
+            </div>
+            ${renderDayReflectionHTML(n.dayReflection)}
+          </div>
+        </main>
       </div>
-    </section>`;
-  }
-  if(n.diary){
-    html += `<section class="day-scrap-diary sketch-card"><h4>Diary</h4><p>${esc(n.diary)}</p></section>`;
-  }
-  html += `</div>`;
-  return html;
+    </div>
+  </div>`;
 }
 
-function renderLogMiniCalendar(focusKey){
-  const [y, m] = focusKey.split('-').map(Number);
-  const year = y;
-  const month = m - 1;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const tk = todayKey();
-  let cells = '';
-  for(let d = 1; d <= daysInMonth; d++){
-    const key = dayKeyFromParts(year, month, d);
-    const stats = daySummaryStats(key);
-    cells += `<button type="button" class="log-mini-day${stats.hasEntry ? ' has-entry' : ''}${stats.sealed ? ' is-sealed' : ''}${key === focusKey ? ' is-focus' : ''}${key === tk ? ' is-today' : ''}" data-log-day="${key}" title="${fmtDateLong(key)}">${d}</button>`;
-  }
-  const monthLabel = new Date(year, month, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-  return `<div class="log-mini-cal">
-    <span class="log-mini-cal-label">${monthLabel}</span>
-    <div class="log-mini-cal-grid">${cells}</div>
-  </div>`;
+function bindScrapbookNav(host){
+  if(!host) return;
+  host.querySelectorAll('[data-scrap-day]').forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.scrapDay;
+      setLogFocusKey(k);
+      if(isAdmin() && typeof DailyLog !== 'undefined') DailyLog.selectDay(k);
+      else renderLedger();
+    });
+  });
 }
 
 function renderLogBook(){
   const grid = document.getElementById('logCalendar');
-  const label = document.getElementById('monthLabel');
-  const tally = document.getElementById('logTally');
   if(!grid) return;
-  const key = getLogFocusKey();
+  const key = getLogFocusKey() || todayKey();
+  if(!getLogFocusKey()) setLogFocusKey(key);
   const e = state.entries[key];
-  if(label) label.textContent = fmtDateLong(key);
-  if(tally) tally.textContent = `${countLoggedDays()} day${countLoggedDays() === 1 ? '' : 's'} logged · scrapbook`;
-  const prevKey = addDaysToKey(key, -1);
-  const nextKey = addDaysToKey(key, 1);
-  grid.innerHTML = `<div class="log-book-wrap">
-    <aside class="log-book-picker sketch-card" aria-label="Pick a day">
-      ${renderLogMiniCalendar(key)}
-      <p class="log-book-picker-hint">Tap a day — flip through like a scrapbook.</p>
-    </aside>
-    <main class="log-book-main">
-      <nav class="log-book-nav">
-        <button type="button" class="btn" data-log-day="${prevKey}">← ${fmtDateLong(prevKey).split(',')[0]}</button>
-        <button type="button" class="btn" data-log-day="${nextKey}">${fmtDateLong(nextKey).split(',')[0]} →</button>
-      </nav>
-      <div class="log-book-spread">${e ? buildDayScrapbookHTML(key, e) : `<p class="empty-hint">No entry for ${fmtDateLong(key)} yet.</p>`}</div>
-    </main>
-  </div>`;
+  const nav = { prevKey: addDaysToKey(key, -1), nextKey: addDaysToKey(key, 1) };
+  grid.innerHTML = e ? buildDayScrapbookHTML(key, e, nav) : buildEmptyScrapbookPage(key, nav);
+  bindScrapbookNav(grid);
 }
 
 function buildDayDetailHTML(key, e){
@@ -4211,21 +4270,9 @@ function renderLogDayFocus(){
   grid.innerHTML = `<div class="log-day-focus">${buildDayDetailHTML(key, e)}</div>`;
 }
 
-function syncLogNavControls(){
-  const mode = getLogViewMode();
-  document.getElementById('logCalNavMonth')?.classList.toggle('hidden', mode !== 'month');
-  document.getElementById('logCalNavWeek')?.classList.toggle('hidden', mode !== 'week');
-  document.getElementById('logCalNavDay')?.classList.toggle('hidden', mode !== 'day' && mode !== 'book');
-  document.querySelectorAll('[data-log-view]').forEach(b => b.classList.toggle('is-active', b.dataset.logView === mode));
-}
-
 function renderLedger(){
-  syncLogNavControls();
-  const mode = getLogViewMode();
-  if(mode === 'book') renderLogBook();
-  else if(mode === 'week') renderLogWeek();
-  else if(mode === 'day') renderLogDayFocus();
-  else renderLogCalendar();
+  setLogViewMode('book');
+  renderLogBook();
 }
 
 function deleteLogDay(key, opts = {}){
@@ -4340,84 +4387,156 @@ function renderCoderGalleryGrid(coderId){
     </figure>`).join('')}</div>`;
 }
 
+function renderCoderProfileShell(c, opts = {}){
+  const coderId = c.id;
+  const accent = c.cardColor || '#e94ff5';
+  const rank = typeof getCoderXpRank === 'function' ? getCoderXpRank(coderId) : null;
+  const rankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rank) : accent;
+  const lvl = typeof coderLevelFromPoints === 'function' ? coderLevelFromPoints(c.points || 0) : { level: 0, progress: 0, xpToNext: 100 };
+  const online = typeof isCoderOnline === 'function' && isCoderOnline(coderId);
+  const rankMap = typeof getCoderXpRankMap === 'function' ? getCoderXpRankMap() : new Map();
+  const card = typeof buildFlipPlayerCard === 'function'
+    ? buildFlipPlayerCard(c, 'character', 0, { accent, xpRank: rankMap.get(coderId), rankNeon, isOnline: online })
+    : '';
+  const isMine = opts.isMine || (typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId);
+  const posts = getCoderPosts(coderId).filter(p => p.characterId === coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+  const quests = getCoderQuests(coderId);
+  const lvlPct = Math.round((lvl.progress || 0) * 100);
+  const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(c) : String(c.points || 0);
+  const sections = [
+    { id: 'updates', label: 'Updates', icon: '◎', neon: '#fcd34d' },
+    { id: 'photos', label: 'Photos', icon: '▣', neon: '#a78bfa' },
+    { id: 'friends', label: 'Friends', icon: '♥', neon: '#f43f8e' },
+    { id: 'skills', label: 'Skills', icon: '◆', neon: '#38bdf8' },
+    { id: 'media', label: 'Media', icon: '◈', neon: '#22d3ee' },
+    { id: 'places', label: 'Places', icon: '◇', neon: '#4ade80' },
+    { id: 'quests', label: 'Quests', icon: '✦', neon: '#fb923c' },
+  ];
+  const railHtml = sections.map((s, i) =>
+    `<button type="button" class="profile-rail-banner${i === 0 ? ' is-active' : ''}" data-ps-section="${s.id}" style="--pr-neon:${s.neon}"><span class="profile-rail-glow" aria-hidden="true"></span><span class="profile-rail-icon">${s.icon}</span><span class="profile-rail-label">${esc(s.label)}</span></button>`
+  ).join('');
+  const colSection = id => typeof GameHub !== 'undefined' && GameHub.renderCollectionSection
+    ? GameHub.renderCollectionSection(coderId, id)
+    : '';
+  const questHtml = quests.length
+    ? `<ul class="profile-quest-list">${quests.map(q => {
+      const type = typeof QUEST_TYPES !== 'undefined' ? (QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5]) : { neon: '#fb923c', icon: '✦', label: 'Quest' };
+      return `<li class="profile-quest-row" style="--pq-neon:${type.neon}"><span class="profile-quest-type">${type.icon} ${esc(type.label)}</span><strong>${esc(q.title)}</strong><span class="profile-quest-st">${esc(q.status)}</span></li>`;
+    }).join('')}</ul>`
+    : '<p class="empty-hint">No quests sent yet.</p>';
+  const feedHtml = typeof renderCoderUpdateFeed === 'function' ? renderCoderUpdateFeed(posts, accent) : '';
+  return `<div class="profile-site" data-profile-coder="${esc(coderId)}" style="--ps-neon:${esc(accent)}">
+    <header class="profile-site-hero">
+      <div class="profile-site-hero-glow" aria-hidden="true"></div>
+      <div class="profile-site-hero-inner">
+        <div class="profile-site-card">${card}</div>
+        <div class="profile-site-meta">
+          <p class="profile-site-kicker">${online ? '<span class="profile-site-online">● online</span>' : ''}${isMine ? 'my profile' : esc(c.name)}</p>
+          <h2 class="profile-site-name">${esc(c.name)}</h2>
+          <div class="profile-site-chips">
+            <span class="profile-id-chip" style="--pic-neon:${esc(accent)}">${xpDisplay} XP</span>
+            <span class="profile-id-chip" style="--pic-neon:#3ad6e0">LV ${lvl.level}</span>
+            ${rank && rank <= 3 && rankNeon ? `<span class="profile-id-chip" style="--rank-neon:${esc(rankNeon)}">#${rank}</span>` : rank ? `<span class="profile-id-chip">#${rank}</span>` : ''}
+            ${isMine ? '<button type="button" class="btn profile-id-chip profile-edit-chip" id="editMyCardBtn">Edit</button>' : ''}
+          </div>
+          <div class="profile-site-level"><div class="profile-level-track"><div class="profile-level-fill" style="width:${lvlPct}%"></div></div><span class="profile-xp-next">${lvl.xpToNext} XP to next</span></div>
+          <p class="profile-site-blurb">${esc(typeof sanitizeCardDescription === 'function' ? sanitizeCardDescription(c.cardDescription) : (c.cardDescription || c.vibe || ''))}</p>
+          ${!isMine && typeof isCoderLoggedIn === 'function' && isCoderLoggedIn() && typeof GameHub !== 'undefined' ? (() => {
+            const myId = getMyCoderCard()?.id;
+            const rel = myId ? GameHub.getFriendRelation(myId, coderId) : 'none';
+            if(rel === 'friends') return '<span class="profile-friend-status">Friends ✓</span>';
+            if(rel === 'sent') return '<span class="profile-friend-status">Friend request sent…</span>';
+            if(rel === 'received') return `<button type="button" class="btn primary profile-friend-req-btn" data-fr-accept-profile="${esc(coderId)}">Accept friend request</button>`;
+            if(rel === 'none' && myId) return `<button type="button" class="btn profile-friend-req-btn" data-profile-friend="${esc(coderId)}">+ Send friend request</button>`;
+            return '';
+          })() : ''}
+        </div>
+      </div>
+    </header>
+    <div class="profile-site-body">
+      <nav class="profile-side-rail" aria-label="Profile sections">${railHtml}</nav>
+      <main class="profile-site-main">
+        <section class="profile-site-panel is-active" data-ps-panel="updates">
+          ${isMine && opts.showCompose ? '<div class="coder-compose-slot" id="coderComposeSlot"></div>' : ''}
+          ${feedHtml}
+        </section>
+        <section class="profile-site-panel" data-ps-panel="photos">${renderCoderGalleryGrid(coderId)}</section>
+        <section class="profile-site-panel" data-ps-panel="friends">${colSection('friends')}</section>
+        <section class="profile-site-panel" data-ps-panel="skills">${colSection('skills')}</section>
+        <section class="profile-site-panel" data-ps-panel="media">${colSection('media')}</section>
+        <section class="profile-site-panel" data-ps-panel="places">${colSection('places')}</section>
+        <section class="profile-site-panel" data-ps-panel="quests">${questHtml}</section>
+      </main>
+    </div>
+  </div>`;
+}
+
+function bindCoderProfileSite(host, coderId, opts = {}){
+  if(!host) return;
+  host.querySelectorAll('.profile-rail-banner').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const site = btn.closest('.profile-site');
+      if(!site) return;
+      site.querySelectorAll('.profile-rail-banner').forEach(b => b.classList.remove('is-active'));
+      site.querySelectorAll('.profile-site-panel').forEach(p => p.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      site.querySelector(`[data-ps-panel="${btn.dataset.psSection}"]`)?.classList.add('is-active');
+    });
+  });
+  if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
+  if(typeof GameHub !== 'undefined'){
+    GameHub.bindProfileCollections(host, coderId);
+  }
+  bindPollVoteButtons(host);
+  host.querySelectorAll('[data-profile-friend]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+      if(!mine?.id || typeof GameHub === 'undefined') return;
+      GameHub.sendFriendRequest(mine.id, btn.dataset.profileFriend).then(ok => {
+        if(ok){ btn.textContent = 'Request sent…'; btn.disabled = true; }
+      });
+    });
+  });
+  host.querySelectorAll('[data-fr-accept-profile]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+      const fromId = btn.dataset.frAcceptProfile;
+      if(!mine?.id || typeof GameHub === 'undefined') return;
+      const req = (state.friendRequests || []).find(r => r.status === 'pending' && r.fromId === fromId && r.toId === mine.id);
+      if(req) GameHub.respondFriendRequest(req.id, true);
+    });
+  });
+}
+
 function renderCoderBoardPage(coderId){
   const host = document.getElementById('coderBoardSpread');
   if(!host) return;
   const c = getCoderByIdAny(coderId);
   if(!c){ host.innerHTML = '<p class="empty-hint">Player not found.</p>'; return; }
-  const accent = c.cardColor || '#e94ff5';
-  const rank = typeof getCoderXpRank === 'function' ? getCoderXpRank(c.id) : null;
-  const rankNeon = typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rank) : accent;
-  const lvl = typeof coderLevelFromPoints === 'function' ? coderLevelFromPoints(c.points || 0) : { level: 0 };
-  const online = typeof isCoderOnline === 'function' && isCoderOnline(c.id);
-  const rankMap = typeof getCoderXpRankMap === 'function' ? getCoderXpRankMap() : new Map();
-  const card = typeof buildFlipPlayerCard === 'function'
-    ? buildFlipPlayerCard(c, 'character', 0, { xpRank: rankMap.get(c.id), rankNeon, isOnline: online })
-    : '';
-  const posts = getCoderPosts(coderId).filter(p => p.characterId === coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-  const quests = getCoderQuests(coderId);
-  const xpRows = (c.xpHistory || []).slice(0, 16).map(e =>
-    `<li><time>${esc(new Date(e.at).toLocaleString())}</time> +${e.amount} · ${esc(e.label || e.reason)}</li>`
-  ).join('');
-  const quotes = (c.saidQuotes || []).slice(0, 5).map(q =>
-    `<blockquote class="coder-board-quote"><p>${esc(q.text)}</p></blockquote>`
-  ).join('');
-  const postHtml = posts.map(p => renderPinPostFull(p, c.id)).join('');
-  const avatar = c.avatar || c.image;
-  host.innerHTML = `
-    <div class="coder-board-page" style="--cb-neon:${esc(accent)};--cb-rank-neon:${esc(rankNeon)}">
-      <header class="coder-board-hero">
-        <div class="coder-board-hero-bg"></div>
-        <div class="coder-board-hero-inner">
-          <div class="coder-board-avatar">${avatar ? `<img src="${esc(avatar)}" alt="">` : `<span>${esc((c.name || '?').charAt(0))}</span>`}</div>
-          <div class="coder-board-hero-meta">
-            <p class="coder-board-kicker">${online ? '<span class="coder-board-online">● online</span>' : ''}// player profile</p>
-            <h2 class="coder-board-name">${esc(c.name)}</h2>
-            <div class="coder-board-stat-row">
-              <span class="coder-board-xp">${c.points || 0} XP</span>
-              <span class="coder-board-lv">Lv ${lvl.level}</span>
-              ${rank ? `<span class="coder-board-rank" style="--rank-neon:${esc(rankNeon)}">#${rank}</span>` : ''}
-            </div>
-            <p class="coder-board-blurb">${esc(typeof sanitizeCardDescription === 'function' ? sanitizeCardDescription(c.cardDescription) : (c.cardDescription || c.vibe || ''))}</p>
-          </div>
-        </div>
-      </header>
-      <div class="coder-board-card-wrap">${card}</div>
-      <nav class="coder-board-tabs">
-        <button type="button" class="btn coder-board-tab is-active" data-cb-tab="posts">Updates</button>
-        <button type="button" class="btn coder-board-tab" data-cb-tab="gallery">Gallery</button>
-        <button type="button" class="btn coder-board-tab" data-cb-tab="collection">Collection</button>
-        <button type="button" class="btn coder-board-tab" data-cb-tab="quests">Quests</button>
-        <button type="button" class="btn coder-board-tab" data-cb-tab="xp">XP</button>
-      </nav>
-      <section class="coder-board-panel is-active" data-cb-panel="posts">
-        <div class="coder-board-posts">${postHtml || '<p class="empty-hint">No public updates yet.</p>'}</div>
-      </section>
-      <section class="coder-board-panel" data-cb-panel="gallery">
-        ${renderCoderGalleryGrid(coderId)}
-      </section>
-      <section class="coder-board-panel" data-cb-panel="collection">
-        ${typeof GameHub !== 'undefined' ? GameHub.renderProfileCollections(coderId) : ''}
-      </section>
-      <section class="coder-board-panel" data-cb-panel="quests">
-        <ul class="coder-board-quest-list">${quests.map(q => `<li><strong>${esc(q.title)}</strong> <span class="coder-board-quest-status">${esc(q.status)}</span></li>`).join('') || '<li class="empty-hint">No quests sent yet.</li>'}</ul>
-      </section>
-      <section class="coder-board-panel" data-cb-panel="xp">
-        <ul class="coder-profile-xp">${xpRows || '<li>None yet.</li>'}</ul>
-        ${quotes ? `<div class="coder-board-quotes"><h4>Things they've said</h4>${quotes}</div>` : ''}
-      </section>
-    </div>`;
-  if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
-  bindPollVoteButtons(host);
-  if(typeof GameHub !== 'undefined') GameHub.bindProfileCollections(host, coderId);
-  host.querySelectorAll('.coder-board-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      host.querySelectorAll('.coder-board-tab').forEach(t => t.classList.remove('is-active'));
-      host.querySelectorAll('.coder-board-panel').forEach(p => p.classList.remove('is-active'));
-      tab.classList.add('is-active');
-      host.querySelector(`[data-cb-panel="${tab.dataset.cbTab}"]`)?.classList.add('is-active');
+  const isMine = typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId;
+  host.innerHTML = renderCoderProfileShell(c, { isMine, showCompose: isMine });
+  if(isMine){
+    const slot = host.querySelector('#coderComposeSlot');
+    if(slot && typeof renderCoderComposeForm === 'function'){
+      slot.innerHTML = renderCoderComposeForm();
+      slot.querySelector('#playerStatusForm')?.addEventListener('submit', e => {
+        e.preventDefault();
+        if(typeof ViewerWorld !== 'undefined') ViewerWorld.submitPlayerStatus();
+      });
+      slot.querySelector('#statusTakePhoto')?.addEventListener('click', () => {
+        if(typeof MediaCapture === 'undefined' || typeof ViewerWorld === 'undefined') return;
+        MediaCapture.open({ mode: 'photo', onResult: r => { ViewerWorld.statusMedia = { photo: r.dataUrl, video: '' }; ViewerWorld.renderStatusMediaPreview(); }});
+      });
+      slot.querySelector('#statusTakeVideo')?.addEventListener('click', () => {
+        if(typeof MediaCapture === 'undefined' || typeof ViewerWorld === 'undefined') return;
+        MediaCapture.open({ mode: 'video', onResult: r => { ViewerWorld.statusMedia = { photo: '', video: r.dataUrl }; ViewerWorld.renderStatusMediaPreview(); }});
+      });
+    }
+    host.querySelector('#editMyCardBtn')?.addEventListener('click', () => {
+      if(typeof ViewerWorld !== 'undefined') ViewerWorld.openMyCardEditor(coderId);
     });
-  });
+  }
+  bindCoderProfileSite(host, coderId, { isMine });
 }
 
 function openCoderProfileModal(coderId){
@@ -4487,12 +4606,43 @@ function renderCharacters(){
     const profileBtn = isCoderDeckCard(c)
       ? `<button type="button" class="btn coder-profile-btn" data-coder-board="${esc(c.id)}">View profile</button>`
       : '';
-    return `<div class="char-deck-item">${card}${profileBtn}${quoteLog}</div>`;
+    const myId = typeof getMyCoderCard === 'function' ? getMyCoderCard()?.id : null;
+    const canFriend = typeof isCoderLoggedIn === 'function' && isCoderLoggedIn() && myId && myId !== c.id && isCoderDeckCard(c);
+    let friendBtn = '';
+    if(canFriend && typeof GameHub !== 'undefined'){
+      const rel = GameHub.getFriendRelation(myId, c.id);
+      if(rel === 'friends') friendBtn = `<button type="button" class="btn coder-friend-btn" disabled>Friends ✓</button>`;
+      else if(rel === 'sent') friendBtn = `<button type="button" class="btn coder-friend-btn" disabled>Requested…</button>`;
+      else if(rel === 'received') friendBtn = `<button type="button" class="btn coder-friend-btn" data-fr-accept-deck="${esc(c.id)}">Accept friend</button>`;
+      else friendBtn = `<button type="button" class="btn coder-friend-btn" data-coder-friend="${esc(c.id)}">+ Friend</button>`;
+    }
+    return `<div class="char-deck-item">${card}${profileBtn}${friendBtn}${quoteLog}</div>`;
   }).join('');
   bindFlipPlayerCards(deck);
   bindCoderQuoteLogs(deck);
   deck.querySelectorAll('[data-coder-board]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); navigateToCoderBoard(btn.dataset.coderBoard); });
+  });
+  deck.querySelectorAll('[data-coder-friend]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fid = btn.dataset.coderFriend;
+      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+      if(!mine?.id || !fid || typeof GameHub === 'undefined') return;
+      GameHub.sendFriendRequest(mine.id, fid).then(ok => {
+        if(ok){ btn.textContent = 'Requested…'; btn.disabled = true; }
+      });
+    });
+  });
+  deck.querySelectorAll('[data-fr-accept-deck]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fromId = btn.dataset.frAcceptDeck;
+      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+      if(!mine?.id || !fromId || typeof GameHub === 'undefined') return;
+      const req = (state.friendRequests || []).find(r => r.status === 'pending' && r.fromId === fromId && r.toId === mine.id);
+      if(req) GameHub.respondFriendRequest(req.id, true);
+    });
   });
   deck.querySelectorAll('[data-coder-profile]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); openCoderProfileModal(btn.dataset.coderProfile); });

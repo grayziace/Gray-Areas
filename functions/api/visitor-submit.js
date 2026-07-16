@@ -75,7 +75,7 @@ export async function onRequestPost(context) {
       env.GITHUB_TOKEN,
     );
 
-    let store = { viewerCharacters: [], quests: [], videoDiary: [], inboxMessages: [], xpRequests: [], coderActivityPulses: [], chatMessages: [], pressSubmissions: [], coderPresence: {} };
+    let store = { viewerCharacters: [], quests: [], videoDiary: [], inboxMessages: [], xpRequests: [], coderActivityPulses: [], chatMessages: [], pressSubmissions: [], coderPresence: {}, friendRequests: [] };
     let sha = null;
     if (getRes.ok && fileMeta.content) {
       sha = fileMeta.sha;
@@ -159,6 +159,17 @@ export async function onRequestPost(context) {
       store.xpRequests = store.xpRequests || [];
       const idx = store.xpRequests.findIndex(r => r.id === payload.id);
       if (idx >= 0) store.xpRequests[idx] = { ...store.xpRequests[idx], ...payload };
+    } else if (action === 'sendFriendRequest') {
+      store.friendRequests = store.friendRequests || [];
+      const dup = store.friendRequests.some(r =>
+        r.status === 'pending' && r.fromId === payload.fromId && r.toId === payload.toId,
+      );
+      if (!dup) store.friendRequests.unshift(payload);
+      store.friendRequests = store.friendRequests.slice(0, 200);
+    } else if (action === 'respondFriendRequest') {
+      store.friendRequests = store.friendRequests || [];
+      const idx = store.friendRequests.findIndex(r => r.id === payload.id);
+      if (idx >= 0) store.friendRequests[idx] = { ...store.friendRequests[idx], ...payload };
     } else {
       return jsonResponse({ error: 'Unknown action' }, 400);
     }
