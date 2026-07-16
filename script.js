@@ -4005,14 +4005,14 @@ function renderScrapbookTodos(key){
   if(!done.length && !pending.length) return '';
   let html = '<aside class="scrapbook-todos sketch-card">';
   if(done.length){
-    html += `<h4 class="scrapbook-todos-title">Done today</h4><ul class="scrapbook-todo-list">${done.map(t =>
+    html += `<div class="scrapbook-todos-group"><h4 class="scrapbook-todos-title">Done today</h4><ul class="scrapbook-todo-list">${done.map(t =>
       `<li class="scrapbook-todo is-done"><span class="scrapbook-todo-mark">✓</span>${esc(t.text)}</li>`
-    ).join('')}</ul>`;
+    ).join('')}</ul></div>`;
   }
   if(pending.length){
-    html += `<h4 class="scrapbook-todos-title">Still on the list</h4><ul class="scrapbook-todo-list">${pending.map(t =>
+    html += `<div class="scrapbook-todos-group"><h4 class="scrapbook-todos-title">Still on the list</h4><ul class="scrapbook-todo-list">${pending.map(t =>
       `<li class="scrapbook-todo is-pending"><span class="scrapbook-todo-mark">○</span>${esc(t.text)}</li>`
-    ).join('')}</ul>`;
+    ).join('')}</ul></div>`;
   }
   html += '</aside>';
   return html;
@@ -4167,8 +4167,8 @@ function buildEmptyScrapbookPage(key, nav){
   return `<div class="scrapbook-day">
     ${buildScrapbookChrome(key, nav)}
     <div class="scrapbook-body">
-      ${renderScrapbookTodos(key)}
       <div class="scrapbook-main">
+        ${renderScrapbookTodos(key)}
         <p class="empty-hint">Blank page · ${esc(d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }))} — post on Coming To You Live and it lands here.</p>
       </div>
     </div>
@@ -4202,8 +4202,8 @@ function buildDayScrapbookHTML(key, e, nav = {}){
     </div>
     ${renderDayScoreChips(deltas)}
     <div class="scrapbook-body">
-      ${renderScrapbookTodos(key)}
       <div class="scrapbook-main">
+        ${renderScrapbookTodos(key)}
         <div class="photo-wall scrapbook-wall">${wallItems.map((item, i) => buildScrapbookWallItem(item, i, key)).join('')}</div>
         ${renderDayReflectionHTML(n.dayReflection)}
       </div>
@@ -4494,18 +4494,98 @@ function renderCoderPhotoWall(coderId){
     }).join('')}</div>`;
 }
 
-function buildCoderMediaDramaCard(m, i){
-  const neon = stableNeon(m.id || m.title, i);
-  const rot = ((i % 5) * 0.6 - 1.2).toFixed(1);
-  const rating = m.rating ? `${m.rating}/5` : '';
-  return `<article class="drama-card media-card coder-media-card" style="--drot:${rot}deg;--media-neon:${neon}">
-    <div class="drama-card-art">${m.image ? `<img src="${esc(m.image)}" alt="">` : `<span class="drama-art-ph">${esc((m.title || 'M').charAt(0))}</span>`}</div>
+function collectionMediaToDrama(m){
+  const raw = (m.medium || 'film').toLowerCase().trim();
+  const typeMap = {
+    tv: 'tv', television: 'tv', series: 'tv', show: 'tv',
+    film: 'film', movie: 'film', cinema: 'film',
+    book: 'book', novel: 'book', read: 'book',
+    album: 'album', lp: 'album', music: 'album',
+    song: 'song', track: 'song', single: 'song',
+  };
+  const mediaType = typeMap[raw] || (MEDIA_SECTION_ORDER.includes(raw) ? raw : 'film');
+  const mt = getMediaType(mediaType);
+  const total = Number(m.totalEpisodes) || mt.defaultUnits;
+  const current = m.currentEpisode != null
+    ? Number(m.currentEpisode)
+    : (m.status === 'completed' ? total : Math.min(1, total));
+  const rating = Number(m.rating) || 0;
+  const attrs = getMediaAttributes(mediaType);
+  const epRatings = {};
+  if(rating){
+    attrs.forEach(a => { epRatings[a.id] = rating; });
+  }
+  return {
+    id: m.id || uid('cmedia'),
+    title: m.title || 'Untitled',
+    mediaType,
+    status: m.status || (current >= total ? 'completed' : 'watching'),
+    genre: m.genre || '',
+    country: m.country || '',
+    image: m.image || '',
+    currentEpisode: current,
+    totalEpisodes: total,
+    episodes: rating ? { '1': { ratings: epRatings } } : {},
+    finalReview: m.review || m.notes || '',
+  };
+}
+
+function buildDramaCardHtml(d, i, si){
+  const type = d.mediaType || 'tv';
+  const mt = getMediaType(type);
+  const pct = d.totalEpisodes ? Math.round((d.currentEpisode / d.totalEpisodes) * 100) : 0;
+  const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
+  const reviewed = Object.keys(d.episodes || {}).length;
+  const neon = stableNeon(d.id, i + si);
+  const country = type === 'tv' && d.country ? `<span class="drama-country">${esc(d.country)}</span>` : '';
+  return `<article class="drama-card media-card status-${d.status}" style="--drot:${((i % 5) * 0.6 - 1.2).toFixed(1)}deg;--media-neon:${neon}" data-drama-id="${esc(d.id)}">
+    <div class="drama-card-art">${d.image ? `<img src="${esc(d.image)}" alt="">` : `<span class="drama-art-ph">${esc(d.title.charAt(0))}</span>`}</div>
     <div class="drama-card-body">
-      <div class="drama-card-top"><span class="drama-status">${esc(m.medium || 'media')}</span>${rating ? `<span class="drama-status">${esc(rating)}</span>` : ''}</div>
-      <h3 class="drama-card-title">${esc(m.title || 'Untitled')}</h3>
-      ${m.review ? `<p class="drama-card-review">${esc(m.review.slice(0, 120))}${m.review.length > 120 ? '…' : ''}</p>` : ''}
-    </div>
-  </article>`;
+      <div class="drama-card-top"><span class="drama-status">${esc(mt.label)} · ${d.status}</span>${country}${ratingDots || ''}</div>
+      <h3 class="drama-card-title">${esc(d.title)}</h3>
+      <div class="drama-card-genre">${esc(d.genre || '')}</div>
+      <div class="drama-ep-track"><span class="drama-ep-label">${mt.unit} ${d.currentEpisode}/${d.totalEpisodes} · ${reviewed} rated</span>
+        <div class="drama-ep-bar"><div style="width:${pct}%"></div></div></div>
+      ${d.finalReview ? `<p class="drama-card-review">${esc(d.finalReview.slice(0, 90))}${d.finalReview.length > 90 ? '…' : ''}</p>` : ''}
+    </div></article>`;
+}
+
+function renderDramaDeckSections(dramas, opts = {}){
+  const byType = {};
+  (dramas || []).forEach(d => {
+    const t = d.mediaType || 'tv';
+    if(!byType[t]) byType[t] = [];
+    byType[t].push(d);
+  });
+  return MEDIA_SECTION_ORDER.map((type, si) => {
+    const items = byType[type];
+    if(!items?.length) return '';
+    const mt = getMediaType(type);
+    const cards = items.map((d, i) => buildDramaCardHtml(d, i, si)).join('');
+    return `<section class="media-type-section" style="--mts-neon:${stableNeon(type, 2)}">
+      <h3 class="media-type-title">${mt.label}</h3>
+      ${typeof renderCategoryRecommendationsHtml === 'function' && !opts.skipRecommendations ? renderCategoryRecommendationsHtml(type, mt.label) : ''}
+      <div class="drama-deck media-type-deck">${cards}</div>
+    </section>`;
+  }).join('');
+}
+
+function openCoderMediaDetail(m){
+  const d = collectionMediaToDrama(m);
+  const mt = getMediaType(d.mediaType);
+  const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
+  const host = document.getElementById('dramaDetailContent');
+  const back = document.getElementById('dramaDetailBack');
+  if(!host || !back) return;
+  host.innerHTML = `
+    <h2 class="drama-detail-title">${esc(d.title)}</h2>
+    <div class="drama-detail-meta">${esc(mt.label)} · ${esc(d.genre || '')}${d.mediaType === 'tv' && d.country ? ` · ${esc(d.country)}` : ''} · ${d.status}
+      ${ratingDots ? ` · ${ratingDots}` : ''}</div>
+    <div class="drama-final-review">
+      <h4>Review</h4>
+      ${d.finalReview ? `<p>${esc(d.finalReview)}</p>` : '<p class="empty-hint">No review yet.</p>'}
+    </div>`;
+  back.classList.remove('hidden');
 }
 
 function renderCoderProfileShell(c, opts = {}){
@@ -4581,11 +4661,11 @@ function renderCoderProfileShell(c, opts = {}){
           ${isMine && opts.showCompose ? '<div class="coder-compose-slot" id="coderComposeSlot"></div>' : ''}
           ${feedHtml}
         </section>
-        <section class="profile-site-panel" data-ps-panel="photos">${renderCoderPhotoWall(coderId)}</section>
-        <section class="profile-site-panel" data-ps-panel="friends">${colSection('friends')}</section>
-        <section class="profile-site-panel" data-ps-panel="skills">${colSection('skills')}</section>
-        <section class="profile-site-panel" data-ps-panel="media">${colSection('media')}</section>
-        <section class="profile-site-panel" data-ps-panel="places">${colSection('places')}</section>
+        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="photos">${renderCoderPhotoWall(coderId)}</section>
+        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="friends">${colSection('friends')}</section>
+        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="skills">${colSection('skills')}</section>
+        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="media">${colSection('media')}</section>
+        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="places">${colSection('places')}</section>
         <section class="profile-site-panel" data-ps-panel="quests">${questHtml}</section>
       </main>
     </div>
@@ -4605,6 +4685,17 @@ function bindCoderProfileSite(host, coderId, opts = {}){
     });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
+  const skillDeck = host.querySelector('.profile-skill-deck');
+  if(skillDeck && typeof bindSkillCards === 'function') bindSkillCards(skillDeck);
+  host.querySelectorAll('.profile-drama-deck .drama-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.dramaId;
+      const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
+      const col = c?.collection;
+      const m = (col?.media || []).find(x => x.id === id);
+      if(m) openCoderMediaDetail(m);
+    });
+  });
   const photoWall = host.querySelector('.profile-photo-wall');
   if(photoWall && !photoWall._profilePhotoHandler){
     photoWall._profilePhotoHandler = e => {
@@ -5261,40 +5352,7 @@ function renderDramaDeck(){
   renderMediaRankings();
   if(!dramas.length){ deck.innerHTML = '<p class="empty-hint">Empty shelf.</p>'; return; }
 
-  const byType = {};
-  dramas.forEach(d => {
-    const t = d.mediaType || 'tv';
-    if(!byType[t]) byType[t] = [];
-    byType[t].push(d);
-  });
-
-  deck.innerHTML = MEDIA_SECTION_ORDER.map((type, si) => {
-    const items = byType[type];
-    if(!items?.length) return '';
-    const mt = getMediaType(type);
-    const cards = items.map((d, i) => {
-      const pct = d.totalEpisodes ? Math.round((d.currentEpisode/d.totalEpisodes)*100) : 0;
-      const ratingDots = computeShowRatingDots(d, stableNeon(d.id, 1));
-      const reviewed = Object.keys(d.episodes||{}).length;
-      const neon = stableNeon(d.id, i + si);
-      const country = type === 'tv' && d.country ? `<span class="drama-country">${esc(d.country)}</span>` : '';
-      return `<article class="drama-card media-card status-${d.status}" style="--drot:${((i % 5) * 0.6 - 1.2).toFixed(1)}deg;--media-neon:${neon}" data-drama-id="${esc(d.id)}">
-        <div class="drama-card-art">${d.image?`<img src="${esc(d.image)}" alt="">`:`<span class="drama-art-ph">${esc(d.title.charAt(0))}</span>`}</div>
-        <div class="drama-card-body">
-          <div class="drama-card-top"><span class="drama-status">${esc(mt.label)} · ${d.status}</span>${country}${ratingDots || ''}</div>
-          <h3 class="drama-card-title">${esc(d.title)}</h3>
-          <div class="drama-card-genre">${esc(d.genre||'')}</div>
-          <div class="drama-ep-track"><span class="drama-ep-label">${mt.unit} ${d.currentEpisode}/${d.totalEpisodes} · ${reviewed} rated</span>
-            <div class="drama-ep-bar"><div style="width:${pct}%"></div></div></div>
-          ${d.finalReview ? `<p class="drama-card-review">${esc(d.finalReview.slice(0, 90))}${d.finalReview.length > 90 ? '…' : ''}</p>` : ''}
-        </div></article>`;
-    }).join('');
-    return `<section class="media-type-section" style="--mts-neon:${stableNeon(type, 2)}">
-      <h3 class="media-type-title">${mt.label}</h3>
-      ${typeof renderCategoryRecommendationsHtml === 'function' ? renderCategoryRecommendationsHtml(type, mt.label) : ''}
-      <div class="drama-deck media-type-deck">${cards}</div>
-    </section>`;
-  }).join('');
+  deck.innerHTML = renderDramaDeckSections(dramas);
 
   deck.querySelectorAll('.drama-card').forEach(card => {
     card.addEventListener('click', () => openDramaDetail(card.dataset.dramaId));

@@ -6,9 +6,17 @@ function skillCardAccent(skill){
   return skill?.color || '#7c4dff';
 }
 
+function resolveSkillCardHours(skill, opts = {}){
+  if(opts.useStoredHours) return Number(skill.hours) || 0;
+  if(typeof getTotalSkillHours === 'function' && typeof getSkills === 'function' && getSkills().some(s => s.id === skill.id)){
+    return getTotalSkillHours(skill.id);
+  }
+  return Number(skill.hours) || 0;
+}
+
 function buildSkillCardFront(skill, opts = {}){
   const accent = skillCardAccent(skill);
-  const hrs = typeof getTotalSkillHours === 'function' ? getTotalSkillHours(skill.id) : (skill.hours || 0);
+  const hrs = resolveSkillCardHours(skill, opts);
   const tier = typeof getSkillTier === 'function' ? getSkillTier(hrs) : { level: 1, name: 'Initiate' };
   const icon = (skill.name || '?').charAt(0).toUpperCase();
   return `<div class="pc-front skc-front" style="--pc-accent:${accent}">
@@ -27,7 +35,7 @@ function buildSkillCardFront(skill, opts = {}){
 
 function buildSkillCardBack(skill, opts = {}){
   const accent = skillCardAccent(skill);
-  const hrs = typeof getTotalSkillHours === 'function' ? getTotalSkillHours(skill.id) : (skill.hours || 0);
+  const hrs = resolveSkillCardHours(skill, opts);
   const tier = typeof getSkillTier === 'function' ? getSkillTier(hrs) : { level: 1, name: 'Initiate', next: null };
   const hobbies = typeof getHobbyNamesForSkill === 'function' ? getHobbyNamesForSkill(skill) : [];
   const ms = (skill.milestones || []).length;
@@ -47,14 +55,15 @@ function buildSkillCardBack(skill, opts = {}){
   </div>`;
 }
 
-function buildFlipSkillCard(skill, index){
+function buildFlipSkillCard(skill, index, opts = {}){
   const accent = skillCardAccent(skill);
   const tilt = ((index % 5) * 1.1 - 2.2).toFixed(1);
   const id = skill.id;
+  const cardOpts = { accent, ...opts };
   return `<figure class="poke-flip skill-flip" style="--pc-accent:${accent};--tilt:${tilt}deg" data-card-id="${esc(id)}" data-card-type="skill">
     <div class="poke-flip-scene"><div class="poke-flip-inner">
-      <div class="poke-flip-face poke-flip-front">${buildSkillCardFront(skill, { accent })}</div>
-      <div class="poke-flip-face poke-flip-back">${buildSkillCardBack(skill, { accent })}</div>
+      <div class="poke-flip-face poke-flip-front">${buildSkillCardFront(skill, cardOpts)}</div>
+      <div class="poke-flip-face poke-flip-back">${buildSkillCardBack(skill, cardOpts)}</div>
     </div></div>
   </figure>`;
 }
