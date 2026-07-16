@@ -3463,3 +3463,39 @@ body.is-watch-mode .sidebar-console-wrap{display:none !important;}
 .ol-offline-cta:hover{transform:translateX(4px);box-shadow:0 0 20px rgba(244,63,142,0.2);}
 .ol-offline-grid{gap:16px;}
 .ol-offline-rail,.ol-offline-main .sys-panel{border-color:color-mix(in srgb,#f43f8e 25%,var(--border-glass));}
+
+/* Daily log scrapbook book */
+.log-book-wrap{display:grid;grid-template-columns:minmax(140px,180px) 1fr;gap:18px;align-items:start;}
+@media(max-width:720px){.log-book-wrap{grid-template-columns:1fr;}}
+.log-book-picker{position:sticky;top:12px;padding:14px;}
+.log-mini-cal-label{display:block;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-low);margin-bottom:8px;}
+.log-mini-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.log-mini-day{font-size:10px;padding:4px 2px;border:1px solid var(--border-glass);background:rgba(0,0,0,0.3);color:var(--text-low);cursor:pointer;border-radius:2px;}
+.log-mini-day.has-entry{color:var(--text-hi);border-color:color-mix(in srgb,#9b5cff 40%,var(--border-glass));}
+.log-mini-day.is-sealed{box-shadow:0 0 8px rgba(155,92,255,0.25);}
+.log-mini-day.is-focus{border-color:#fcd34d;color:#fcd34d;font-weight:700;}
+.log-mini-day.is-today{outline:1px solid #3ad6e0;}
+.log-book-nav{display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;}
+.log-book-spread{min-height:320px;}
+.log-book-picker-hint{font-size:10px;color:var(--text-low);margin:10px 0 0;}
+.day-scrapbook-page{padding:8px 0;}
+.day-scrapbook-cover{margin-bottom:18px;padding:18px 20px;border:2px solid color-mix(in srgb,var(--db-mood,var(--neon-purple)) 45%,var(--border-glass));border-radius:8px;background:linear-gradient(135deg,color-mix(in srgb,var(--db-mood,var(--neon-purple)) 18%,#0a0612),rgba(0,0,0,0.85));}
+.day-scrapbook-status{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-low);}
+.day-scrapbook-status.is-sealed{color:#9b5cff;}
+.day-scrapbook-date{margin:8px 0 6px;font-family:var(--font-display);font-size:clamp(22px,4vw,32px);}
+.day-scrapbook-section-kicker{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9b5cff;margin:0 0 12px;}
+.day-scrapbook-canvas{position:relative;min-height:280px;padding:20px;background:rgba(0,0,0,0.35);border:2px solid var(--border-glass);border-radius:8px;}
+.day-scrap-sticker{display:inline-block;vertical-align:top;width:min(100%,240px);margin:8px;padding:12px;border:2px solid color-mix(in srgb,var(--ds-neon) 45%,var(--border-glass));border-top:3px solid var(--ds-neon);background:rgba(12,8,20,0.9);transform:rotate(var(--ds-rot,0deg));transition:transform 0.2s;}
+.day-scrap-sticker.is-writing{width:min(100%,380px);}
+.day-scrap-sticker:hover{transform:rotate(0deg) scale(1.02);z-index:3;}
+.day-scrap-tape{height:12px;margin:-4px 10% 8px;background:rgba(252,211,77,0.2);border:1px dashed rgba(252,211,77,0.35);}
+.day-scrap-title{margin:0 0 8px;font-family:var(--font-voice);font-size:16px;}
+.day-scrap-polaroid{position:absolute;width:110px;padding:6px 6px 18px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,0.4);transform:rotate(var(--ds-rot,0deg));left:var(--ds-left,10%);top:var(--ds-top,10%);}
+.live-broadcast.is-sealed .live-on-air.is-sealed .live-on-air-text{color:#9b5cff;}
+.coder-profile-stage{padding:20px;border-radius:8px;background:linear-gradient(180deg,color-mix(in srgb,var(--cp-neon,#fcd34d) 12%,rgba(0,0,0,0.5)),rgba(0,0,0,0.65));border:2px solid color-mix(in srgb,var(--cp-neon,#fcd34d) 35%,var(--border-glass));box-shadow:0 0 40px color-mix(in srgb,var(--cp-neon,#fcd34d) 12%,transparent);}
+.coder-update-board{border-left:4px solid var(--cp-neon,#fcd34d);}
+.inbox-hub-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;}
+.inbox-friend-chip{display:flex;align-items:center;gap:8px;padding:8px;border:2px solid color-mix(in srgb,var(--if-neon,#c084fc) 40%,var(--border-glass));background:rgba(0,0,0,0.3);cursor:pointer;width:100%;text-align:left;border-radius:6px;}
+.scrap-pin{position:relative;box-shadow:0 4px 24px color-mix(in srgb,var(--pin-neon,#38bdf8) 12%,transparent);}
+.scrap-pin-tape{position:absolute;top:-5px;left:15%;right:15%;height:10px;background:rgba(252,211,77,0.2);border:1px dashed rgba(252,211,77,0.35);pointer-events:none;}
+.instructions-full .instructions-steps li{margin-bottom:10px;font-size:13px;color:var(--text-mid);}

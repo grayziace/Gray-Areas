@@ -120,17 +120,18 @@ function unlockAdmin(opts = {}){
 
 function syncCornerFabVisibility(){
   const admin = isAdmin();
+  const canInbox = admin || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
   const stack = document.querySelector('.corner-fab-stack');
   const inboxFab = document.getElementById('inboxFab');
   const rewardsFab = document.getElementById('grayRewardsFab');
 
   if(stack){
-    stack.classList.toggle('hidden', !admin);
-    stack.setAttribute('aria-hidden', !admin ? 'true' : 'false');
+    stack.classList.toggle('hidden', !admin && !canInbox);
+    stack.setAttribute('aria-hidden', (!admin && !canInbox) ? 'true' : 'false');
   }
   if(inboxFab){
-    inboxFab.hidden = true;
-    inboxFab.style.display = 'none';
+    inboxFab.hidden = !canInbox;
+    inboxFab.style.display = canInbox && !admin ? 'flex' : (admin ? 'none' : 'none');
   }
   if(rewardsFab){
     rewardsFab.classList.remove('hidden');
@@ -948,7 +949,8 @@ const DailyLog = {
     if(!key) return;
     setLogFocusKey(key);
     if(!isAdmin()){
-      openDayModal(key);
+      setLogViewMode('book');
+      renderLedger();
       return;
     }
     this.activeKey = key;
@@ -1174,7 +1176,7 @@ const STREAM_NODE_META = {
   press: { label: 'The Press', neon: '#fca5a5', icon: '▤' },
   wake: { label: 'Wake', neon: '#6ee7a0', icon: '◉' },
   sleep: { label: 'Sleep', neon: '#71717a', icon: '◎' },
-  note: { label: 'Note', neon: '#3ad6e0', icon: '◆' },
+  note: { label: 'Big update', neon: '#3ad6e0', icon: '◆' },
   photo: { label: 'Photo', neon: '#38bdf8', icon: '📷' },
   mood: { label: 'Mood', neon: '#f472b6', icon: '◎' },
   food: { label: 'Food', neon: '#fb923c', icon: '🍜' },
@@ -1306,8 +1308,8 @@ function ensurePlaceCard(name){
 
 const PULSE_TYPE_DEFS = {
   note: { fields: [
-    { id: 'title', label: 'Headline', type: 'text', placeholder: 'Short label for the rail' },
-    { id: 'body', label: 'Message', type: 'textarea', rows: 8, required: true, placeholder: 'Full update — as detailed as you need' },
+    { id: 'title', label: 'Title — shows in transmission log', type: 'text', placeholder: 'Headline for this piece of writing', required: true },
+    { id: 'body', label: 'Full writing', type: 'textarea', rows: 12, required: true, placeholder: 'As long as you need — journal entry, rant, story, update…' },
   ]},
   photo: { fields: [
     { id: 'photo', label: 'Photo', type: 'photo', required: true },
@@ -2913,7 +2915,7 @@ function setLogFocusKey(key){
 }
 
 function getLogViewMode(){
-  return state.logViewMode || 'month';
+  return state.logViewMode || 'book';
 }
 
 function setLogViewMode(mode){
@@ -3396,12 +3398,13 @@ const HomeCheckIn = {
           }
           const moodBadge = node.mood ? `<span class="live-node-mood">${node.mood}/10</span>` : (node.intensity ? `<span class="live-node-mood">${node.intensity}/10</span>` : (node.rating ? `<span class="live-node-mood">${node.rating}/10</span>` : ''));
           const photoHtml = node.photo ? `<div class="live-node-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : '';
-          const body = node.body && node.body !== node.text ? node.body : '';
-          const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 220 ? body.slice(0, 220) + '…' : body)}</p>` : '';
+          const headline = getPulseNodeTitle(node) || node.text || '';
+          const body = node.body && node.body !== headline ? node.body : (node.data?.body && node.data.body !== headline ? node.data.body : '');
+          const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 280 ? body.slice(0, 280) + '…' : body)}</p>` : '';
           const canDel = admin && node.type !== 'wake' && node.type !== 'sleep' && !node.isPlanned;
           const delBtn = canDel ? `<button type="button" class="live-node-del" data-live-node-del="${esc(node.id)}" title="Remove pulse">×</button>` : '';
           const plannedTag = node.isPlanned ? `<span class="live-node-planned">planned</span>` : '';
-          return `<article class="live-node${canDel ? ' is-editable' : ''}${node.isPlanned ? ' is-planned' : ''}" style="--ln-neon:${meta.neon}">
+          return `<article class="live-node${canDel ? ' is-editable' : ''}${node.isPlanned ? ' is-planned' : ''}${headline && body ? ' has-writing' : ''}" style="--ln-neon:${meta.neon}">
             <div class="live-node-marker" title="${meta.label}">
               <span class="live-node-glow"></span>
               <span class="live-node-core"></span>
@@ -3415,7 +3418,7 @@ const HomeCheckIn = {
                 ${gap ? `<span class="live-node-gap">Δ ${gap}</span>` : ''}
                 ${delBtn}
               </div>
-              <p class="live-node-text">${esc(node.text || '')}</p>
+              <p class="live-node-text">${esc(headline)}</p>
               ${bodyHtml}
               ${photoHtml}
             </div>
@@ -3781,13 +3784,15 @@ function renderHomeCheckIn(){
   const admin = isAdmin();
   const nodeCount = getMergedTimelineNodes(stream, key).length;
   const onAir = stream.startedAt && !stream.endedAt;
+  const sealed = !!stream.endedAt;
 
   spread.className = admin ? 'live-broadcast live-broadcast--edit' : 'live-broadcast';
+  if(sealed) spread.classList.add('is-sealed');
 
   spread.innerHTML = `
-    <aside class="live-rail-col">
+    <aside class="live-rail-col${sealed ? ' is-sealed' : ''}">
       <div class="live-rail-head">
-        <span class="live-rail-label">Transmission log</span>
+        <span class="live-rail-label">${sealed ? 'Transmission log · sealed' : 'Transmission log'}</span>
         <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}${admin ? ' · edit' : ''}</span>
       </div>
       <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
@@ -3802,9 +3807,9 @@ function renderHomeCheckIn(){
         </div>
       </div>` : ''}
 
-      <div class="live-on-air ${onAir ? 'is-live' : ''}">
+      <div class="live-on-air ${onAir ? 'is-live' : ''}${sealed ? ' is-sealed' : ''}">
         <span class="live-on-air-dot"></span>
-        <span class="live-on-air-text">${onAir ? 'ON AIR' : 'OFF AIR'} · Coming To You Live</span>
+        <span class="live-on-air-text">${sealed ? 'TRANSMISSION ENDED' : onAir ? 'ON AIR' : 'OFF AIR'} · Coming To You Live</span>
         <span class="live-on-air-date">${fmtDateLong(key)}</span>
       </div>
 
@@ -3844,7 +3849,7 @@ function renderHomeCheckIn(){
         <div class="live-pulse-head">
           <div>
             <h3 class="live-pulse-title">Drop a pulse</h3>
-            <p class="live-pulse-hint">Person, place, hobby, quote, quest — pick existing cards or create new on the spot.</p>
+            <p class="live-pulse-hint">Use <strong>Big update</strong> for long writing — title becomes the headline in the transmission log. Photos stick on the daily scrapbook.</p>
           </div>
           <button type="button" class="btn primary" id="homeOpenPulse">+ Compose pulse</button>
         </div>
@@ -3994,64 +3999,133 @@ function renderPlannedTodosReadOnly(dayKey){
   </section>`;
 }
 
-function buildDayDetailHTML(key, e){
+function getPulseNodeTitle(node){
+  if(!node) return '';
+  if(node.data?.title) return node.data.title;
+  if(node.type === 'note' && node.text) return node.text;
+  return node.text || '';
+}
+
+function buildPulseScrapSticker(node, i, refDayKey){
+  const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
+  const rot = ((i % 7) * 1.6 - 4.8).toFixed(1);
+  const left = ((i * 19 + 3) % 58).toFixed(0);
+  const top = ((i * 27 + 5) % 42).toFixed(0);
+  const title = getPulseNodeTitle(node);
+  const body = node.body || node.data?.body || '';
+  const isWriting = ['note', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (body && body.length > 100);
+  const sizeClass = isWriting ? 'is-writing' : (node.photo ? 'is-photo' : '');
+  const when = fmtNodeStamp(node.at, refDayKey);
+  return `<article class="day-scrap-sticker ${sizeClass}" style="--ds-neon:${meta.neon};--ds-rot:${rot}deg;--ds-left:${left}%;--ds-top:${top}%">
+    <div class="day-scrap-tape" aria-hidden="true"></div>
+    <header class="day-scrap-sticker-head">
+      <span class="day-scrap-type">${meta.icon} ${meta.label}</span>
+      <time>${esc(when)}</time>
+    </header>
+    ${title ? `<h4 class="day-scrap-title">${esc(title)}</h4>` : ''}
+    ${body ? `<div class="day-scrap-body">${esc(body)}</div>` : ''}
+    ${!body && node.text && node.text !== title ? `<p class="day-scrap-text">${esc(node.text)}</p>` : ''}
+    ${node.photo ? `<div class="day-scrap-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : ''}
+  </article>`;
+}
+
+function buildDayScrapbookHTML(key, e){
   const n = normalizeEntry(e);
   const stream = getDayStream(key);
   const planned = getPlannedTodosForDay(key);
-  const hasContent = !!(resolveEntryMood(n) || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || stream.nodes.length || n.dayReflection?.favoriteThing || planned.length);
-  if(!hasContent){
-    return '<p class="empty-day">No entry yet — start a day, drop pulses, then seal it in the log.</p>';
-  }
   const moodId = resolveEntryMood(n);
   const completed = !!stream.endedAt;
+  const pulses = stream.nodes.filter(nd => nd.type !== 'wake' && nd.type !== 'sleep');
+  const hasContent = !!(moodId || n.steps || n.diary || n.people?.length || n.places?.length || n.photos?.length || pulses.length || n.dayReflection?.favoriteThing || planned.length);
+  if(!hasContent){
+    return '<p class="empty-day">No scraps yet — start your day on Coming To You Live, drop pulses (<strong>Big update</strong> for long writing), then seal the day.</p>';
+  }
   const duration = fmtDayDuration(stream) || fmtDurationMs(n.daySummary?.durationMs);
-  const nodeCount = getMergedTimelineNodes(stream, key).length;
   const deltas = n.daySummary?.deltas?.length ? n.daySummary.deltas : computeDayScoreDeltas(key);
-  const hobbyLine = n.hobby ? `${esc(n.hobby)}${n.hobbyHours ? ` · ${n.hobbyHours}h` : ''}` : '';
 
-  let html = `<div class="day-ledger">
-    <header class="day-ledger-hero" style="--mc:${moodColor(moodId)}">
-      <span class="day-ledger-status${completed ? ' is-sealed' : ''}">${completed ? '◉ Day sealed' : '◎ In progress'}</span>
-      <span class="day-detail-date">${fmtDateLong(key)}</span>
-      ${moodId ? `<span class="day-detail-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
-      ${stream.startedAt ? `<span class="day-ledger-span">Wake ${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → Sleep ${fmtNodeStamp(stream.endedAt, key)}` : ''}</span>` : ''}
-      ${duration ? `<span class="day-ledger-duration">${duration} awake</span>` : ''}
+  let html = `<div class="day-scrapbook-page" style="--db-mood:${moodColor(moodId)}">
+    <header class="day-scrapbook-cover">
+      <span class="day-scrapbook-status${completed ? ' is-sealed' : ''}">${completed ? '◉ Transmission sealed' : '◎ Day in progress'}</span>
+      <h3 class="day-scrapbook-date">${fmtDateLong(key)}</h3>
+      ${moodId ? `<span class="day-scrapbook-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
+      ${stream.startedAt ? `<span class="day-scrapbook-span">Wake ${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → Sleep ${fmtNodeStamp(stream.endedAt, key)}` : ''}${duration ? ` · ${duration}` : ''}</span>` : ''}
     </header>
-
     ${renderDayScoreChips(deltas)}
-    ${renderDayReflectionHTML(n.dayReflection)}
-    ${renderPlannedTodosReadOnly(key)}
+    ${renderDayReflectionHTML(n.dayReflection)}`;
 
-    ${nodeCount ? `<section class="day-ledger-timeline">
-      <div class="day-rail-wrap">
-        <div class="day-rail-head">
-          <span class="live-rail-label">Neon transmission</span>
-          <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}</span>
-        </div>
-        <div class="day-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
-      </div>
-    </section>` : ''}
-
-    <section class="day-detail-section">
-      <h4>Day totals</h4>
-      <div class="day-log-template">
-        ${moodId ? `<div class="dlt-row"><span>Current mood</span><span>${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span></div>`:''}
-        ${n.steps ? `<div class="dlt-row"><span>Steps</span><span>${Number(n.steps).toLocaleString()}</span></div>`:''}
-        ${n.workHours ? `<div class="dlt-row"><span>Work (hours)</span><span>${n.workHours}h</span></div>`:''}
-        ${mandarinHoursFromEntry(n) ? `<div class="dlt-row"><span>Mandarin (hobby+skill)</span><span>${mandarinHoursFromEntry(n)}h</span></div>`:''}
-        ${hobbyLine ? `<div class="dlt-row"><span>Hobby</span><span>${hobbyLine}</span></div>`:''}
-        ${n.people.length ? `<div class="dlt-row"><span>People met</span><span>${esc(n.people.join(', '))}</span></div>`:''}
-        ${n.places.length ? `<div class="dlt-row"><span>Places visited</span><span>${esc(n.places.join(', '))}</span></div>`:''}
+  if(pulses.length){
+    html += `<section class="day-scrapbook-transmission">
+      <h4 class="day-scrapbook-section-kicker">${completed ? 'Transmission log' : 'Live transmission'}</h4>
+      <div class="day-transmission-rail">${HomeCheckIn.renderTimeline(stream, key)}</div>
+    </section>
+    <section class="day-scrapbook-board">
+      <h4 class="day-scrapbook-section-kicker">Scrapbook</h4>
+      <div class="day-scrapbook-canvas">
+        ${pulses.map((node, i) => buildPulseScrapSticker(node, i, key)).join('')}
+        ${(n.photos || []).map((p, i) => {
+          const src = typeof p === 'string' ? p : p.src;
+          const rot = ((i * 4.3) % 12 - 6).toFixed(1);
+          const left = ((i * 31 + 8) % 55).toFixed(0);
+          const top = ((i * 22 + 12) % 50).toFixed(0);
+          return `<figure class="day-scrap-polaroid" style="--ds-rot:${rot}deg;--ds-left:${left}%;--ds-top:${top}%"><img src="${esc(src)}" alt="" loading="lazy"></figure>`;
+        }).join('')}
       </div>
     </section>`;
-
-  if(n.diary) html += `<section class="day-detail-section"><h4>Diary entry</h4><p class="day-diary">${esc(n.diary)}</p></section>`;
-  if(n.photos?.length){
-    html += `<section class="day-detail-section"><h4>Photos</h4><div class="day-photo-grid">${n.photos.map(p=>
-      `<img src="${esc(typeof p==='string'?p:p.src)}" alt="">`).join('')}</div></section>`;
+  }
+  if(n.diary){
+    html += `<section class="day-scrap-diary sketch-card"><h4>Diary</h4><p>${esc(n.diary)}</p></section>`;
   }
   html += `</div>`;
   return html;
+}
+
+function renderLogMiniCalendar(focusKey){
+  const [y, m] = focusKey.split('-').map(Number);
+  const year = y;
+  const month = m - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const tk = todayKey();
+  let cells = '';
+  for(let d = 1; d <= daysInMonth; d++){
+    const key = dayKeyFromParts(year, month, d);
+    const stats = daySummaryStats(key);
+    cells += `<button type="button" class="log-mini-day${stats.hasEntry ? ' has-entry' : ''}${stats.sealed ? ' is-sealed' : ''}${key === focusKey ? ' is-focus' : ''}${key === tk ? ' is-today' : ''}" data-log-day="${key}" title="${fmtDateLong(key)}">${d}</button>`;
+  }
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return `<div class="log-mini-cal">
+    <span class="log-mini-cal-label">${monthLabel}</span>
+    <div class="log-mini-cal-grid">${cells}</div>
+  </div>`;
+}
+
+function renderLogBook(){
+  const grid = document.getElementById('logCalendar');
+  const label = document.getElementById('monthLabel');
+  const tally = document.getElementById('logTally');
+  if(!grid) return;
+  const key = getLogFocusKey();
+  const e = state.entries[key];
+  if(label) label.textContent = fmtDateLong(key);
+  if(tally) tally.textContent = `${countLoggedDays()} day${countLoggedDays() === 1 ? '' : 's'} logged · scrapbook`;
+  const prevKey = addDaysToKey(key, -1);
+  const nextKey = addDaysToKey(key, 1);
+  grid.innerHTML = `<div class="log-book-wrap">
+    <aside class="log-book-picker sketch-card" aria-label="Pick a day">
+      ${renderLogMiniCalendar(key)}
+      <p class="log-book-picker-hint">Tap a day — flip through like a scrapbook.</p>
+    </aside>
+    <main class="log-book-main">
+      <nav class="log-book-nav">
+        <button type="button" class="btn" data-log-day="${prevKey}">← ${fmtDateLong(prevKey).split(',')[0]}</button>
+        <button type="button" class="btn" data-log-day="${nextKey}">${fmtDateLong(nextKey).split(',')[0]} →</button>
+      </nav>
+      <div class="log-book-spread">${e ? buildDayScrapbookHTML(key, e) : `<p class="empty-hint">No entry for ${fmtDateLong(key)} yet.</p>`}</div>
+    </main>
+  </div>`;
+}
+
+function buildDayDetailHTML(key, e){
+  return buildDayScrapbookHTML(key, e);
 }
 
 function renderLogCalendar(){
@@ -4141,14 +4215,15 @@ function syncLogNavControls(){
   const mode = getLogViewMode();
   document.getElementById('logCalNavMonth')?.classList.toggle('hidden', mode !== 'month');
   document.getElementById('logCalNavWeek')?.classList.toggle('hidden', mode !== 'week');
-  document.getElementById('logCalNavDay')?.classList.toggle('hidden', mode !== 'day');
+  document.getElementById('logCalNavDay')?.classList.toggle('hidden', mode !== 'day' && mode !== 'book');
   document.querySelectorAll('[data-log-view]').forEach(b => b.classList.toggle('is-active', b.dataset.logView === mode));
 }
 
 function renderLedger(){
   syncLogNavControls();
   const mode = getLogViewMode();
-  if(mode === 'week') renderLogWeek();
+  if(mode === 'book') renderLogBook();
+  else if(mode === 'week') renderLogWeek();
   else if(mode === 'day') renderLogDayFocus();
   else renderLogCalendar();
 }
@@ -5809,7 +5884,8 @@ function renderPinboard(){
   wall.innerHTML = posts.slice().reverse().map((p, i) => {
     const rot = [-1.5, 1.2, -0.8, 1.8, -1][i % 5];
     const replies = (p.replies || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    return `<article class="pin-post community-pin" style="--prot:${rot}deg" data-pin-id="${esc(p.id)}">
+    return `<article class="pin-post community-pin scrap-pin" style="--prot:${rot}deg;--pin-neon:${stableNeon(p.characterId || p.name, i)}" data-pin-id="${esc(p.id)}">
+      <div class="scrap-pin-tape" aria-hidden="true"></div>
       <header class="pin-post-head">
         <div class="pin-meta-block">
           ${pinAuthorBlock(p)}
