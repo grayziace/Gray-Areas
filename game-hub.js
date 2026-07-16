@@ -409,40 +409,86 @@ GameHub.bindFriendRequests = function(host){
   });
 };
 
+function profileCollectionAddForm(coderId, section, canEdit){
+  if(!canEdit) return '';
+  if(section === 'places'){
+    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add place</summary>
+      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="places">
+        <div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div>
+        <div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div>
+        <button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button>
+      </div></details>`;
+  }
+  if(section === 'skills'){
+    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add skill card</summary>
+      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="skills">
+        <div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div>
+        <div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div>
+        <button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button>
+      </div></details>`;
+  }
+  if(section === 'media'){
+    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add media</summary>
+      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="media">
+        <div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div>
+        <div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div>
+        <div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div>
+        <div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div>
+        <button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button>
+      </div></details>`;
+  }
+  return '';
+}
+
 GameHub.renderCollectionSection = function(coderId, section){
   const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
   if(!c) return '';
-  const col = ensurePlayerCollection(c);
   const isMine = typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId;
   const canEdit = isMine || isAdmin();
-  const empty = msg => `<p class="empty-hint">${msg}</p>`;
+  const add = profileCollectionAddForm(coderId, section, canEdit);
   if(section === 'places'){
-    const deck = col.places.map((p, i) => buildCollectionPlaceFlip(p, i)).join('');
-    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add place</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div><div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div><button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button></div></details>` : '';
-    return `<div class="profile-deck-view"><p class="gallery-hint">Click a card to flip it over.</p><div class="card-deck profile-place-deck">${deck || empty('No place cards yet.')}</div>${add}</div>`;
+    return `<div class="profile-gray-view profile-gray-view--places neon-section" style="--sec-neon:#4fa3ff" data-coder-gray-view="places">
+      <p class="gallery-hint">Click a card to flip it over.</p>
+      <div class="profile-place-rec" data-coder-rec="place"></div>
+      <div class="card-deck profile-place-deck" data-coder-deck="places"></div>
+      ${add}
+    </div>`;
   }
   if(section === 'skills'){
-    const deck = col.skills.map((s, i) => buildCollectionSkillFlip({ ...s, hours: parseFloat(s.hours) || 0, color: s.color || '#7c4dff' }, i)).join('');
-    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add skill</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div><div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div><button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button></div></details>` : '';
-    return `<div class="profile-deck-view"><p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p><div class="card-deck skill-card-deck profile-skill-deck">${deck || empty('No skill cards yet.')}</div>${add}</div>`;
+    return `<div class="profile-gray-view profile-gray-view--skills neon-section" style="--sec-neon:#7c4dff" data-coder-gray-view="skills">
+      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
+      <div class="profile-skill-rec" data-coder-rec="skill"></div>
+      <div class="card-deck skill-card-deck profile-skill-deck" data-coder-deck="skills"></div>
+      <div class="tier-legend profile-tier-legend" data-coder-tier-legend></div>
+      <div class="skill-skyline-wrap">
+        <div class="skill-skyline profile-skill-skyline" data-coder-skyline></div>
+        <div class="skill-ground"></div>
+      </div>
+      <p class="gallery-hint">Click a tower to see the skill journey.</p>
+      ${add}
+    </div>`;
   }
   if(section === 'media'){
-    const dramas = col.media.map(m => typeof collectionMediaToDrama === 'function' ? collectionMediaToDrama(m) : m);
-    const deck = typeof renderDramaDeckSections === 'function'
-      ? renderDramaDeckSections(dramas, { skipRecommendations: true })
-      : col.media.map((m, i) => buildCollectionMediaFlip(m, i)).join('');
-    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Add media</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div><div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div><div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div><div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div><button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button></div></details>` : '';
-    return `<div class="profile-deck-view profile-media-log"><p class="gallery-hint">TV, film, books, albums, songs — sectioned shelves, final reviews, and live rankings.</p><div class="drama-deck profile-drama-deck" data-profile-coder="${esc(coderId)}">${deck || empty('No media logged yet.')}</div>${add}</div>`;
+    return `<div class="profile-gray-view profile-gray-view--media neon-section" style="--sec-neon:#f43f8e" data-coder-gray-view="media">
+      <p class="gallery-hint">TV, film, books, albums, songs — sectioned shelves, final reviews, and live rankings.</p>
+      <div class="profile-media-rankings" data-coder-media-rankings></div>
+      <div class="drama-deck profile-drama-deck" data-coder-deck="media" data-profile-coder="${esc(coderId)}"></div>
+      ${add}
+    </div>`;
   }
   if(section === 'friends'){
+    const col = ensurePlayerCollection(c);
+    const isMine = typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId;
+    const canEdit = isMine || isAdmin();
+    const empty = msg => `<p class="empty-hint">${msg}</p>`;
     const friendDeck = col.friends.map((fid, i) => {
       const f = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(fid) : null;
       if(!f || typeof buildFlipPlayerCard !== 'function') return '';
       const viewBtn = `<button type="button" class="btn profile-friend-view" data-coder-board="${esc(fid)}">View log →</button>`;
       return `<div class="profile-friend-card">${buildFlipPlayerCard(f, 'character', i, { accent: f.cardColor })}${viewBtn}</div>`;
     }).join('');
-    const add = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Collect coder card</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}"><p class="field-hint">Pick someone who already has an account — or grab them from Coder Cards.</p><select class="pcol-friend-pick"><option value="">— pick coder —</option>${(state.viewerCharacters || []).filter(x => x.id !== coderId).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select><button type="button" class="btn primary" data-pcol-add-friend="${esc(coderId)}">Collect coder card</button></div></details>` : '';
-    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck profile-friend-deck">${friendDeck || empty('No coder cards collected yet — find friends in Coder Cards.')}</div>${add}</div>`;
+    const friendAdd = canEdit ? `<details class="col-add-studio sketch-card"><summary class="col-add-toggle">+ Collect coder card</summary><div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="friends"><p class="field-hint">Pick someone who already has an account — or grab them from Coder Cards.</p><select class="pcol-friend-pick"><option value="">— pick coder —</option>${(state.viewerCharacters || []).filter(x => x.id !== coderId).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select><button type="button" class="btn primary" data-pcol-add-friend="${esc(coderId)}">Collect coder card</button></div></details>` : '';
+    return `<div class="profile-col-wrap"><div class="card-deck col-card-deck profile-friend-deck">${friendDeck || empty('No coder cards collected yet — find friends in Coder Cards.')}</div>${friendAdd}</div>`;
   }
   return '';
 };
@@ -510,6 +556,10 @@ GameHub.renderProfileCollections = function(coderId){
   </div>`;
 };
 
+function profileCollectionFormFromBtn(btn){
+  return btn.closest('.col-add-panels') || btn.closest('.col-add-section');
+}
+
 GameHub.bindProfileCollections = function(root, coderId){
   const host = root || document;
   host.querySelectorAll('.col-cat-tab').forEach(tab => {
@@ -522,34 +572,50 @@ GameHub.bindProfileCollections = function(root, coderId){
       hub.querySelector(`[data-col-panel="${tab.dataset.colCat}"]`)?.classList.add('is-active');
     });
   });
-  host.querySelector(`[data-pcol-add-place="${coderId}"]`)?.addEventListener('click', () => {
-    const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
-    const name = form?.querySelector('.pcol-place-name')?.value?.trim();
-    const vibe = form?.querySelector('.pcol-place-vibe')?.value?.trim();
-    if(!name) return;
-    this.addCollectionPlace(coderId, { name, vibe, description: vibe });
+  host.querySelectorAll(`[data-pcol-add-place="${coderId}"]`).forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const form = profileCollectionFormFromBtn(btn);
+      const name = form?.querySelector('.pcol-place-name')?.value?.trim();
+      const vibe = form?.querySelector('.pcol-place-vibe')?.value?.trim();
+      if(!name) return;
+      GameHub.addCollectionPlace(coderId, { name, vibe, description: vibe });
+    });
   });
-  host.querySelector(`[data-pcol-add-skill="${coderId}"]`)?.addEventListener('click', () => {
-    const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
-    const name = form?.querySelector('.pcol-skill-name')?.value?.trim();
-    const hours = form?.querySelector('.pcol-skill-hours')?.value;
-    if(!name) return;
-    this.addCollectionSkill(coderId, { name, hours: parseFloat(hours) || 0 });
+  host.querySelectorAll(`[data-pcol-add-skill="${coderId}"]`).forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const form = profileCollectionFormFromBtn(btn);
+      const name = form?.querySelector('.pcol-skill-name')?.value?.trim();
+      const hours = form?.querySelector('.pcol-skill-hours')?.value;
+      if(!name) return;
+      GameHub.addCollectionSkill(coderId, { name, hours: parseFloat(hours) || 0 });
+    });
   });
-  host.querySelector(`[data-pcol-add-media="${coderId}"]`)?.addEventListener('click', () => {
-    const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
-    const title = form?.querySelector('.pcol-media-title')?.value?.trim();
-    const medium = form?.querySelector('.pcol-media-medium')?.value?.trim();
-    const rating = form?.querySelector('.pcol-media-rating')?.value;
-    const review = form?.querySelector('.pcol-media-review')?.value?.trim();
-    if(!title) return;
-    this.addCollectionMedia(coderId, { title, medium, rating: rating ? parseInt(rating, 10) : 0, review });
+  host.querySelectorAll(`[data-pcol-add-media="${coderId}"]`).forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const form = profileCollectionFormFromBtn(btn);
+      const title = form?.querySelector('.pcol-media-title')?.value?.trim();
+      const medium = form?.querySelector('.pcol-media-medium')?.value?.trim();
+      const rating = form?.querySelector('.pcol-media-rating')?.value;
+      const review = form?.querySelector('.pcol-media-review')?.value?.trim();
+      if(!title) return;
+      GameHub.addCollectionMedia(coderId, { title, medium, rating: rating ? parseInt(rating, 10) : 0, review });
+    });
   });
-  host.querySelector(`[data-pcol-add-friend="${coderId}"]`)?.addEventListener('click', () => {
-    const form = host.querySelector(`[data-pcol-form="${coderId}"]`);
-    const fid = form?.querySelector('.pcol-friend-pick')?.value;
-    if(!fid) return;
-    this.addCollectionFriend(coderId, fid);
+  host.querySelectorAll(`[data-pcol-add-friend="${coderId}"]`).forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const form = profileCollectionFormFromBtn(btn);
+      const fid = form?.querySelector('.pcol-friend-pick')?.value;
+      if(!fid) return;
+      GameHub.addCollectionFriend(coderId, fid);
+    });
   });
   host.querySelectorAll('[data-coder-board]').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -558,17 +624,18 @@ GameHub.bindProfileCollections = function(root, coderId){
     });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
+  if(typeof hydrateCoderProfileDecks === 'function') hydrateCoderProfileDecks(coderId, host);
 };
 
 GameHub.savePlayerCollection = function(coderId){
-  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
   saveState();
   postVisitorData('updateCharacter', c);
 };
 
 GameHub.addCollectionPlace = function(coderId, data){
-  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
   ensurePlayerCollection(c).places.unshift({ id: uid('pplace'), name: data.name, vibe: data.vibe || '', description: data.description || data.vibe || '', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
@@ -577,7 +644,7 @@ GameHub.addCollectionPlace = function(coderId, data){
 };
 
 GameHub.addCollectionSkill = function(coderId, data){
-  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
   ensurePlayerCollection(c).skills.unshift({ id: uid('pskill'), name: data.name, hours: data.hours || 0, color: data.color || '#7c4dff', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
@@ -586,7 +653,7 @@ GameHub.addCollectionSkill = function(coderId, data){
 };
 
 GameHub.addCollectionMedia = function(coderId, data){
-  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c) return;
   ensurePlayerCollection(c).media.unshift({ id: uid('pmedia'), title: data.title, medium: data.medium || '', rating: data.rating || 0, review: data.review || '', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
@@ -595,7 +662,7 @@ GameHub.addCollectionMedia = function(coderId, data){
 };
 
 GameHub.addCollectionFriend = function(coderId, friendId){
-  const c = (state.viewerCharacters || []).find(x => x.id === coderId);
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : (state.viewerCharacters || []).find(x => x.id === coderId);
   if(!c || friendId === coderId) return;
   const col = ensurePlayerCollection(c);
   if(col.friends.includes(friendId)) return;
@@ -606,7 +673,20 @@ GameHub.addCollectionFriend = function(coderId, friendId){
 };
 
 GameHub.refreshProfile = function(coderId){
+  const site = document.querySelector(`.profile-site[data-profile-coder="${coderId}"]`);
+  const activeSection = site?.querySelector('.profile-rail-banner.is-active')?.dataset.psSection;
   if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
+  if(activeSection && activeSection !== 'updates'){
+    const nextSite = document.querySelector(`.profile-site[data-profile-coder="${coderId}"]`);
+    if(nextSite){
+      nextSite.querySelectorAll('.profile-rail-banner').forEach(b => {
+        b.classList.toggle('is-active', b.dataset.psSection === activeSection);
+      });
+      nextSite.querySelectorAll('.profile-site-panel').forEach(p => {
+        p.classList.toggle('is-active', p.dataset.psPanel === activeSection);
+      });
+    }
+  }
   if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderViewerCard();
 };
 

@@ -3546,7 +3546,12 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 .profile-site-main:has(.profile-site-panel--deck.is-active){
   border:none;padding:0;background:transparent;min-height:0;
 }
-.profile-site-panel--deck .profile-deck-view,
+.profile-gray-view{width:100%;padding-top:4px;}
+.profile-gray-view .gallery-hint{margin-bottom:12px;}
+.profile-gray-view .card-deck,
+.profile-gray-view .drama-deck,
+.profile-gray-view .skill-skyline-wrap{width:100%;}
+.profile-col-add{margin-top:16px;}
 .profile-site-panel--deck .profile-photo-wall{width:100%;}
 .profile-drama-deck .drama-card{cursor:pointer;}
 

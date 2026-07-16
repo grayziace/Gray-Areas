@@ -4588,6 +4588,225 @@ function openCoderMediaDetail(m){
   back.classList.remove('hidden');
 }
 
+function getCoderCollection(coderId){
+  const c = getCoderByIdAny(coderId);
+  if(!c) return { places: [], skills: [], media: [], friends: [] };
+  if(typeof ensurePlayerCollection === 'function') return ensurePlayerCollection(c);
+  if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], media: [], friends: [] };
+  return c.collection;
+}
+
+function collectionPlaceToGray(p){
+  return {
+    id: p.id || uid('cplace'),
+    name: p.name || 'Place',
+    unlocked: true,
+    vibe: p.vibe || '',
+    placeCard: {
+      level: p.level || 1,
+      vibeRank: p.vibeRank || 3,
+      experienceRank: p.experienceRank || 3,
+      utilityRank: p.utilityRank || 3,
+      description: p.description || p.vibe || '',
+    },
+    image: p.image || '',
+  };
+}
+
+function collectionSkillToGray(s){
+  return {
+    id: s.id || uid('cskill'),
+    name: s.name || 'Skill',
+    color: s.color || '#7c4dff',
+    hours: parseFloat(s.hours) || 0,
+    milestones: s.milestones || [],
+  };
+}
+
+function renderTierLegendInto(el){
+  if(!el) return;
+  el.innerHTML = SKILL_TIERS.map(t =>
+    `<span class="tier-chip" title="${t.hours}+ hrs">L${t.level} ${t.name}</span>`).join('');
+}
+
+function openCoderSkillJourney(coderId, skillId){
+  const skill = getCoderCollection(coderId).skills.map(collectionSkillToGray).find(s => s.id === skillId);
+  if(!skill) return;
+  const hrs = skill.hours || 0;
+  const tier = getSkillTier(hrs);
+  const milestones = (skill.milestones || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const maxFloor = Math.max(milestones.length, 1);
+  let floorsHtml = milestones.map((ms, i) => {
+    const floorH = 48 + (i / maxFloor) * 40;
+    return `<button type="button" class="sjs-floor lit" data-ms-idx="${i}" style="--floor-h:${floorH}px;--delay:${i * 0.08}s">
+      <div class="sjs-windows"></div>
+      <div class="sjs-floor-meta">
+        <span class="sjs-floor-date">${esc(ms.date || '')}</span>
+        <span class="sjs-floor-title">${esc(ms.title || 'Milestone')}</span>
+        <span class="sjs-floor-hrs">${ms.hours != null ? ms.hours + 'h' : ''}</span>
+      </div>
+    </button>`;
+  }).join('');
+  if(!milestones.length){
+    floorsHtml = `<div class="sjs-empty-floor"><span>No milestones yet — keep logging hours to light up the tower.</span></div>`;
+  }
+  document.getElementById('skillJourneyContent').innerHTML = `
+    <h2 class="sjs-title">${esc(skill.name)} <span style="color:${skill.color}">· ${tier.name}</span></h2>
+    <p class="sjs-sub">${Math.round(hrs)} hours · Level ${tier.level}${milestones.length ? ` · ${milestones.length} milestones` : ''}</p>
+    <div class="skill-journey-layout">
+      <div class="sjs-building" style="--skill-color:${skill.color}">
+        <div class="sjs-antenna"></div>
+        <div class="sjs-floors">${floorsHtml}</div>
+        <div class="sjs-ground-line"></div>
+      </div>
+      <div class="sjs-detail" id="sjsDetail">
+        <p class="sjs-detail-placeholder">${milestones.length ? 'Click a lit floor to read the story.' : 'Milestones appear as you grow this skill.'}</p>
+      </div>
+    </div>`;
+  document.getElementById('skillJourneyBack').classList.remove('hidden');
+  const detailEl = document.getElementById('sjsDetail');
+  document.querySelectorAll('#skillJourneyContent .sjs-floor').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ms = milestones[Number(btn.dataset.msIdx)];
+      if(!ms) return;
+      detailEl.innerHTML = `
+        <div class="sjs-detail-card">
+          <div class="sjs-detail-date">${esc(ms.date || '')}${ms.hours != null ? ` · ${ms.hours} hours` : ''}</div>
+          <h3>${esc(ms.title || 'Milestone')}</h3>
+          <p>${esc(ms.note || '')}</p>
+        </div>`;
+    });
+  });
+}
+
+function renderCoderSkillSkyline(coderId, container){
+  if(!container) return;
+  const skills = getCoderCollection(coderId).skills.map(collectionSkillToGray);
+  const recHost = container.closest('[data-coder-gray-view="skills"]')?.querySelector('[data-coder-rec="skill"]');
+  if(recHost && typeof renderCategoryRecommendationsHtml === 'function'){
+    recHost.innerHTML = renderCategoryRecommendationsHtml('skill', 'skills & hobbies');
+  }
+  if(!skills.length){
+    container.innerHTML = '';
+    return;
+  }
+  const maxH = 280;
+  container.innerHTML = skills.map(skill => {
+    const hrs = skill.hours || 0;
+    const tier = getSkillTier(hrs);
+    const h = Math.max(36, ((tier.level - 1) / 9 + tier.progress / 9) * maxH);
+    let lights = '';
+    for(let i = 0; i < Math.floor(tier.level * 1.5); i++){
+      lights += `<span class="skill-light" style="left:${10 + Math.random() * 75}%;bottom:${15 + Math.random() * (h - 25)}px;color:${skill.color};--flicker:${(1.2 + Math.random() * 2).toFixed(1)}s"></span>`;
+    }
+    return `<div class="skill-tower" style="--tower-color:${skill.color}" data-skill-id="${esc(skill.id)}" role="button" tabindex="0">
+      <div class="skill-tower-bar" style="height:${h}px"><div class="skill-neon-top"></div><div class="skill-tier-badge">L${tier.level}</div>${lights}</div>
+      <div class="skill-level">${tier.name}</div><div class="skill-label">${esc(skill.name)}</div>
+      <div class="skill-hours">${Math.round(tier.hours)}h${tier.next ? ` · ${Math.ceil(tier.next.hours - tier.hours)}h to ${tier.next.name}` : ''}</div></div>`;
+  }).join('');
+  container.querySelectorAll('.skill-tower').forEach(tower => {
+    const open = () => openCoderSkillJourney(coderId, tower.dataset.skillId);
+    tower.addEventListener('click', open);
+    tower.addEventListener('keydown', e => { if(e.key === 'Enter') open(); });
+  });
+}
+
+function renderCoderMediaRankings(coderId, host){
+  if(!host) return;
+  const col = getCoderCollection(coderId);
+  const ranked = col.media.map(collectionMediaToDrama)
+    .map(d => ({ d, avg: Number(computeShowRating(d)), hasReview: !!d.finalReview?.trim() }))
+    .filter(x => x.avg || x.hasReview)
+    .sort((a, b) => (b.avg || 0) - (a.avg || 0));
+  if(!ranked.length){
+    host.innerHTML = '';
+    return;
+  }
+  host.innerHTML = `<section class="media-rankings-board sketch-card">
+    <h3 class="media-rankings-title">All-time rankings</h3>
+    <p class="gallery-hint">Sorted by neon-dot average · tap a row to open</p>
+    <ol class="media-rankings-list">${ranked.map((row, i) => {
+      const mt = getMediaType(row.d.mediaType);
+      const dots = row.avg ? neonDots(row.avg, 5, stableNeon(row.d.id, 1)) : '';
+      const country = row.d.mediaType === 'tv' && row.d.country ? ` · ${esc(row.d.country)}` : '';
+      return `<li class="media-rank-row" data-drama-id="${esc(row.d.id)}">
+        <span class="media-rank-num">#${i + 1}</span>
+        <div class="media-rank-body">
+          <strong>${esc(row.d.title)}</strong>
+          <span class="media-rank-meta">${esc(mt.label)}${country}${row.avg ? ` · ${row.avg}/5` : ''} ${dots}</span>
+          ${row.d.finalReview ? `<p class="media-rank-review">${esc(row.d.finalReview.slice(0, 140))}${row.d.finalReview.length > 140 ? '…' : ''}</p>` : ''}
+        </div>
+      </li>`;
+    }).join('')}</ol>
+  </section>`;
+  host.querySelectorAll('.media-rank-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const m = col.media.find(x => x.id === row.dataset.dramaId);
+      if(m) openCoderMediaDetail(m);
+    });
+  });
+}
+
+function hydrateCoderProfileDecks(coderId, root){
+  const host = root || document.querySelector(`.profile-site[data-profile-coder="${coderId}"]`);
+  if(!host) return;
+  const col = getCoderCollection(coderId);
+
+  const placeDeck = host.querySelector('[data-coder-deck="places"]');
+  if(placeDeck){
+    const rec = host.querySelector('[data-coder-rec="place"]');
+    if(rec && typeof renderCategoryRecommendationsHtml === 'function'){
+      rec.innerHTML = renderCategoryRecommendationsHtml('place', 'places');
+    }
+    const places = col.places.map(collectionPlaceToGray);
+    if(!places.length){
+      placeDeck.innerHTML = '<p class="empty-hint">No place cards yet.</p>';
+    } else {
+      placeDeck.innerHTML = places.map((p, i) => buildFlipPlaceCard(p, i)).join('');
+      bindFlipPlayerCards(placeDeck);
+    }
+  }
+
+  const skillDeck = host.querySelector('[data-coder-deck="skills"]');
+  if(skillDeck){
+    const skills = col.skills.map(collectionSkillToGray);
+    if(!skills.length){
+      skillDeck.innerHTML = '<p class="empty-hint">No skill cards yet — add a skill card below.</p>';
+    } else {
+      skillDeck.innerHTML = skills.map((s, i) => buildFlipSkillCard(s, i, { useStoredHours: true })).join('');
+      if(typeof bindSkillCards === 'function') bindSkillCards(skillDeck);
+      skillDeck.querySelectorAll('.skill-open-journey').forEach(btn => {
+        const next = btn.cloneNode(true);
+        btn.replaceWith(next);
+        next.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          openCoderSkillJourney(coderId, next.dataset.skillId);
+        });
+      });
+    }
+    renderTierLegendInto(host.querySelector('[data-coder-tier-legend]'));
+    renderCoderSkillSkyline(coderId, host.querySelector('[data-coder-skyline]'));
+  }
+
+  const mediaDeck = host.querySelector('[data-coder-deck="media"]');
+  if(mediaDeck){
+    const dramas = col.media.map(collectionMediaToDrama);
+    renderCoderMediaRankings(coderId, host.querySelector('[data-coder-media-rankings]'));
+    if(!dramas.length){
+      mediaDeck.innerHTML = '<p class="empty-hint">Empty shelf.</p>';
+    } else {
+      mediaDeck.innerHTML = renderDramaDeckSections(dramas, { skipRecommendations: true });
+      mediaDeck.querySelectorAll('.drama-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const m = col.media.find(x => x.id === card.dataset.dramaId);
+          if(m) openCoderMediaDetail(m);
+        });
+      });
+    }
+  }
+}
+
 function renderCoderProfileShell(c, opts = {}){
   const coderId = c.id;
   const accent = c.cardColor || '#e94ff5';
@@ -4685,17 +4904,6 @@ function bindCoderProfileSite(host, coderId, opts = {}){
     });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
-  const skillDeck = host.querySelector('.profile-skill-deck');
-  if(skillDeck && typeof bindSkillCards === 'function') bindSkillCards(skillDeck);
-  host.querySelectorAll('.profile-drama-deck .drama-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const id = card.dataset.dramaId;
-      const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
-      const col = c?.collection;
-      const m = (col?.media || []).find(x => x.id === id);
-      if(m) openCoderMediaDetail(m);
-    });
-  });
   const photoWall = host.querySelector('.profile-photo-wall');
   if(photoWall && !photoWall._profilePhotoHandler){
     photoWall._profilePhotoHandler = e => {
