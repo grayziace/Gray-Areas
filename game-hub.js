@@ -772,6 +772,12 @@ GameHub.submitPressArticle = async function(formEl){
   const excerpt = form?.querySelector('.press-submit-excerpt')?.value?.trim() || document.getElementById('pressSubmitExcerpt')?.value?.trim() || title?.slice(0, 120) || '';
   const body = form?.querySelector('.press-submit-body')?.value?.trim() || document.getElementById('pressSubmitBody')?.value?.trim();
   if(!title || !body) return;
+  const section = form?.querySelector('.press-submit-section')?.value || 'Community';
+  const tags = form?.querySelector('.press-submit-tags')?.value?.trim() || '';
+  if(!isAdmin() && (section.toLowerCase() === 'newsletter' || /\bnewsletter\b/i.test(tags))){
+    alert('Only Player Gray can draft newsletters.');
+    return;
+  }
   const prefix = form?.dataset.pressImgPrefix;
   const image = prefix ? document.getElementById(`${prefix}_url`)?.value?.trim() || '' : '';
   const sub = {
@@ -781,9 +787,9 @@ GameHub.submitPressArticle = async function(formEl){
     title,
     excerpt,
     body,
-    section: form?.querySelector('.press-submit-section')?.value || 'Community',
+    section,
     layout: form?.querySelector('.press-submit-layout')?.value || 'note',
-    tags: form?.querySelector('.press-submit-tags')?.value?.trim() || '',
+    tags,
     image,
     status: 'pending',
     at: new Date().toISOString(),

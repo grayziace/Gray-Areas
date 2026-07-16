@@ -205,6 +205,7 @@ function defaultState(){
     videoDiary: [],
     liveTodos: [],
     instructionsHtml: '',
+    instructionsRevision: 0,
     playerPoints: 0,
     playerXpHistory: [],
     grayRewardsVault: null,
@@ -248,6 +249,7 @@ function mergeSiteStateFromFile(){
   if(Array.isArray(s.videoDiary)) state.videoDiary = s.videoDiary;
   if(Array.isArray(s.liveTodos)) state.liveTodos = s.liveTodos;
   if(typeof s.instructionsHtml === 'string') state.instructionsHtml = s.instructionsHtml;
+  if(typeof s.instructionsRevision === 'number') state.instructionsRevision = s.instructionsRevision;
   if(Array.isArray(s.coderActivity)) state.coderActivity = s.coderActivity;
   if(typeof s.playerPoints === 'number') state.playerPoints = s.playerPoints;
   if(Array.isArray(s.playerXpHistory)) state.playerXpHistory = s.playerXpHistory;
@@ -2346,6 +2348,10 @@ function initGlobalEditHandlers(){
         }
         if(poke?.dataset.cardType === 'animal' && typeof openCoderAnimalEditor === 'function'){
           openCoderAnimalEditor(coderId, poke.dataset.cardId);
+          return;
+        }
+        if(poke?.dataset.cardType === 'character' && typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId && typeof ViewerWorld !== 'undefined'){
+          ViewerWorld.openMyCardEditor(coderId);
           return;
         }
         const photo = editBtn.closest('.photo-flip');
@@ -5974,8 +5980,8 @@ function renderPress(){
   const newsletterBtn = isAdmin()
     ? `<div class="press-admin-tools"><button type="button" class="btn primary" id="generateWeeklyNewsletter">Generate weekly newsletter draft</button><p class="field-hint">Pulls places, people, media, skills, pulses &amp; gallery from the last 7 days — nothing from the overload vault.</p></div>`
     : '';
-  const pressQueue = typeof GameHub !== 'undefined' ? GameHub.renderPressQueue() : '';
-  const pressSubmit = typeof GameHub !== 'undefined' ? GameHub.renderPressSubmitForm() : '';
+  const pressQueue = isAdmin() && typeof GameHub !== 'undefined' ? GameHub.renderPressQueue() : '';
+  const pressSubmit = isAdmin() && typeof GameHub !== 'undefined' ? GameHub.renderPressSubmitForm() : '';
   spread.innerHTML = recs + pressQueue + pressSubmit + newsletterBtn + tagBar + filtered.map((a, i) => {
     const neon = stableNeon(a.id, i);
     const tags = parseArticleTags(a);
@@ -6005,6 +6011,7 @@ function renderPress(){
     GameHub.bindPressSubmit();
   }
   spread.querySelector('#generateWeeklyNewsletter')?.addEventListener('click', () => {
+    if(!isAdmin()) return;
     const draft = generateWeeklyNewsletter();
     ensureContentState();
     const article = {

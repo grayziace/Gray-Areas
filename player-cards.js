@@ -417,6 +417,30 @@ function buildPlayerCardFront(item, unlocked, opts = {}){
   </div>`;
 }
 
+function formatCardBlockEffect(name, effect){
+  let e = String(effect || '')
+    .replace(/\u2014/g, ' - ')
+    .replace(/\u2013/g, '-')
+    .trim();
+  const parts = e.split(/\s+-\s+/);
+  if(parts.length >= 2){
+    const prefix = parts[0].trim();
+    const rest = parts.slice(1).join(' - ').trim();
+    const nameLow = (name || '').toLowerCase();
+    const prefixLow = prefix.toLowerCase();
+    if(
+      prefixLow === 'passive'
+      || prefixLow === nameLow
+      || prefixLow.startsWith('channel ')
+      || nameLow.includes(prefixLow)
+      || prefixLow.includes(nameLow)
+    ){
+      e = rest;
+    }
+  }
+  return e;
+}
+
 function buildPlayerCardBack(item, unlocked, opts = {}){
   const pc = normalizePokeCard(item);
   const accent = getPlayerAccent(item, opts);
@@ -427,7 +451,11 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
     return `<div class="pc-back locked-back" style="--pc-accent:${accent}"><p class="pc-locked">Locked</p><span class="flip-hint-back">flip back</span></div>`;
   }
   const row = (l, v) => v ? `<div class="pc-row"><span>${l}</span><span>${esc(String(v))}</span></div>` : '';
-  const block = (l, n, e) => n ? `<div class="pc-block"><div class="pc-block-title">${l}: ${esc(n)}</div><p>${esc(e || '')}</p></div>` : '';
+  const block = (l, n, e) => {
+    if(!n) return '';
+    const clean = formatCardBlockEffect(n, e);
+    return `<div class="pc-block"><div class="pc-block-title">${l}: ${esc(n)}</div><p>${esc(clean)}</p></div>`;
+  };
 
   return `<div class="pc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>

@@ -250,9 +250,9 @@ function deriveCardStats(form){
   let abilityEffect = 'I\'ll fill this in when I spot the blank.';
   if(s){
     if(/social|adapt|chameleon/i.test(s + ' ' + vibe + ' ' + spirit)){
-      abilityEffect = `Passive — ${s}. You read the room and blend in; opponents struggle to isolate you as a threat.`;
+      abilityEffect = `You read the room and blend in; opponents struggle to isolate you as a threat. (${s})`;
     } else {
-      abilityEffect = `${s} is your edge — when the board gets heavy, you steady the room.`;
+      abilityEffect = `When the board gets heavy, you steady the room. ${s} is your edge.`;
     }
   } else if(vibe){
     abilityEffect = vibe;
@@ -262,21 +262,21 @@ function deriveCardStats(form){
   let weaknessEffect = 'I\'ll fill this in when I spot the blank.';
   if(w){
     weaknessEffect = /fringe/i.test(wLow)
-      ? `Fringe Phobia — double impact from opponents with fringe aesthetics; your focus shatters.`
-      : `${weaknessName} — double damage from ${wLow}; high-pressure days hit harder.`;
+      ? `Double impact from opponents with fringe aesthetics; your focus shatters.`
+      : `Double damage from ${wLow}; high-pressure days hit harder.`;
   }
 
   const resistanceName = titleFromPhrase(r, title ? `The ${title}` : 'Natural Shield');
   let resistanceEffect = 'I\'ll fill this in when I spot the blank.';
   if(r){
     resistanceEffect = /rock|time|ground|solid/i.test(r)
-      ? `Rock-solid — immune to intimidation and pressure tactics. ${r} does not move you.`
-      : `Immune to ${r.toLowerCase()} — you shrug off what would bend others.`;
+      ? `Rock-solid: immune to intimidation and pressure tactics. ${r} does not move you.`
+      : `Immune to ${r.toLowerCase()}; you shrug off what would bend others.`;
   }
 
   const extraMoves = strengths.filter(x => x !== s).slice(0, 2).map(str => ({
     name: titleFromPhrase(str, 'Bonus Move'),
-    effect: `Channel ${str.toLowerCase()} — tactical edge when I need it.`,
+    effect: `Tactical edge when Gray needs it. (${str})`,
   }));
 
   return {
@@ -711,7 +711,7 @@ function renderGrayMyCardGuide(){
     { label: 'Coming To You Live', note: 'Pulses, live to-do, video diary notes.' },
     { label: 'Quest inbox', note: 'Accept, complete, or decline coder missions.' },
     { label: 'Award coder XP', note: 'Quest rail + admin panels — deck ranks update.' },
-    { label: 'Community board', note: 'Post as Player Gray — permanent pins.' },
+    { label: 'Community board', note: 'Post as Player Gray — permanent pins. Community Animals tab shows coder pet & spotted cards.' },
     { label: 'Private inbox', note: 'Reply to coders, handle XP requests — ✉ bottom-right.' },
     { label: 'The Press', note: 'Write, tag, and publish pieces.' },
     { label: 'Photo Wall & places', note: 'New cards, gallery stories, unlocked zones.' },
@@ -1315,14 +1315,17 @@ function userVotedQuest(q, cardId){
   return !!(q.votes && cardId && q.votes[cardId]);
 }
 
+const INSTRUCTIONS_REVISION = 2;
+
 function getInstructionsHtml(){
-  if(state.instructionsHtml) return state.instructionsHtml;
+  const rev = state.instructionsRevision || 0;
+  if(state.instructionsHtml && rev >= INSTRUCTIONS_REVISION) return state.instructionsHtml;
   return buildDefaultInstructionsHtml();
 }
 
 function buildDefaultInstructionsHtml(){
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed. (Yes, it's a whole thing.)</p></div>`;
+    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, photos, and <strong>Community Animals</strong> (flip cards of creatures coders have spotted or pets they own). No login needed. (Yes, it's a whole thing.)</p></div>`;
   }
   const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make my profile →</button>` : '';
   const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send me a quest →</button>` : '';
@@ -1340,25 +1343,25 @@ function buildDefaultInstructionsHtml(){
       </ol>
 
       <h3 class="viewer-wizard-title">My Profile (your home base)</h3>
-      <p class="instructions-p">Everything personal lives here — not scattered in the sidebar. The neon banners on the right:</p>
+      <p class="instructions-p">Everything personal lives here — not scattered in the sidebar. When you add or edit something, <strong>you stay on that tab</strong> — I won't throw you back to Updates. The neon banners on the right:</p>
       <ul class="instructions-nav-list">
         <li><strong>Updates</strong> — drop public posts (Community + chat) or private notes straight to my inbox. Say <em>message me</em>, not "message Gray". You're talking to me.</li>
-        <li><strong>Photos</strong> — your photo wall. Add, flip, edit. Doesn't have to go through Updates.</li>
+        <li><strong>Photos</strong> — your photo wall. Add, flip, edit <em>right on this tab</em> — doesn't have to go through Updates.</li>
         <li><strong>Friends</strong> — collect other coders' cards from Coder Cards. No inventing people — only real accounts.</li>
         <li><strong>Skills</strong> — same idea as my Skill Cards: flip cards, skyline towers, log hours, add milestones. Edit from the card or the tower. Hit <strong>Send to me</strong> when you want me to try something.</li>
-        <li><strong>Media</strong> — TV, film, books, albums, songs. Full shelves, episode reviews, posters. Again — Send to me when you've got a rec.</li>
-        <li><strong>Places</strong> — vibe / experience / utility ranks plus your actual stories from being there.</li>
-        <li><strong>Animals</strong> — spotted in the wild or pets you own. Upload or generate a photo, write the animal story. Shows on Community Animals too.</li>
-        <li><strong>Press</strong> — write articles for The Press with photos and layout. I read everything; I publish what sings.</li>
+        <li><strong>Media</strong> — TV, film, books, albums, songs. Full shelves, episode reviews, posters, rankings. <strong>Send to me</strong> when you've got a rec.</li>
+        <li><strong>Places</strong> — vibe / experience / utility ranks plus your actual stories from being there. <strong>Send to me</strong> for places you want me to visit.</li>
+        <li><strong>Animals</strong> — two types: <strong>Spotted in the wild</strong> (public creatures you've met) or <strong>My pet</strong> (animals you own). Labels change with the type — where you saw them vs where they live. Upload or AI-generate a photo, write the <strong>animal story</strong> (how you met, personality, the whole bit), pick a <strong>card colour</strong> (glow preview updates live as you choose). Flip the card for the full story. Also on <strong>Community → Community Animals</strong>. The little <strong>circle</strong> on each card is whoever posted it — click to visit their profile. <strong>+8 XP</strong>.</li>
+        <li><strong>Press</strong> — write articles for The Press with photos, layout, and tags. I read everything; I publish what sings.</li>
         <li><strong>Quests</strong> — <em>only here now</em>, not in the sidebar. Send me missions: visit somewhere, eat something, comfort me, or <strong>update the website</strong> with a feature you want coded in.</li>
       </ul>
 
       <h3 class="viewer-wizard-title">Game sidebar (the rest)</h3>
       <ul class="instructions-nav-list">
-        <li><strong>Messages</strong> — DM me or friends you've collected</li>
+        <li><strong>Messages</strong> — DM me or friends you've collected. Private <strong>Send to me</strong> picks (places, skills, media) land in my <strong>Recommendations</strong> tab when I'm logged in.</li>
         <li><strong>Chat</strong> — live room; your public updates echo here</li>
-        <li><strong>Community</strong> — pinboard with polls and media, plus <strong>Community Animals</strong> — flip cards of spotted creatures and pets</li>
-        <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, birthdays, being a legend)</li>
+        <li><strong>Community</strong> — <strong>Community Board</strong> for pin notes, polls, and media. <strong>Community Animals</strong> tab: every coder's animal flip cards in one deck — <strong>Spotted</strong> vs <strong>My pet</strong> badges on the front, <strong>animal story</strong> on the back, coder portrait circle on each card.</li>
+        <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, birthdays, calls, recs I actually consumed, being a legend)</li>
       </ul>
 
       <h3 class="viewer-wizard-title">My world (everyone can browse)</h3>
@@ -1373,9 +1376,9 @@ function buildDefaultInstructionsHtml(){
       </ul>
 
       <h3 class="viewer-wizard-title">XP &amp; levelling</h3>
-      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection, and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually. (I'm not joking.)</p>
+      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection (places, skills, media, animals…), and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually. (I'm not joking.)</p>
 
-      <p class="instructions-note">Rules of thumb: build your collection in My Profile, send quests from My Profile, write Press from My Profile, and when in doubt — flip the card.</p>
+      <p class="instructions-note">Rules of thumb: build your collection in My Profile, send quests from My Profile, write Press from My Profile, flip every card at least once, and when in doubt — <strong>Send to me</strong>.</p>
       ${cardBtn}
       ${questBtn}
       ${loginBtn}
@@ -1750,6 +1753,7 @@ const ViewerWorld = {
       const ed = host.querySelector('#instructionsEditor');
       ed?.addEventListener('blur', () => {
         state.instructionsHtml = ed.innerHTML;
+        state.instructionsRevision = INSTRUCTIONS_REVISION;
         saveState();
       });
       return;

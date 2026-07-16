@@ -166,6 +166,7 @@ function buildSiteStateSource(){
     videoDiary: state.videoDiary || [],
     liveTodos: state.liveTodos || [],
     instructionsHtml: state.instructionsHtml || '',
+    instructionsRevision: state.instructionsRevision || 0,
     coderActivity: state.coderActivity || [],
     playerPoints: state.playerPoints || 0,
     playerXpHistory: state.playerXpHistory || [],
