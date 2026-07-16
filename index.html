@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260716e">
+<link rel="stylesheet" href="style.css?v=20260716g">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -558,6 +558,62 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="coderPlaceModalBack">
+  <div class="modal sketch-card">
+    <h3 id="coderPlaceModalTitle">Place card</h3>
+    <input type="hidden" id="coderPlaceCoderId">
+    <input type="hidden" id="coderPlaceEditId">
+    <div class="field"><label>Location name</label><input type="text" id="coderPlaceName"></div>
+    <div class="field"><label>Vibe (short)</label><input type="text" id="coderPlaceVibe" placeholder="neon, cozy, rainy…"></div>
+    <div class="field-row">
+      <div class="field"><label>Vibe rank /5</label><input type="number" id="coderPlaceVibeRank" min="1" max="5" value="3"></div>
+      <div class="field"><label>Experience /5</label><input type="number" id="coderPlaceExpRank" min="1" max="5" value="3"></div>
+      <div class="field"><label>Utility /5</label><input type="number" id="coderPlaceUtilRank" min="1" max="5" value="3"></div>
+    </div>
+    <div class="field"><label>Visits</label><input type="number" id="coderPlaceLevel" min="1" value="1"></div>
+    <div class="field"><label>Your experiences here</label><textarea id="coderPlaceDesc" rows="5" placeholder="What happened when you went — the full story…"></textarea></div>
+    <div id="coderPlaceImageBlock"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="coderRecommendPlace">Recommend to Gray</button>
+      <button type="button" class="btn" id="cancelCoderPlace">Cancel</button>
+      <button type="button" class="btn primary" id="saveCoderPlace">Save place card</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="coderSkillModalBack">
+  <div class="modal sketch-card">
+    <h3 id="coderSkillModalTitle">Skill card</h3>
+    <input type="hidden" id="coderSkillCoderId">
+    <input type="hidden" id="coderSkillEditId">
+    <div class="field"><label>Skill name</label><input type="text" id="coderSkillName" placeholder="piano, mandarin…"></div>
+    <div class="field-row">
+      <div class="field"><label>Hours logged</label><input type="number" id="coderSkillHours" min="0" step="0.5" value="0"></div>
+      <div class="field"><label>Neon colour</label><input type="color" id="coderSkillColor" value="#7c4dff"></div>
+    </div>
+    <p class="field-hint">After saving, flip the card or click a skyline tower to add milestones.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="cancelCoderSkill">Cancel</button>
+      <button type="button" class="btn primary" id="saveCoderSkill">Save skill card</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="coderPhotoModalBack">
+  <div class="modal sketch-card">
+    <h3>Add photo</h3>
+    <input type="hidden" id="coderPhotoCoderId">
+    <input type="hidden" id="coderPhotoEditId">
+    <div class="field"><label>Caption</label><input type="text" id="coderPhotoCaption" placeholder="short label"></div>
+    <div class="field"><label>Your story</label><textarea id="coderPhotoStory" rows="3" placeholder="What was this moment?"></textarea></div>
+    <div id="coderPhotoImageBlock"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="cancelCoderPhoto">Cancel</button>
+      <button type="button" class="btn primary" id="saveCoderPhoto">Save photo</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="skillEditBack">
   <div class="modal sketch-card">
     <button class="modal-close" id="closeSkillEdit">×</button>
@@ -806,7 +862,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'game-hub.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'game-hub.js', 'coder-collection.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
@@ -819,7 +875,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260716e';
+    s.src = files[i++] + '?v=20260716g';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

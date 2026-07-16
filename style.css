@@ -3550,13 +3550,31 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 .profile-gray-view .gallery-hint{margin-bottom:12px;}
 .profile-gray-view .card-deck,
 .profile-gray-view .drama-deck,
+.profile-gray-view .profile-media-host,
 .profile-gray-view .skill-skyline-wrap{width:100%;}
+.profile-media-host{display:block;}
+.drama-deck:has(.media-type-section),
+.profile-media-host:has(.media-type-section){display:block;}
+.profile-media-host .media-type-section{width:100%;}
 .profile-col-add{margin-top:16px;}
 .profile-site-panel--deck .profile-photo-wall{width:100%;}
-.profile-drama-deck .drama-card{cursor:pointer;}
+.profile-drama-deck .drama-card,
+.profile-media-host .drama-card{cursor:pointer;}
+.sjs-hours-row{margin-bottom:14px;padding:12px;}
+.sjs-hours-val{font-family:var(--font-data);margin:0 10px;}
+.gray-rec-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+.gray-rec-item{padding:12px;border:1px dashed var(--border-glass);background:rgba(0,0,0,0.25);}
+.gray-rec-cat{text-transform:uppercase;font-size:10px;letter-spacing:0.08em;color:var(--neon-cyan);}
+.gray-rec-body{font-size:12px;line-height:1.5;margin:8px 0 0;color:var(--text-mid);}
+.inbox-admin-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.inbox-admin-tab.is-active{border-color:var(--neon-cyan);box-shadow:0 0 14px rgba(58,214,224,0.2);}
+.inbox-admin-pane{display:none;}
+.inbox-admin-pane.is-active{display:block;}
 
 /* Profile site side-rail */
-.profile-site{--ps-neon:#e94ff5;margin-bottom:20px;}
+.profile-site[data-profile-editable="1"] .edit-when-editing,
+.profile-site[data-profile-editable="1"] .flip-edit-btn{display:inline-block !important;}
+.profile-site[data-profile-editable="1"] .card-visit-btn{display:none;}
 .profile-site-hero{position:relative;margin-bottom:18px;border-radius:8px;overflow:hidden;border:2px solid color-mix(in srgb,var(--ps-neon) 50%,transparent);}
 .profile-site-hero-glow{position:absolute;inset:0;background:linear-gradient(135deg,color-mix(in srgb,var(--ps-neon) 28%,#0a0612),rgba(0,0,0,0.88));}
 .profile-site-hero-inner{position:relative;display:flex;flex-wrap:wrap;gap:20px;padding:22px;align-items:center;}

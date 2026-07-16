@@ -210,6 +210,7 @@ function defaultState(){
     grayRewardsVault: null,
     chatMessages: [],
     pressSubmissions: [],
+    coderRecommendations: [],
     coderPresence: {},
   };
 }
@@ -2324,6 +2325,28 @@ function initGlobalEditHandlers(){
     if(!editBtn) return;
     e.preventDefault();
     e.stopPropagation();
+
+    const profileSite = editBtn.closest('.profile-site[data-profile-coder]');
+    if(profileSite){
+      const coderId = profileSite.dataset.profileCoder;
+      if(typeof canEditCoderCollection === 'function' && canEditCoderCollection(coderId)){
+        const poke = editBtn.closest('.poke-flip');
+        if(poke?.dataset.cardType === 'place' && typeof openCoderPlaceEditor === 'function'){
+          openCoderPlaceEditor(coderId, poke.dataset.cardId);
+          return;
+        }
+        if(poke?.dataset.cardType === 'skill' && typeof openCoderSkillEditor === 'function'){
+          openCoderSkillEditor(coderId, poke.dataset.cardId);
+          return;
+        }
+        const photo = editBtn.closest('.photo-flip');
+        if(photo?.dataset.photoId && typeof openCoderPhotoEditor === 'function'){
+          openCoderPhotoEditor(coderId, photo.dataset.photoId);
+          return;
+        }
+      }
+    }
+
     if(!isAdmin()){
       document.getElementById('adminModalBack')?.classList.remove('hidden');
       return;
@@ -4495,7 +4518,7 @@ function renderCoderPhotoWall(coderId){
 }
 
 function collectionMediaToDrama(m){
-  const raw = (m.medium || 'film').toLowerCase().trim();
+  const raw = (m.medium || m.mediaType || 'film').toLowerCase().trim();
   const typeMap = {
     tv: 'tv', television: 'tv', series: 'tv', show: 'tv',
     film: 'film', movie: 'film', cinema: 'film',
@@ -4509,12 +4532,6 @@ function collectionMediaToDrama(m){
   const current = m.currentEpisode != null
     ? Number(m.currentEpisode)
     : (m.status === 'completed' ? total : Math.min(1, total));
-  const rating = Number(m.rating) || 0;
-  const attrs = getMediaAttributes(mediaType);
-  const epRatings = {};
-  if(rating){
-    attrs.forEach(a => { epRatings[a.id] = rating; });
-  }
   return {
     id: m.id || uid('cmedia'),
     title: m.title || 'Untitled',
@@ -4525,8 +4542,8 @@ function collectionMediaToDrama(m){
     image: m.image || '',
     currentEpisode: current,
     totalEpisodes: total,
-    episodes: rating ? { '1': { ratings: epRatings } } : {},
-    finalReview: m.review || m.notes || '',
+    episodes: m.episodes || {},
+    finalReview: m.finalReview || m.review || m.notes || '',
   };
 }
 
@@ -4590,26 +4607,34 @@ function openCoderMediaDetail(m){
 
 function getCoderCollection(coderId){
   const c = getCoderByIdAny(coderId);
-  if(!c) return { places: [], skills: [], media: [], friends: [] };
+  if(!c) return { places: [], skills: [], media: [], photos: [], friends: [] };
   if(typeof ensurePlayerCollection === 'function') return ensurePlayerCollection(c);
   if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], media: [], friends: [] };
   return c.collection;
 }
 
 function collectionPlaceToGray(p){
+  const pc = p.placeCard || {};
   return {
     id: p.id || uid('cplace'),
     name: p.name || 'Place',
     unlocked: true,
     vibe: p.vibe || '',
+    level: p.level || pc.level || 1,
+    vibeRank: p.vibeRank || pc.vibeRank || 3,
+    experienceRank: p.experienceRank || pc.experienceRank || 3,
+    utilityRank: p.utilityRank || pc.utilityRank || 3,
+    description: p.description || pc.description || p.vibe || '',
     placeCard: {
-      level: p.level || 1,
-      vibeRank: p.vibeRank || 3,
-      experienceRank: p.experienceRank || 3,
-      utilityRank: p.utilityRank || 3,
-      description: p.description || p.vibe || '',
+      level: p.level || pc.level || 1,
+      vibeRank: p.vibeRank || pc.vibeRank || 3,
+      experienceRank: p.experienceRank || pc.experienceRank || 3,
+      utilityRank: p.utilityRank || pc.utilityRank || 3,
+      description: p.description || pc.description || p.vibe || '',
     },
     image: p.image || '',
+    imageFocusX: p.imageFocusX,
+    imageFocusY: p.imageFocusY,
   };
 }
 
@@ -4630,53 +4655,7 @@ function renderTierLegendInto(el){
 }
 
 function openCoderSkillJourney(coderId, skillId){
-  const skill = getCoderCollection(coderId).skills.map(collectionSkillToGray).find(s => s.id === skillId);
-  if(!skill) return;
-  const hrs = skill.hours || 0;
-  const tier = getSkillTier(hrs);
-  const milestones = (skill.milestones || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  const maxFloor = Math.max(milestones.length, 1);
-  let floorsHtml = milestones.map((ms, i) => {
-    const floorH = 48 + (i / maxFloor) * 40;
-    return `<button type="button" class="sjs-floor lit" data-ms-idx="${i}" style="--floor-h:${floorH}px;--delay:${i * 0.08}s">
-      <div class="sjs-windows"></div>
-      <div class="sjs-floor-meta">
-        <span class="sjs-floor-date">${esc(ms.date || '')}</span>
-        <span class="sjs-floor-title">${esc(ms.title || 'Milestone')}</span>
-        <span class="sjs-floor-hrs">${ms.hours != null ? ms.hours + 'h' : ''}</span>
-      </div>
-    </button>`;
-  }).join('');
-  if(!milestones.length){
-    floorsHtml = `<div class="sjs-empty-floor"><span>No milestones yet — keep logging hours to light up the tower.</span></div>`;
-  }
-  document.getElementById('skillJourneyContent').innerHTML = `
-    <h2 class="sjs-title">${esc(skill.name)} <span style="color:${skill.color}">· ${tier.name}</span></h2>
-    <p class="sjs-sub">${Math.round(hrs)} hours · Level ${tier.level}${milestones.length ? ` · ${milestones.length} milestones` : ''}</p>
-    <div class="skill-journey-layout">
-      <div class="sjs-building" style="--skill-color:${skill.color}">
-        <div class="sjs-antenna"></div>
-        <div class="sjs-floors">${floorsHtml}</div>
-        <div class="sjs-ground-line"></div>
-      </div>
-      <div class="sjs-detail" id="sjsDetail">
-        <p class="sjs-detail-placeholder">${milestones.length ? 'Click a lit floor to read the story.' : 'Milestones appear as you grow this skill.'}</p>
-      </div>
-    </div>`;
-  document.getElementById('skillJourneyBack').classList.remove('hidden');
-  const detailEl = document.getElementById('sjsDetail');
-  document.querySelectorAll('#skillJourneyContent .sjs-floor').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const ms = milestones[Number(btn.dataset.msIdx)];
-      if(!ms) return;
-      detailEl.innerHTML = `
-        <div class="sjs-detail-card">
-          <div class="sjs-detail-date">${esc(ms.date || '')}${ms.hours != null ? ` · ${ms.hours} hours` : ''}</div>
-          <h3>${esc(ms.title || 'Milestone')}</h3>
-          <p>${esc(ms.note || '')}</p>
-        </div>`;
-    });
-  });
+  if(typeof openCoderSkillJourneyEditor === 'function') return openCoderSkillJourneyEditor(coderId, skillId);
 }
 
 function renderCoderSkillSkyline(coderId, container){
@@ -4742,7 +4721,7 @@ function renderCoderMediaRankings(coderId, host){
   host.querySelectorAll('.media-rank-row').forEach(row => {
     row.addEventListener('click', () => {
       const m = col.media.find(x => x.id === row.dataset.dramaId);
-      if(m) openCoderMediaDetail(m);
+      if(m && typeof openCoderMediaDetailFull === 'function') openCoderMediaDetailFull(coderId, m.id);
     });
   });
 }
@@ -4774,16 +4753,8 @@ function hydrateCoderProfileDecks(coderId, root){
       skillDeck.innerHTML = '<p class="empty-hint">No skill cards yet — add a skill card below.</p>';
     } else {
       skillDeck.innerHTML = skills.map((s, i) => buildFlipSkillCard(s, i, { useStoredHours: true })).join('');
-      if(typeof bindSkillCards === 'function') bindSkillCards(skillDeck);
-      skillDeck.querySelectorAll('.skill-open-journey').forEach(btn => {
-        const next = btn.cloneNode(true);
-        btn.replaceWith(next);
-        next.addEventListener('click', e => {
-          e.preventDefault();
-          e.stopPropagation();
-          openCoderSkillJourney(coderId, next.dataset.skillId);
-        });
-      });
+      if(typeof bindCoderSkillCards === 'function') bindCoderSkillCards(skillDeck, coderId);
+      else if(typeof bindSkillCards === 'function') bindSkillCards(skillDeck);
     }
     renderTierLegendInto(host.querySelector('[data-coder-tier-legend]'));
     renderCoderSkillSkyline(coderId, host.querySelector('[data-coder-skyline]'));
@@ -4800,11 +4771,48 @@ function hydrateCoderProfileDecks(coderId, root){
       mediaDeck.querySelectorAll('.drama-card').forEach(card => {
         card.addEventListener('click', () => {
           const m = col.media.find(x => x.id === card.dataset.dramaId);
-          if(m) openCoderMediaDetail(m);
+          if(m && typeof openCoderMediaDetailFull === 'function') openCoderMediaDetailFull(coderId, m.id);
         });
       });
     }
   }
+
+  const photoWall = host.querySelector('[data-coder-deck="photos"]');
+  if(photoWall){
+    const photos = (col.photos || []).slice().sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    if(!photos.length){
+      photoWall.innerHTML = '<p class="empty-hint">No photos yet — add one with the button below.</p>';
+    } else {
+      const canEditPhotos = typeof canEditCoderCollection === 'function' && canEditCoderCollection(coderId);
+      photoWall.innerHTML = photos.map((it, i) => {
+        const layout = resolveGalleryLayout({ id: it.id || String(i), layoutPreset: i % GALLERY_LAYOUTS.length }, i);
+        const neon = stableNeon(it.id || it.src || String(i), i);
+        const wideClass = layout.gridWide ? ' layout-wide' : '';
+        const photoId = it.id || `cphoto-${i}`;
+        const editBtn = canEditPhotos ? '<button type="button" class="btn flip-edit-btn coder-photo-edit">Edit photo</button>' : '';
+        return `<figure class="photo-flip scrap-item${wideClass} size-${layout.size}" data-photo-id="${esc(photoId)}" style="--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;--flip-neon:${neon}">
+          <div class="photo-flip-scene"><div class="photo-flip-inner">
+            <div class="photo-flip-face photo-flip-front">
+              <div class="photo-frame"><img src="${esc(it.src)}" alt="" loading="lazy"></div>
+              <figcaption class="photo-caption">${esc(it.caption || 'Photo')}</figcaption>
+            </div>
+            <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner"><h3 class="flip-caption">${esc(it.caption || 'Photo')}</h3>${it.story ? `<p>${esc(it.story)}</p>` : ''}${editBtn}<span class="flip-hint-back">tap to flip back</span></div></div>
+          </div></div></figure>`;
+      }).join('');
+      if(!photoWall._profilePhotoHandler){
+        photoWall._profilePhotoHandler = e => {
+          const fig = e.target.closest('.photo-flip');
+          if(!fig || !photoWall.contains(fig)) return;
+          const wasFlipped = fig.classList.contains('is-flipped');
+          photoWall.querySelectorAll('.photo-flip.is-flipped').forEach(f => f.classList.remove('is-flipped'));
+          if(!wasFlipped && fig.querySelector('.photo-flip-inner')) fig.classList.add('is-flipped');
+        };
+        photoWall.addEventListener('click', photoWall._profilePhotoHandler);
+      }
+    }
+  }
+
+  if(typeof bindCoderCollectionUI === 'function') bindCoderCollectionUI(host, coderId);
 }
 
 function renderCoderProfileShell(c, opts = {}){
@@ -4823,6 +4831,7 @@ function renderCoderProfileShell(c, opts = {}){
   const quests = getCoderQuests(coderId);
   const lvlPct = Math.round((lvl.progress || 0) * 100);
   const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(c) : String(c.points || 0);
+  const activeTab = typeof getCoderProfileActiveTab === 'function' ? getCoderProfileActiveTab(coderId) : 'updates';
   const sections = [
     { id: 'updates', label: 'Updates', icon: '◎', neon: '#fcd34d' },
     { id: 'photos', label: 'Photos', icon: '▣', neon: '#a78bfa' },
@@ -4830,10 +4839,11 @@ function renderCoderProfileShell(c, opts = {}){
     { id: 'skills', label: 'Skills', icon: '◆', neon: '#38bdf8' },
     { id: 'media', label: 'Media', icon: '◈', neon: '#22d3ee' },
     { id: 'places', label: 'Places', icon: '◇', neon: '#4ade80' },
+    { id: 'press', label: 'Press', icon: '✎', neon: '#f472b6' },
     { id: 'quests', label: 'Quests', icon: '✦', neon: '#fb923c' },
   ];
-  const railHtml = sections.map((s, i) =>
-    `<button type="button" class="profile-rail-banner${i === 0 ? ' is-active' : ''}" data-ps-section="${s.id}" style="--pr-neon:${s.neon}"><span class="profile-rail-glow" aria-hidden="true"></span><span class="profile-rail-icon">${s.icon}</span><span class="profile-rail-label">${esc(s.label)}</span></button>`
+  const railHtml = sections.map(s =>
+    `<button type="button" class="profile-rail-banner${s.id === activeTab ? ' is-active' : ''}" data-ps-section="${s.id}" style="--pr-neon:${s.neon}"><span class="profile-rail-glow" aria-hidden="true"></span><span class="profile-rail-icon">${s.icon}</span><span class="profile-rail-label">${esc(s.label)}</span></button>`
   ).join('');
   const colSection = id => typeof GameHub !== 'undefined' && GameHub.renderCollectionSection
     ? GameHub.renderCollectionSection(coderId, id)
@@ -4845,7 +4855,8 @@ function renderCoderProfileShell(c, opts = {}){
     }).join('')}</ul>`
     : '<p class="empty-hint">No quests sent yet.</p>';
   const feedHtml = typeof renderCoderUpdateFeed === 'function' ? renderCoderUpdateFeed(posts, accent) : '';
-  return `<div class="profile-site" data-profile-coder="${esc(coderId)}" style="--ps-neon:${esc(accent)}">
+  const canEditProfile = isMine || (typeof isAdmin === 'function' && isAdmin());
+  return `<div class="profile-site" data-profile-coder="${esc(coderId)}"${canEditProfile ? ' data-profile-editable="1"' : ''} style="--ps-neon:${esc(accent)}">
     <header class="profile-site-hero">
       <div class="profile-site-hero-glow" aria-hidden="true"></div>
       <div class="profile-site-hero-inner">
@@ -4876,16 +4887,17 @@ function renderCoderProfileShell(c, opts = {}){
     <div class="profile-site-body">
       <nav class="profile-side-rail" aria-label="Profile sections">${railHtml}</nav>
       <main class="profile-site-main">
-        <section class="profile-site-panel is-active" data-ps-panel="updates">
+        <section class="profile-site-panel${activeTab === 'updates' ? ' is-active' : ''}" data-ps-panel="updates">
           ${isMine && opts.showCompose ? '<div class="coder-compose-slot" id="coderComposeSlot"></div>' : ''}
           ${feedHtml}
         </section>
-        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="photos">${renderCoderPhotoWall(coderId)}</section>
-        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="friends">${colSection('friends')}</section>
-        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="skills">${colSection('skills')}</section>
-        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="media">${colSection('media')}</section>
-        <section class="profile-site-panel profile-site-panel--deck" data-ps-panel="places">${colSection('places')}</section>
-        <section class="profile-site-panel" data-ps-panel="quests">${questHtml}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'photos' ? ' is-active' : ''}" data-ps-panel="photos">${colSection('photos')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'friends' ? ' is-active' : ''}" data-ps-panel="friends">${colSection('friends')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'skills' ? ' is-active' : ''}" data-ps-panel="skills">${colSection('skills')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'media' ? ' is-active' : ''}" data-ps-panel="media">${colSection('media')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'places' ? ' is-active' : ''}" data-ps-panel="places">${colSection('places')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'press' ? ' is-active' : ''}" data-ps-panel="press">${colSection('press')}</section>
+        <section class="profile-site-panel${activeTab === 'quests' ? ' is-active' : ''}" data-ps-panel="quests">${questHtml}</section>
       </main>
     </div>
   </div>`;
@@ -4901,23 +4913,15 @@ function bindCoderProfileSite(host, coderId, opts = {}){
       site.querySelectorAll('.profile-site-panel').forEach(p => p.classList.remove('is-active'));
       btn.classList.add('is-active');
       site.querySelector(`[data-ps-panel="${btn.dataset.psSection}"]`)?.classList.add('is-active');
+      if(typeof setCoderProfileActiveTab === 'function') setCoderProfileActiveTab(coderId, btn.dataset.psSection);
     });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
-  const photoWall = host.querySelector('.profile-photo-wall');
-  if(photoWall && !photoWall._profilePhotoHandler){
-    photoWall._profilePhotoHandler = e => {
-      const fig = e.target.closest('.photo-flip');
-      if(!fig || !photoWall.contains(fig)) return;
-      const wasFlipped = fig.classList.contains('is-flipped');
-      photoWall.querySelectorAll('.photo-flip.is-flipped').forEach(f => f.classList.remove('is-flipped'));
-      if(!wasFlipped && fig.querySelector('.photo-flip-inner')) fig.classList.add('is-flipped');
-    };
-    photoWall.addEventListener('click', photoWall._profilePhotoHandler);
-  }
   if(typeof GameHub !== 'undefined'){
     GameHub.bindProfileCollections(host, coderId);
+    if(typeof GameHub.bindPressSubmit === 'function') GameHub.bindPressSubmit();
   }
+  if(typeof hydrateCoderProfileDecks === 'function') hydrateCoderProfileDecks(coderId, host);
   bindPollVoteButtons(host);
   host.querySelectorAll('[data-profile-friend]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -5728,6 +5732,9 @@ function closeEpisodeModal(){
 }
 
 document.getElementById('saveEpisode')?.addEventListener('click', () => {
+  if(window.coderEpisodeCtx && typeof saveCoderEpisodeFromModal === 'function'){
+    if(saveCoderEpisodeFromModal()) return;
+  }
   const dramaId = document.getElementById('epDramaId').value;
   const epNum = document.getElementById('epNum').value;
   ensureDramaState(dramaId);
@@ -5809,8 +5816,14 @@ document.getElementById('dramaMediaType')?.addEventListener('change', () => {
 });
 
 document.getElementById('addDramaBtn')?.addEventListener('click', () => openDramaModal(null));
-document.getElementById('cancelDrama')?.addEventListener('click', () => document.getElementById('dramaModalBack').classList.add('hidden'));
+document.getElementById('cancelDrama')?.addEventListener('click', () => {
+  window.coderMediaCtx = null;
+  document.getElementById('dramaModalBack').classList.add('hidden');
+});
 document.getElementById('saveDrama')?.addEventListener('click', () => {
+  if(window.coderMediaCtx && typeof saveCoderMediaFromModal === 'function'){
+    if(saveCoderMediaFromModal()) return;
+  }
   const title = document.getElementById('dramaTitle').value.trim();
   if(!title) return;
   const editId = document.getElementById('dramaEditId').value;

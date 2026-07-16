@@ -132,6 +132,11 @@ export async function onRequestPost(context) {
       store.pressSubmissions = store.pressSubmissions || [];
       const exists = store.pressSubmissions.some(s => s.id === payload.id);
       if (!exists) store.pressSubmissions.unshift(payload);
+    } else if (action === 'submitRecommendation') {
+      store.coderRecommendations = store.coderRecommendations || [];
+      const exists = store.coderRecommendations.some(r => r.id === payload.id);
+      if (!exists) store.coderRecommendations.unshift(payload);
+      store.coderRecommendations = store.coderRecommendations.slice(0, 120);
     } else if (action === 'updatePressSubmission') {
       store.pressSubmissions = store.pressSubmissions || [];
       const idx = store.pressSubmissions.findIndex(s => s.id === payload.id);

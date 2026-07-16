@@ -88,6 +88,7 @@ function isGameMode(){
 function ensureHubState(){
   if(!state.chatMessages) state.chatMessages = [];
   if(!state.pressSubmissions) state.pressSubmissions = [];
+  if(!state.coderRecommendations) state.coderRecommendations = [];
   if(!state.friendRequests) state.friendRequests = [];
 }
 
@@ -110,6 +111,16 @@ function mergeHubVisitorData(remote){
     });
     state.pressSubmissions = state.pressSubmissions.slice(0, 80);
   }
+  if(Array.isArray(remote.coderRecommendations)){
+    if(!state.coderRecommendations) state.coderRecommendations = [];
+    remote.coderRecommendations.forEach(r => {
+      if(!r?.id) return;
+      const i = state.coderRecommendations.findIndex(x => x.id === r.id);
+      if(i >= 0) state.coderRecommendations[i] = { ...state.coderRecommendations[i], ...r };
+      else state.coderRecommendations.unshift(r);
+    });
+    state.coderRecommendations = state.coderRecommendations.slice(0, 120);
+  }
   mergeCoderPresence(remote.coderPresence);
   if(Array.isArray(remote.friendRequests)){
     remote.friendRequests.forEach(r => {
@@ -129,6 +140,7 @@ function ensurePlayerCollection(c){
   if(!Array.isArray(c.collection.skills)) c.collection.skills = [];
   if(!Array.isArray(c.collection.media)) c.collection.media = [];
   if(!Array.isArray(c.collection.friends)) c.collection.friends = [];
+  if(!Array.isArray(c.collection.photos)) c.collection.photos = [];
   return c.collection;
 }
 
@@ -157,7 +169,7 @@ function buildCollectionSkillFlip(s, i){
     name: s.name || 'Skill',
     color: s.color || '#7c4dff',
     hours: s.hours || 0,
-    milestones: [],
+    milestones: s.milestones || [],
   };
   if(typeof buildFlipSkillCard === 'function') return buildFlipSkillCard(skill, i, { useStoredHours: true });
   return `<div class="col-card-fallback">${esc(skill.name)}</div>`;
@@ -411,33 +423,11 @@ GameHub.bindFriendRequests = function(host){
 
 function profileCollectionAddForm(coderId, section, canEdit){
   if(!canEdit) return '';
-  if(section === 'places'){
-    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add place</summary>
-      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="places">
-        <div class="field-row"><div class="field"><label>Name</label><input type="text" class="pcol-place-name" placeholder="café, park…"></div>
-        <div class="field"><label>Vibe</label><input type="text" class="pcol-place-vibe" placeholder="neon, cozy…"></div></div>
-        <button type="button" class="btn primary" data-pcol-add-place="${esc(coderId)}">Create place card</button>
-      </div></details>`;
-  }
-  if(section === 'skills'){
-    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add skill card</summary>
-      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="skills">
-        <div class="field-row"><div class="field"><label>Skill</label><input type="text" class="pcol-skill-name" placeholder="piano, mandarin…"></div>
-        <div class="field"><label>Hours</label><input type="number" class="pcol-skill-hours" min="0" step="0.5" placeholder="0"></div></div>
-        <button type="button" class="btn primary" data-pcol-add-skill="${esc(coderId)}">Create skill card</button>
-      </div></details>`;
-  }
-  if(section === 'media'){
-    return `<details class="col-add-studio sketch-card profile-col-add"><summary class="col-add-toggle">+ Add media</summary>
-      <div class="col-add-panels" data-pcol-form="${esc(coderId)}" data-pcol-section="media">
-        <div class="field-row"><div class="field"><label>Title</label><input type="text" class="pcol-media-title" placeholder="film, album…"></div>
-        <div class="field"><label>Type</label><input type="text" class="pcol-media-medium" placeholder="film, book, album"></div></div>
-        <div class="field-row"><div class="field"><label>Rating /5</label><input type="number" class="pcol-media-rating" min="1" max="5"></div>
-        <div class="field"><label>Notes</label><input type="text" class="pcol-media-review" placeholder="short review"></div></div>
-        <button type="button" class="btn primary" data-pcol-add-media="${esc(coderId)}">Create media card</button>
-      </div></details>`;
-  }
-  return '';
+  const labels = { places: 'Add place', skills: 'Add skill card', media: 'Add media', photos: 'Add photo' };
+  const attrs = { places: 'data-coder-add-place', skills: 'data-coder-add-skill', media: 'data-coder-add-media', photos: 'data-coder-add-photo' };
+  const attr = attrs[section];
+  if(!attr) return '';
+  return `<button type="button" class="btn primary profile-col-add-btn" ${attr}="${esc(coderId)}" style="margin-top:14px">+ ${labels[section]}</button>`;
 }
 
 GameHub.renderCollectionSection = function(coderId, section){
@@ -448,6 +438,7 @@ GameHub.renderCollectionSection = function(coderId, section){
   const add = profileCollectionAddForm(coderId, section, canEdit);
   if(section === 'places'){
     return `<div class="profile-gray-view profile-gray-view--places neon-section" style="--sec-neon:#4fa3ff" data-coder-gray-view="places">
+      <h2 class="view-title sketch-title">Place Cards</h2>
       <p class="gallery-hint">Click a card to flip it over.</p>
       <div class="profile-place-rec" data-coder-rec="place"></div>
       <div class="card-deck profile-place-deck" data-coder-deck="places"></div>
@@ -456,6 +447,7 @@ GameHub.renderCollectionSection = function(coderId, section){
   }
   if(section === 'skills'){
     return `<div class="profile-gray-view profile-gray-view--skills neon-section" style="--sec-neon:#7c4dff" data-coder-gray-view="skills">
+      <h2 class="view-title sketch-title">Skill Cards</h2>
       <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
       <div class="profile-skill-rec" data-coder-rec="skill"></div>
       <div class="card-deck skill-card-deck profile-skill-deck" data-coder-deck="skills"></div>
@@ -470,11 +462,24 @@ GameHub.renderCollectionSection = function(coderId, section){
   }
   if(section === 'media'){
     return `<div class="profile-gray-view profile-gray-view--media neon-section" style="--sec-neon:#f43f8e" data-coder-gray-view="media">
+      <h2 class="view-title sketch-title">Media Log</h2>
       <p class="gallery-hint">TV, film, books, albums, songs — sectioned shelves, final reviews, and live rankings.</p>
       <div class="profile-media-rankings" data-coder-media-rankings></div>
-      <div class="drama-deck profile-drama-deck" data-coder-deck="media" data-profile-coder="${esc(coderId)}"></div>
+      <div class="profile-media-host" data-coder-deck="media" data-profile-coder="${esc(coderId)}"></div>
       ${add}
     </div>`;
+  }
+  if(section === 'photos'){
+    return `<div class="profile-gray-view profile-gray-view--photos neon-section" style="--sec-neon:#a78bfa" data-coder-gray-view="photos">
+      <h2 class="view-title sketch-title">Photo Wall</h2>
+      <p class="gallery-hint">Click a photo to flip it over.</p>
+      <div class="photo-wall profile-photo-wall" data-coder-deck="photos"></div>
+      ${add}
+    </div>`;
+  }
+  if(section === 'press'){
+    const press = (isMine && typeof GameHub !== 'undefined' && GameHub.renderPressSubmitForm) ? GameHub.renderPressSubmitForm() : '<p class="empty-hint">Write for The Press when logged in as yourself.</p>';
+    return `<div class="profile-gray-view profile-gray-view--press neon-section" style="--sec-neon:#f472b6">${press}</div>`;
   }
   if(section === 'friends'){
     const col = ensurePlayerCollection(c);
@@ -624,7 +629,6 @@ GameHub.bindProfileCollections = function(root, coderId){
     });
   });
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
-  if(typeof hydrateCoderProfileDecks === 'function') hydrateCoderProfileDecks(coderId, host);
 };
 
 GameHub.savePlayerCollection = function(coderId){
@@ -640,7 +644,7 @@ GameHub.addCollectionPlace = function(coderId, data){
   ensurePlayerCollection(c).places.unshift({ id: uid('pplace'), name: data.name, vibe: data.vibe || '', description: data.description || data.vibe || '', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
   if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_place');
-  this.refreshProfile(coderId);
+  this.refreshProfile(coderId, { tab: 'places' });
 };
 
 GameHub.addCollectionSkill = function(coderId, data){
@@ -649,7 +653,7 @@ GameHub.addCollectionSkill = function(coderId, data){
   ensurePlayerCollection(c).skills.unshift({ id: uid('pskill'), name: data.name, hours: data.hours || 0, color: data.color || '#7c4dff', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
   if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_skill');
-  this.refreshProfile(coderId);
+  this.refreshProfile(coderId, { tab: 'skills' });
 };
 
 GameHub.addCollectionMedia = function(coderId, data){
@@ -658,7 +662,7 @@ GameHub.addCollectionMedia = function(coderId, data){
   ensurePlayerCollection(c).media.unshift({ id: uid('pmedia'), title: data.title, medium: data.medium || '', rating: data.rating || 0, review: data.review || '', at: new Date().toISOString() });
   this.savePlayerCollection(coderId);
   if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 5, 'collection_media');
-  this.refreshProfile(coderId);
+  this.refreshProfile(coderId, { tab: 'media' });
 };
 
 GameHub.addCollectionFriend = function(coderId, friendId){
@@ -669,25 +673,15 @@ GameHub.addCollectionFriend = function(coderId, friendId){
   col.friends.unshift(friendId);
   this.savePlayerCollection(coderId);
   if(typeof awardCoderPoints === 'function') awardCoderPoints(coderId, 10, 'friend_card');
-  this.refreshProfile(coderId);
+  this.refreshProfile(coderId, { tab: 'friends' });
 };
 
-GameHub.refreshProfile = function(coderId){
-  const site = document.querySelector(`.profile-site[data-profile-coder="${coderId}"]`);
-  const activeSection = site?.querySelector('.profile-rail-banner.is-active')?.dataset.psSection;
-  if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
-  if(activeSection && activeSection !== 'updates'){
-    const nextSite = document.querySelector(`.profile-site[data-profile-coder="${coderId}"]`);
-    if(nextSite){
-      nextSite.querySelectorAll('.profile-rail-banner').forEach(b => {
-        b.classList.toggle('is-active', b.dataset.psSection === activeSection);
-      });
-      nextSite.querySelectorAll('.profile-site-panel').forEach(p => {
-        p.classList.toggle('is-active', p.dataset.psPanel === activeSection);
-      });
-    }
+GameHub.refreshProfile = function(coderId, opts = {}){
+  if(typeof refreshCoderProfileUI === 'function'){
+    refreshCoderProfileUI(coderId, opts);
+    return;
   }
-  if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderViewerCard();
+  if(typeof renderCoderBoardPage === 'function') renderCoderBoardPage(coderId);
 };
 
 GameHub.renderPressSubmitForm = function(){

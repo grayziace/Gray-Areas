@@ -1748,6 +1748,7 @@ const ViewerWorld = {
       GameHub.bindFriendRequests(host);
     }
     if(typeof bindCoderProfileSite === 'function') bindCoderProfileSite(host, mine.id, { isMine: true });
+    if(typeof restoreCoderProfileTab === 'function') restoreCoderProfileTab(mine.id);
     bindFlipPlayerCards(host);
     host.querySelector('#editMyCardBtn')?.addEventListener('click', () => this.openMyCardEditor(mine.id));
     host.querySelector('#playerStatusForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitPlayerStatus(); });
@@ -2572,10 +2573,12 @@ const ViewerWorld = {
         </section>`
       : `<section class="inbox-friends-panel sketch-card"><p class="field-hint">No friends yet — collect coder cards in <strong>My Profile → Collection</strong>.</p></section>`;
 
-    let adminPanels = '';
+    let adminXpPanel = '';
+    let adminRecPanel = '';
+    let adminTabs = '';
     if(isAdmin()){
       const pendingXp = getPendingXpRequests();
-      adminPanels += pendingXp.length
+      adminXpPanel = pendingXp.length
         ? `<section class="inbox-admin-panel sketch-card">
             <h3 class="viewer-wizard-title">Pending XP requests</h3>
             <div class="xp-request-list">${pendingXp.map(r => `<div class="xp-request-row">
@@ -2588,6 +2591,12 @@ const ViewerWorld = {
             </div>`).join('')}</div>
           </section>`
         : '';
+      adminRecPanel = typeof renderGrayRecommendationsQueue === 'function' ? renderGrayRecommendationsQueue() : '';
+      const pendingRec = (state.coderRecommendations || []).filter(r => r.status === 'pending').length;
+      adminTabs = `<nav class="inbox-admin-tabs" aria-label="Gray inbox tabs">
+        <button type="button" class="btn inbox-admin-tab is-active" data-inbox-admin-tab="thread">Messages</button>
+        <button type="button" class="btn inbox-admin-tab" data-inbox-admin-tab="recs">Recommendations${pendingRec ? ` (${pendingRec})` : ''}</button>
+      </nav>`;
     }
 
     host.innerHTML = `
@@ -2610,11 +2619,15 @@ const ViewerWorld = {
             </section>
           </aside>
           <main class="inbox-page-main">
-            ${adminPanels}
-            <section class="inbox-thread sketch-card">
-              <div class="inbox-msg-list neon-scroll">${msgList}</div>
-              ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
-            </section>
+            ${adminTabs}
+            <div class="inbox-admin-pane is-active" data-inbox-admin-pane="thread">
+              ${adminXpPanel}
+              <section class="inbox-thread sketch-card">
+                <div class="inbox-msg-list neon-scroll">${msgList}</div>
+                ${unread.length ? `<button type="button" class="btn" id="markInboxReadBtn">Mark all read</button>` : ''}
+              </section>
+            </div>
+            ${isAdmin() ? `<div class="inbox-admin-pane" data-inbox-admin-pane="recs">${adminRecPanel}</div>` : ''}
           </main>
         </div>
       </div>`;
@@ -2630,6 +2643,15 @@ const ViewerWorld = {
     });
     host.querySelectorAll('[data-xp-approve]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpApprove, 'approve')));
     host.querySelectorAll('[data-xp-deny]').forEach(btn => btn.addEventListener('click', () => this.resolveXpRequest(btn.dataset.xpDeny, 'deny')));
+    host.querySelectorAll('[data-inbox-admin-tab]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        host.querySelectorAll('[data-inbox-admin-tab]').forEach(t => t.classList.remove('is-active'));
+        host.querySelectorAll('[data-inbox-admin-pane]').forEach(p => p.classList.remove('is-active'));
+        tab.classList.add('is-active');
+        host.querySelector(`[data-inbox-admin-pane="${tab.dataset.inboxAdminTab}"]`)?.classList.add('is-active');
+      });
+    });
+    if(typeof bindGrayRecommendations === 'function') bindGrayRecommendations(host);
   },
 };
 
