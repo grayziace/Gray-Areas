@@ -2335,6 +2335,10 @@ function initGlobalEditHandlers(){
           openCoderPlaceEditor(coderId, poke.dataset.cardId);
           return;
         }
+        if(poke?.dataset.cardType === 'skill' && typeof openCoderSkillJourneyEditor === 'function'){
+          openCoderSkillJourneyEditor(coderId, poke.dataset.cardId);
+          return;
+        }
         if(poke?.dataset.cardType === 'skill' && typeof openCoderSkillEditor === 'function'){
           openCoderSkillEditor(coderId, poke.dataset.cardId);
           return;
@@ -4828,7 +4832,6 @@ function renderCoderProfileShell(c, opts = {}){
     : '';
   const isMine = opts.isMine || (typeof getMyCoderCard === 'function' && getMyCoderCard()?.id === coderId);
   const posts = getCoderPosts(coderId).filter(p => p.characterId === coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-  const quests = getCoderQuests(coderId);
   const lvlPct = Math.round((lvl.progress || 0) * 100);
   const xpDisplay = typeof displayCoderXp === 'function' ? displayCoderXp(c) : String(c.points || 0);
   const activeTab = typeof getCoderProfileActiveTab === 'function' ? getCoderProfileActiveTab(coderId) : 'updates';
@@ -4848,12 +4851,14 @@ function renderCoderProfileShell(c, opts = {}){
   const colSection = id => typeof GameHub !== 'undefined' && GameHub.renderCollectionSection
     ? GameHub.renderCollectionSection(coderId, id)
     : '';
-  const questHtml = quests.length
-    ? `<ul class="profile-quest-list">${quests.map(q => {
-      const type = typeof QUEST_TYPES !== 'undefined' ? (QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5]) : { neon: '#fb923c', icon: '✦', label: 'Quest' };
-      return `<li class="profile-quest-row" style="--pq-neon:${type.neon}"><span class="profile-quest-type">${type.icon} ${esc(type.label)}</span><strong>${esc(q.title)}</strong><span class="profile-quest-st">${esc(q.status)}</span></li>`;
-    }).join('')}</ul>`
-    : '<p class="empty-hint">No quests sent yet.</p>';
+  const questHtml = typeof renderProfileQuestsPanel === 'function'
+    ? renderProfileQuestsPanel(coderId, { isMine })
+    : '<p class="empty-hint">Quests live in My Profile.</p>';
+  const microActions = isMine ? `<div class="profile-micro-actions">
+    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="quests">✦ Send me a quest</button>
+    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="skills">◆ Log a skill</button>
+    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="press">✎ Write for The Press</button>
+  </div>` : '';
   const feedHtml = typeof renderCoderUpdateFeed === 'function' ? renderCoderUpdateFeed(posts, accent) : '';
   const canEditProfile = isMine || (typeof isAdmin === 'function' && isAdmin());
   return `<div class="profile-site" data-profile-coder="${esc(coderId)}"${canEditProfile ? ' data-profile-editable="1"' : ''} style="--ps-neon:${esc(accent)}">
@@ -4872,6 +4877,7 @@ function renderCoderProfileShell(c, opts = {}){
           </div>
           <div class="profile-site-level"><div class="profile-level-track"><div class="profile-level-fill" style="width:${lvlPct}%"></div></div><span class="profile-xp-next">${lvl.xpToNext} XP to next</span></div>
           <p class="profile-site-blurb">${esc(typeof sanitizeCardDescription === 'function' ? sanitizeCardDescription(c.cardDescription) : (c.cardDescription || c.vibe || ''))}</p>
+          ${microActions}
           ${!isMine && typeof isCoderLoggedIn === 'function' && isCoderLoggedIn() && typeof GameHub !== 'undefined' ? (() => {
             const myId = getMyCoderCard()?.id;
             const rel = myId ? GameHub.getFriendRelation(myId, coderId) : 'none';
@@ -4919,9 +4925,20 @@ function bindCoderProfileSite(host, coderId, opts = {}){
   if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
   if(typeof GameHub !== 'undefined'){
     GameHub.bindProfileCollections(host, coderId);
-    if(typeof GameHub.bindPressSubmit === 'function') GameHub.bindPressSubmit();
+  if(typeof GameHub.bindPressSubmit === 'function') GameHub.bindPressSubmit(host);
   }
   if(typeof hydrateCoderProfileDecks === 'function') hydrateCoderProfileDecks(coderId, host);
+  if(typeof bindProfileQuestForms === 'function') bindProfileQuestForms(host, coderId);
+  host.querySelectorAll('[data-profile-tab-go]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.profileTabGo;
+      const site = btn.closest('.profile-site');
+      if(!site) return;
+      site.querySelectorAll('.profile-rail-banner').forEach(b => b.classList.toggle('is-active', b.dataset.psSection === tab));
+      site.querySelectorAll('.profile-site-panel').forEach(p => p.classList.toggle('is-active', p.dataset.psPanel === tab));
+      if(typeof setCoderProfileActiveTab === 'function') setCoderProfileActiveTab(coderId, tab);
+    });
+  });
   bindPollVoteButtons(host);
   host.querySelectorAll('[data-profile-friend]').forEach(btn => {
     btn.addEventListener('click', () => {

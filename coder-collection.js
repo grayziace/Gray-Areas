@@ -102,7 +102,7 @@ async function submitRecommendToGray(coderId, category, payload){
   if(typeof postVisitorData === 'function'){
     await postVisitorData('submitRecommendation', rec);
   }
-  alert('Sent to Gray privately — thanks for the recommendation.');
+  alert('Sent to me privately — thanks for the recommendation.');
 }
 
 /* ---------- Place editor ---------- */
@@ -182,6 +182,12 @@ function openCoderSkillEditor(coderId, skillId){
   document.getElementById('coderSkillName').value = s?.name || '';
   document.getElementById('coderSkillHours').value = s?.hours || 0;
   document.getElementById('coderSkillColor').value = s?.color || '#7c4dff';
+  const journeyBtn = document.getElementById('coderSkillJourneyBtn');
+  if(journeyBtn){
+    journeyBtn.classList.toggle('hidden', !skillId);
+    journeyBtn.dataset.coderId = coderId;
+    journeyBtn.dataset.skillId = skillId || '';
+  }
   document.getElementById('coderSkillModalBack').classList.remove('hidden');
 }
 
@@ -259,7 +265,7 @@ function openCoderSkillJourneyEditor(coderId, skillId){
       <div class="field"><label>Title</label><input type="text" id="coderMsTitle" placeholder="What happened"></div>
       <div class="field"><label>Note</label><textarea id="coderMsNote" rows="3" placeholder="The story of this step…"></textarea></div>
       <button type="button" class="btn primary" id="coderAddMilestoneBtn">Add to journey</button>
-      <button type="button" class="btn" id="coderRecommendSkillBtn">Recommend to Gray</button>
+      <button type="button" class="btn" id="coderRecommendSkillBtn">Send to me</button>
     </div>` : ''}`;
   document.getElementById('skillJourneyBack').classList.remove('hidden');
   const detailEl = document.getElementById('sjsDetail');
@@ -418,7 +424,7 @@ function openCoderMediaDetailFull(coderId, mediaId){
       <button class="btn primary" id="coderDramaEpUp">+ progress</button>
       <button class="btn" id="coderDramaEditMeta">Edit</button>
       <button class="btn admin-delete" id="coderDramaDelete">Delete</button>
-      <button class="btn" id="coderDramaRecommend">Recommend to Gray</button>
+      <button class="btn" id="coderDramaRecommend">Send to me</button>
     </div>` : ''}
     <h4 class="ep-grid-label">${unitLabel}s — click to ${canEdit ? 'rate' : 'view'}</h4>
     <div class="ep-grid">${epGrid}</div>
@@ -602,7 +608,7 @@ function bindCoderSkillCards(container, coderId){
     btn.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
-      openCoderSkillEditor(coderId, btn.dataset.skillEdit);
+      openCoderSkillJourneyEditor(coderId, btn.dataset.skillEdit);
     });
   });
 }
@@ -676,6 +682,21 @@ function wireCoderCollectionModals(){
 
   document.getElementById('saveCoderSkill')?.addEventListener('click', saveCoderSkill);
   document.getElementById('cancelCoderSkill')?.addEventListener('click', () => document.getElementById('coderSkillModalBack').classList.add('hidden'));
+  document.getElementById('coderSkillJourneyBtn')?.addEventListener('click', e => {
+    const btn = e.currentTarget;
+    if(!btn.dataset.skillId) return;
+    document.getElementById('coderSkillModalBack').classList.add('hidden');
+    openCoderSkillJourneyEditor(btn.dataset.coderId, btn.dataset.skillId);
+  });
+  document.getElementById('coderRecommendSkillCardBtn')?.addEventListener('click', () => {
+    const coderId = document.getElementById('coderSkillCoderId').value;
+    const editId = document.getElementById('coderSkillEditId').value;
+    const skill = editId ? getCoderCollectionItem(coderId, 'skills', editId) : null;
+    submitRecommendToGray(coderId, 'skill', skill || {
+      name: document.getElementById('coderSkillName').value,
+      hours: document.getElementById('coderSkillHours').value,
+    });
+  });
 
   document.getElementById('saveCoderPhoto')?.addEventListener('click', saveCoderPhoto);
   document.getElementById('cancelCoderPhoto')?.addEventListener('click', () => document.getElementById('coderPhotoModalBack').classList.add('hidden'));

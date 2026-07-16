@@ -52,7 +52,7 @@ const PLAYER_LOGIN_NAME = 'gray';
 const PLAYER_LOGIN_KEY = ':)';
 
 const QUEST_TYPES = [
-  { id: 'website', label: 'Code something new', icon: '⌨', neon: '#3ad6e0' },
+  { id: 'website', label: 'Update the website', icon: '⌨', neon: '#3ad6e0' },
   { id: 'visit', label: 'Visit a place', icon: '📍', neon: '#4ade80' },
   { id: 'food', label: 'Get food / drink', icon: '🍜', neon: '#fb923c' },
   { id: 'comfort', label: 'Comfort / cool me', icon: '♥', neon: '#f9a8d4' },
@@ -1321,51 +1321,59 @@ function getInstructionsHtml(){
 
 function buildDefaultInstructionsHtml(){
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed.</p></div>`;
+    return `<div class="instructions-panel sketch-card"><p class="instructions-p">You're browsing my site — Coming To You Live, daily log, coder cards, Press, and photos. No login needed. (Yes, it's a whole thing.)</p></div>`;
   }
   const cardBtn = !getMyCoderCard() && !isGuest() ? `<button type="button" class="btn primary" id="instrGoCard">Make my profile →</button>` : '';
-  const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send a quest →</button>` : '';
+  const questBtn = getMyCoderCard() ? `<button type="button" class="btn primary" id="instrGoQuests">Send me a quest →</button>` : '';
   const loginBtn = isGuest() ? `<button type="button" class="btn" id="instrGoLogin">Log in →</button>` : '';
   return `
     <div class="instructions-panel sketch-card instructions-gray-voice instructions-full">
-      <p class="instructions-kicker">From me to you</p>
-      <p class="instructions-p">I'm the <strong>Player</strong> — you're a <strong>Coder</strong>. My life is the game world. You play alongside with your own profile, quests, messages, and collection. Poke around my site first, then use the game sidebar when you're ready.</p>
+      <p class="instructions-kicker">Hey — it's Gray</p>
+      <p class="instructions-p">This started as something really small. A log, a vibe, a place to stick photos. It's becoming something really big — and you're invited. I'm the <strong>Player</strong> (my life is the game world). You're a <strong>Coder</strong> (you play alongside with your own profile, collection, and missions to me). Browse my world first. When you're ready, log in and use the neon sidebar.</p>
 
-      <h3 class="viewer-wizard-title">Getting started</h3>
+      <h3 class="viewer-wizard-title">First visit</h3>
       <ol class="instructions-steps">
-        <li><strong>Make my profile</strong> — summon your coder card (character + spirit animal). Pick a console key only you know.</li>
-        <li><strong>Log in</strong> each visit with name + key, or type <code>Name::key</code> in the console.</li>
-        <li>Flip through my Daily Log scrapbook, watch Coming To You Live, browse my decks — then play from the sidebar.</li>
+        <li><strong>Make my profile</strong> — summon your coder card (character + spirit animal). Pick a console key only you know. Don't lose it. I can't recover it for you. (I wish I could.)</li>
+        <li><strong>Log in</strong> each time with name + key, or type <code>Name::key</code> in the console at the bottom of the sidebar.</li>
+        <li>Flip through my Scrapbook, watch Coming To You Live, poke my decks — then play properly from <strong>My Profile</strong>.</li>
       </ol>
 
-      <h3 class="viewer-wizard-title">Game sidebar</h3>
+      <h3 class="viewer-wizard-title">My Profile (your home base)</h3>
+      <p class="instructions-p">Everything personal lives here — not scattered in the sidebar. The neon banners on the right:</p>
       <ul class="instructions-nav-list">
-        <li><strong>My Profile</strong> — your flip card, neon side banners for updates, photos, friends, skills, media, places</li>
-        <li><strong>Quests</strong> — send me missions: places, food, comfort, media recs, or <strong>code something new into the website</strong></li>
-        <li><strong>Messages</strong> — DM me or friends you've collected as coder cards</li>
-        <li><strong>Chat</strong> — live room; your public updates echo here automatically</li>
-        <li><strong>Community</strong> — pinboard with polls and media</li>
-        <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, calls, birthdays…)</li>
+        <li><strong>Updates</strong> — drop public posts (Community + chat) or private notes straight to my inbox. Say <em>message me</em>, not "message Gray". You're talking to me.</li>
+        <li><strong>Photos</strong> — your photo wall. Add, flip, edit. Doesn't have to go through Updates.</li>
+        <li><strong>Friends</strong> — collect other coders' cards from Coder Cards. No inventing people — only real accounts.</li>
+        <li><strong>Skills</strong> — same idea as my Skill Cards: flip cards, skyline towers, log hours, add milestones. Edit from the card or the tower. Hit <strong>Send to me</strong> when you want me to try something.</li>
+        <li><strong>Media</strong> — TV, film, books, albums, songs. Full shelves, episode reviews, posters. Again — Send to me when you've got a rec.</li>
+        <li><strong>Places</strong> — vibe / experience / utility ranks plus your actual stories from being there.</li>
+        <li><strong>Press</strong> — write articles for The Press with photos and layout. I read everything; I publish what sings.</li>
+        <li><strong>Quests</strong> — <em>only here now</em>, not in the sidebar. Send me missions: visit somewhere, eat something, comfort me, or <strong>update the website</strong> with a feature you want coded in.</li>
       </ul>
 
-      <h3 class="viewer-wizard-title">Collection</h3>
-      <p class="instructions-p">Build <strong>place</strong>, <strong>skill</strong>, and <strong>media</strong> flip cards. Collect other coders' cards as <strong>friends</strong> from Coder Cards — you can't invent new people, only link accounts that exist. Friends unlock in Messages.</p>
+      <h3 class="viewer-wizard-title">Game sidebar (the rest)</h3>
+      <ul class="instructions-nav-list">
+        <li><strong>Messages</strong> — DM me or friends you've collected</li>
+        <li><strong>Chat</strong> — live room; your public updates echo here</li>
+        <li><strong>Community</strong> — pinboard with polls and media</li>
+        <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, birthdays, being a legend)</li>
+      </ul>
 
-      <h3 class="viewer-wizard-title">The Press</h3>
-      <p class="instructions-p">Write an article on The Press page and submit — <strong>I read everything</strong> and choose what gets published.</p>
-
-      <h3 class="viewer-wizard-title">XP &amp; levelling</h3>
-      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection, and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually.</p>
-
-      <h3 class="viewer-wizard-title">My world (everyone)</h3>
+      <h3 class="viewer-wizard-title">My world (everyone can browse)</h3>
       <ul class="instructions-nav-list">
         <li><strong>Player Profile</strong> — my hero card and stats</li>
         <li><strong>Coming To You Live</strong> — live transmission; when I seal the day it becomes the log</li>
-        <li><strong>Daily Log</strong> — scrapbook pages: pulses, photos, writing stuck on like stickers</li>
+        <li><strong>Scrapbook</strong> — pulses, photos, writing stuck on like stickers</li>
         <li><strong>Place / Coder / Skill / Media Cards</strong> — my decks; click any coder to view their profile</li>
-        <li><strong>Photo Wall</strong> — flip photos</li>
-        <li><strong>Video Log</strong> — my video notes (I post; you can watch anytime)</li>
+        <li><strong>The Press</strong> — published articles (submit from your profile's Press tab)</li>
+        <li><strong>Photo Wall</strong> — my flip photos</li>
+        <li><strong>Video Log</strong> — my video notes</li>
       </ul>
+
+      <h3 class="viewer-wizard-title">XP &amp; levelling</h3>
+      <p class="instructions-p">Start <strong>Lv 0</strong>. <strong>+1 level every 100 XP</strong>. Posts, quests, messages, collection, and card edits earn XP. Coder Cards deck ranks by XP — <strong>#1 gets a present</strong> eventually. (I'm not joking.)</p>
+
+      <p class="instructions-note">Rules of thumb: build your collection in My Profile, send quests from My Profile, write Press from My Profile, and when in doubt — flip the card.</p>
       ${cardBtn}
       ${questBtn}
       ${loginBtn}
@@ -1386,7 +1394,7 @@ function renderCoderComposeForm(){
         <div class="field"><label>Visibility</label>
           <select id="playerStatusVis">
             <option value="public">Public — Community + chat</option>
-            <option value="private">Private — message Gray</option>
+            <option value="private">Private — message me</option>
           </select>
         </div>
         <div class="field"><label>Where</label><input type="text" id="playerStatusLoc" placeholder="city, flat, café…"></div>
@@ -1460,10 +1468,101 @@ function renderXpHistoryRail(history){
   </div>`;
 }
 
+function navigateToProfileTab(tab){
+  const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+  if(mine?.id && typeof setCoderProfileActiveTab === 'function') setCoderProfileActiveTab(mine.id, tab);
+  navigateToView('viewer-card');
+  requestAnimationFrame(() => {
+    if(mine?.id && typeof restoreCoderProfileTab === 'function') restoreCoderProfileTab(mine.id);
+  });
+}
+
+function renderProfileQuestsPanel(coderId, opts = {}){
+  const isMine = opts.isMine || (getMyCoderCard()?.id === coderId);
+  const typeOpts = QUEST_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+  const myQuests = (state.quests || []).filter(q => q.fromCharacterId === coderId);
+  const openMine = myQuests.filter(q => q.status !== 'completed' && q.status !== 'declined');
+  const completedMine = myQuests.filter(q => q.status === 'completed');
+  const allOpen = (state.quests || []).filter(q => q.status !== 'completed' && q.status !== 'declined');
+
+  let html = '';
+
+  if(isAdmin() && isMine){
+    const pending = allOpen.filter(q => q.status === 'submitted' || q.status === 'accepted' || q.status === 'in_progress');
+    html += `<section class="profile-quest-admin sketch-card"><h3 class="viewer-wizard-title">Quest inbox</h3><p class="field-hint">${pending.length} mission${pending.length === 1 ? '' : 's'} in the queue.</p>`;
+    html += pending.length
+      ? `<div class="quest-list">${pending.map(q => ViewerWorld.questRowHtml(q, false)).join('')}</div>`
+      : '<p class="empty-hint">Inbox clear — coders send quests from their profiles.</p>';
+    html += '</section>';
+  }
+
+  if(isMine && isCoderLoggedIn()){
+    const mine = getMyCoderCard();
+    html += `<div class="quest-compose sketch-card profile-quest-compose">
+      <h3 class="viewer-wizard-title">Send me a quest</h3>
+      <p class="field-hint">From <strong>${esc(mine?.name || 'you')}</strong> — tell me where to go, what to eat, what to build on the site, or what to try next.</p>
+      <form class="profile-quest-form quest-transmit-form" data-profile-quest-form="${esc(coderId)}">
+        <div class="field-row">
+          <div class="field"><label>Type</label><select class="profile-quest-type">${typeOpts}</select></div>
+          <div class="field"><label>Title</label><input type="text" class="profile-quest-title" required placeholder="short mission name"></div>
+        </div>
+        <div class="field"><label>Mission</label><textarea class="profile-quest-body" rows="4" required placeholder="what should I do?"></textarea></div>
+        <div class="field-row">
+          <div class="field"><label>Place</label><input type="text" class="profile-quest-place" placeholder="optional"></div>
+          <div class="field"><label>Food / item</label><input type="text" class="profile-quest-food" placeholder="optional"></div>
+        </div>
+        <button type="submit" class="btn primary quest-send-btn">✦ Send to me (+25 XP)</button>
+      </form>
+    </div>`;
+  } else if(!isMine){
+    html += '<p class="empty-hint">Quests this coder has sent to me.</p>';
+  }
+
+  if(openMine.length){
+    html += `<section><h3 class="viewer-wizard-title">Your sent quests</h3><ul class="profile-quest-list">${openMine.map(q => {
+      const type = QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5];
+      return `<li class="profile-quest-row" style="--pq-neon:${type.neon}"><span class="profile-quest-type">${type.icon} ${esc(type.label)}</span><strong>${esc(q.title)}</strong><span class="profile-quest-st">${esc(q.status)}</span></li>`;
+    }).join('')}</ul></section>`;
+  }
+
+  if(completedMine.length){
+    html += `<section class="quest-completed-section"><h3 class="viewer-wizard-title">Completed</h3><div class="quest-list">${completedMine.map(q => ViewerWorld.questRowHtml(q, true)).join('')}</div></section>`;
+  }
+
+  html += `<section class="quest-open-section"><h3 class="viewer-wizard-title">Open missions on the board</h3>`;
+  html += allOpen.length
+    ? `<div class="quest-list quest-page-list quest-neon-list">${allOpen.map(q => ViewerWorld.questRowHtml(q)).join('')}</div>`
+    : '<p class="empty-hint">No open quests right now.</p>';
+  html += '</section>';
+
+  return `<div class="profile-quests-wrap">${html}</div>`;
+}
+
+function bindProfileQuestForms(host, coderId){
+  if(!host) return;
+  host.querySelectorAll('[data-profile-quest-form]').forEach(form => {
+    if(form.dataset.bound) return;
+    form.dataset.bound = '1';
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      ViewerWorld.submitProfileQuest(form, coderId);
+    });
+  });
+  host.querySelectorAll('[data-quest-action]').forEach(btn => {
+    btn.addEventListener('click', () => ViewerWorld.handleQuestAction(btn.dataset.questId, btn.dataset.questAction));
+  });
+  host.querySelectorAll('[data-quest-vote]').forEach(btn => {
+    btn.addEventListener('click', () => ViewerWorld.voteQuest(btn.dataset.questId));
+  });
+  host.querySelectorAll('[data-quest-comment]').forEach(btn => {
+    btn.addEventListener('click', () => ViewerWorld.commentQuest(btn.dataset.questId));
+  });
+}
+
 function bindInstructionsActions(host){
   if(!host) return;
   host.querySelector('#instrGoCard')?.addEventListener('click', () => navigateToView('viewer-card'));
-  host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToView('quests'));
+  host.querySelector('#instrGoQuests')?.addEventListener('click', () => navigateToProfileTab('quests'));
   host.querySelector('#instrGoLogin')?.addEventListener('click', () => returnToLogin());
 }
 
@@ -2094,7 +2193,7 @@ const ViewerWorld = {
             <div class="field"><label>Type</label><select id="questType">${typeOpts}</select></div>
             <div class="field"><label>Title</label><input type="text" id="questTitle" required placeholder="short mission name"></div>
           </div>
-          <div class="field"><label>Mission</label><textarea id="questBody" rows="4" required placeholder="what should Gray do?"></textarea></div>
+          <div class="field"><label>Mission</label><textarea id="questBody" rows="4" required placeholder="what should I do?"></textarea></div>
           <div class="field-row">
             <div class="field"><label>Place</label><input type="text" id="questPlace" placeholder="optional"></div>
             <div class="field"><label>Food / item</label><input type="text" id="questFood" placeholder="optional"></div>
@@ -2150,17 +2249,41 @@ const ViewerWorld = {
   async submitQuest(){
     const mine = getMyCoderCard();
     if(!isCoderLoggedIn() || !mine){ alert('Log in to your card to send quests.'); return; }
+    await this.submitQuestPayload({
+      type: document.getElementById('questType')?.value || 'other',
+      title: document.getElementById('questTitle')?.value?.trim(),
+      body: document.getElementById('questBody')?.value?.trim(),
+      place: document.getElementById('questPlace')?.value?.trim() || '',
+      food: document.getElementById('questFood')?.value?.trim() || '',
+    }, { resetFormId: 'questForm', rerenderLegacy: true });
+  },
+
+  async submitProfileQuest(form, coderId){
+    const mine = getMyCoderCard();
+    if(!isCoderLoggedIn() || !mine || mine.id !== coderId) return;
+    await this.submitQuestPayload({
+      type: form.querySelector('.profile-quest-type')?.value || 'other',
+      title: form.querySelector('.profile-quest-title')?.value?.trim(),
+      body: form.querySelector('.profile-quest-body')?.value?.trim(),
+      place: form.querySelector('.profile-quest-place')?.value?.trim() || '',
+      food: form.querySelector('.profile-quest-food')?.value?.trim() || '',
+    }, { resetForm: form, profileCoderId: coderId });
+  },
+
+  async submitQuestPayload(fields, opts = {}){
+    const mine = getMyCoderCard();
+    if(!mine) return;
     const quest = {
       id: uid('quest'),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       fromCharacterId: mine.id,
       fromName: mine.name,
-      type: document.getElementById('questType')?.value || 'other',
-      title: document.getElementById('questTitle')?.value?.trim(),
-      body: document.getElementById('questBody')?.value?.trim(),
-      place: document.getElementById('questPlace')?.value?.trim() || '',
-      food: document.getElementById('questFood')?.value?.trim() || '',
+      type: fields.type || 'other',
+      title: fields.title,
+      body: fields.body,
+      place: fields.place || '',
+      food: fields.food || '',
       status: 'submitted',
       votes: {},
       comments: [],
@@ -2171,8 +2294,13 @@ const ViewerWorld = {
     logCoderActivity('quest_sent', { coderId: mine.id, name: mine.name, detail: `${mine.name} sent quest: ${quest.title}` });
     saveState();
     await postVisitorData('submitQuest', quest);
-    document.getElementById('questForm')?.reset();
-    this.renderQuests();
+    if(opts.resetForm) opts.resetForm.reset();
+    if(opts.resetFormId) document.getElementById(opts.resetFormId)?.reset();
+    if(opts.profileCoderId && typeof refreshCoderProfileUI === 'function'){
+      refreshCoderProfileUI(opts.profileCoderId, { tab: 'quests' });
+    } else if(opts.rerenderLegacy){
+      this.renderQuests();
+    }
   },
 
   voteQuest(questId){
@@ -2212,6 +2340,8 @@ const ViewerWorld = {
       saveState();
       postVisitorData('updateQuest', q);
       this.renderQuests();
+      const mine = getMyCoderCard();
+      if(mine?.id && typeof refreshCoderProfileUI === 'function') refreshCoderProfileUI(mine.id, { tab: 'quests' });
       return;
     }
     if(action === 'decline'){
@@ -2221,6 +2351,8 @@ const ViewerWorld = {
       saveState();
       postVisitorData('updateQuest', q);
       this.renderQuests();
+      const mine = getMyCoderCard();
+      if(mine?.id && typeof refreshCoderProfileUI === 'function') refreshCoderProfileUI(mine.id, { tab: 'quests' });
       return;
     }
     if(action === 'complete'){
@@ -2520,7 +2652,7 @@ const ViewerWorld = {
     if(!host) return;
     const userId = getInboxUserId();
     if(!userId){
-      host.innerHTML = `<p class="empty-hint">Log in to message Gray and your coder friends.</p>`;
+      host.innerHTML = `<p class="empty-hint">Log in to message me and your coder friends.</p>`;
       return;
     }
     const mine = getMyCoderCard();
@@ -2532,7 +2664,7 @@ const ViewerWorld = {
     const otherCoders = coders.filter(c => !friendIds.has(c.id) && c.id !== userId);
     const recipientOptions = isAdmin()
       ? coders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')
-      : [`<option value="${GRAY_INBOX_ID}">Gray (Player)</option>`,
+      : [`<option value="${GRAY_INBOX_ID}">Me (Player)</option>`,
         ...friends.map(c => `<option value="${esc(c.id)}">★ ${esc(c.name)}</option>`),
         ...otherCoders.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`),
       ].join('');
@@ -2555,7 +2687,7 @@ const ViewerWorld = {
           </div>
         </article>`;
       }).join('')
-      : `<p class="empty-hint inbox-empty">No messages yet — say hi to Gray or a friend.</p>`;
+      : `<p class="empty-hint inbox-empty">No messages yet — say hi to me or a friend.</p>`;
 
     const friendsHtml = friends.length
       ? `<section class="inbox-friends-panel sketch-card">

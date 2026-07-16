@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260716g">
+<link rel="stylesheet" href="style.css?v=20260716h">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -177,7 +177,6 @@
       <button data-view="chat" class="node-btn game-only-nav" style="--nc:#22d3ee"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">💬</span><span class="node-label">Chat</span></button>
       <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">☠</span><span class="node-label">System Overload</span></button>
       <button data-view="viewer-card" class="node-btn viewer-only-nav game-only-nav" style="--nc:#fcd34d"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▢</span><span class="node-label">My Profile</span></button>
-      <button data-view="quests" class="node-btn game-only-nav" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
       <button data-view="xp-requests" class="node-btn game-only-nav" style="--nc:#fbbf24"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✦</span><span class="node-label">Bonus XP</span></button>
       <button data-view="inbox" class="node-btn inbox-nav game-only-nav" style="--nc:#c084fc"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">✉</span><span class="node-label">Messages <span class="inbox-badge hidden" id="inboxBadge">0</span></span></button>
       <div class="sidebar-console-wrap">
@@ -294,7 +293,7 @@
 
     <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
       <h2 class="view-title sketch-title">Skill Cards</h2>
-      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
+      <p class="gallery-hint">See the milestones I'm making in my skills.</p>
       <div id="skillRecommendations"></div>
       <div class="skill-deck-actions edit-when-editing">
         <button class="btn primary" id="addSkillCardBtn" type="button">+ Add skill card</button>
@@ -324,6 +323,7 @@
 
     <section class="view neon-section" id="view-press" style="--sec-neon:#f472b6">
       <h2 class="view-title sketch-title">The Press</h2>
+      <p class="gallery-hint press-coder-hint" id="pressCoderHint">Want to add to The Press? Open <strong>My Profile → Press</strong> — upload photos, pick a layout, make it yours. I read everything.</p>
       <div class="manga-spread" id="pressSpread"></div>
       <button class="btn admin-only hidden" id="addArticleBtn" style="margin-top:14px">+ Add article</button>
     </section>
@@ -406,7 +406,7 @@
 
     <section class="view neon-section inbox-page-view" id="view-inbox" style="--sec-neon:#c084fc">
       <h2 class="view-title sketch-title">Messages</h2>
-      <p class="gallery-hint viewer-hint">Message Gray and your coder friends — add friends from your Collection.</p>
+      <p class="gallery-hint viewer-hint">Message me and your coder friends — add friends from your Collection.</p>
       <div id="inboxSpread"></div>
     </section>
 
@@ -574,7 +574,7 @@
     <div class="field"><label>Your experiences here</label><textarea id="coderPlaceDesc" rows="5" placeholder="What happened when you went — the full story…"></textarea></div>
     <div id="coderPlaceImageBlock"></div>
     <div class="modal-actions">
-      <button type="button" class="btn" id="coderRecommendPlace">Recommend to Gray</button>
+      <button type="button" class="btn" id="coderRecommendPlace">Send to me</button>
       <button type="button" class="btn" id="cancelCoderPlace">Cancel</button>
       <button type="button" class="btn primary" id="saveCoderPlace">Save place card</button>
     </div>
@@ -591,8 +591,10 @@
       <div class="field"><label>Hours logged</label><input type="number" id="coderSkillHours" min="0" step="0.5" value="0"></div>
       <div class="field"><label>Neon colour</label><input type="color" id="coderSkillColor" value="#7c4dff"></div>
     </div>
-    <p class="field-hint">After saving, flip the card or click a skyline tower to add milestones.</p>
-    <div class="modal-actions">
+    <p class="field-hint">After saving, flip the card or click a tower to add milestones and hours.</p>
+    <div class="modal-actions modal-actions--split">
+      <button type="button" class="btn hidden" id="coderSkillJourneyBtn">Milestones &amp; hours</button>
+      <button type="button" class="btn" id="coderRecommendSkillCardBtn">Send to me</button>
       <button type="button" class="btn" id="cancelCoderSkill">Cancel</button>
       <button type="button" class="btn primary" id="saveCoderSkill">Save skill card</button>
     </div>
@@ -875,7 +877,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260716g';
+    s.src = files[i++] + '?v=20260716h';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

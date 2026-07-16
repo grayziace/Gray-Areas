@@ -448,7 +448,7 @@ GameHub.renderCollectionSection = function(coderId, section){
   if(section === 'skills'){
     return `<div class="profile-gray-view profile-gray-view--skills neon-section" style="--sec-neon:#7c4dff" data-coder-gray-view="skills">
       <h2 class="view-title sketch-title">Skill Cards</h2>
-      <p class="gallery-hint">Collectible cards — flip to see tier, hours, and milestones. Add a card to grow your skyline.</p>
+      <p class="gallery-hint">Flip cards for tier and hours — click towers to log milestones and send recs to me.</p>
       <div class="profile-skill-rec" data-coder-rec="skill"></div>
       <div class="card-deck skill-card-deck profile-skill-deck" data-coder-deck="skills"></div>
       <div class="tier-legend profile-tier-legend" data-coder-tier-legend></div>
@@ -688,35 +688,83 @@ GameHub.renderPressSubmitForm = function(){
   if(!isCoderLoggedIn() || isWatchMode()) return '';
   const mine = getMyCoderCard();
   if(!mine) return '';
+  const formKey = uid('pform').slice(-8);
   return `<section class="press-submit-board sketch-card">
     <h3 class="viewer-wizard-title">Submit to The Press</h3>
-    <p class="field-hint">Write an article and send it in — <strong>I read everything</strong> and choose what gets published on The Press.</p>
-    <form id="pressSubmitForm">
-      <div class="field"><label>Headline</label><input type="text" id="pressSubmitTitle" required></div>
-      <div class="field"><label>Excerpt</label><input type="text" id="pressSubmitExcerpt" placeholder="one-line teaser"></div>
-      <div class="field"><label>Article</label><textarea id="pressSubmitBody" rows="6" required></textarea></div>
-      <button type="submit" class="btn primary">Send to Gray</button>
+    <p class="field-hint">Write something worth publishing — add a hero image, pick a layout, tag it. <strong>I read everything.</strong></p>
+    <form class="press-submit-form" data-press-form-key="${esc(formKey)}">
+      <div class="field-row">
+        <div class="field"><label>Headline</label><input type="text" class="press-submit-title" required></div>
+        <div class="field"><label>Section</label>
+          <select class="press-submit-section">
+            <option value="Community">Community</option>
+            <option value="Culture">Culture</option>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Tech">Tech</option>
+            <option value="Opinion">Opinion</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Excerpt</label><input type="text" class="press-submit-excerpt" placeholder="one-line teaser for the front page"></div>
+      <div class="field-row">
+        <div class="field"><label>Layout</label>
+          <select class="press-submit-layout">
+            <option value="note">Note — text first</option>
+            <option value="feature">Feature — big image</option>
+            <option value="wide">Wide — cinematic</option>
+          </select>
+        </div>
+        <div class="field"><label>Tags</label><input type="text" class="press-submit-tags" placeholder="comma-separated, e.g. shenzhen, ramen, neon"></div>
+      </div>
+      <div class="field"><label>Article</label><textarea class="press-submit-body" rows="8" required placeholder="your piece — go long if you want"></textarea></div>
+      <div class="press-submit-image-block" data-press-image-block="${esc(formKey)}"></div>
+      <button type="submit" class="btn primary">Send to me</button>
     </form>
   </section>`;
 };
 
-GameHub.bindPressSubmit = function(){
-  const form = document.getElementById('pressSubmitForm');
-  if(!form || form.dataset.bound) return;
-  form.dataset.bound = '1';
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    this.submitPressArticle();
+GameHub.wirePressSubmitImage = function(form){
+  if(!form || form.dataset.pressImgWired || typeof ImageTools === 'undefined') return;
+  const block = form.querySelector('[data-press-image-block]');
+  if(!block) return;
+  const key = form.dataset.pressFormKey || uid('pform').slice(-8);
+  const prefix = `ps_${key}`;
+  form.dataset.pressImgPrefix = prefix;
+  block.innerHTML = ImageTools.blockHtml({
+    prefix,
+    label: 'Hero image / photo',
+    currentUrl: '',
+    descPlaceholder: 'Neon street food stall, rainy window, your moment…',
+    hiddenId: `${prefix}_url`,
+  });
+  ImageTools.wire({ prefix, kind: 'gallery', hiddenId: `${prefix}_url` });
+  form.dataset.pressImgWired = '1';
+};
+
+GameHub.bindPressSubmit = function(root){
+  const scope = root || document;
+  scope.querySelectorAll('.press-submit-form, #pressSubmitForm').forEach(form => {
+    if(form.dataset.bound) return;
+    form.dataset.bound = '1';
+    this.wirePressSubmitImage(form);
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      this.submitPressArticle(form);
+    });
   });
 };
 
-GameHub.submitPressArticle = async function(){
+GameHub.submitPressArticle = async function(formEl){
   const mine = getMyCoderCard();
   if(!mine) return;
-  const title = document.getElementById('pressSubmitTitle')?.value?.trim();
-  const excerpt = document.getElementById('pressSubmitExcerpt')?.value?.trim() || title?.slice(0, 120) || '';
-  const body = document.getElementById('pressSubmitBody')?.value?.trim();
+  const form = formEl?.classList?.contains('press-submit-form') ? formEl : formEl?.closest?.('.press-submit-form') || document.querySelector('.press-submit-form');
+  const title = form?.querySelector('.press-submit-title')?.value?.trim() || document.getElementById('pressSubmitTitle')?.value?.trim();
+  const excerpt = form?.querySelector('.press-submit-excerpt')?.value?.trim() || document.getElementById('pressSubmitExcerpt')?.value?.trim() || title?.slice(0, 120) || '';
+  const body = form?.querySelector('.press-submit-body')?.value?.trim() || document.getElementById('pressSubmitBody')?.value?.trim();
   if(!title || !body) return;
+  const prefix = form?.dataset.pressImgPrefix;
+  const image = prefix ? document.getElementById(`${prefix}_url`)?.value?.trim() || '' : '';
   const sub = {
     id: uid('presssub'),
     characterId: mine.id,
@@ -724,6 +772,10 @@ GameHub.submitPressArticle = async function(){
     title,
     excerpt,
     body,
+    section: form?.querySelector('.press-submit-section')?.value || 'Community',
+    layout: form?.querySelector('.press-submit-layout')?.value || 'note',
+    tags: form?.querySelector('.press-submit-tags')?.value?.trim() || '',
+    image,
     status: 'pending',
     at: new Date().toISOString(),
   };
@@ -735,7 +787,8 @@ GameHub.submitPressArticle = async function(){
     logCoderActivity('press_submit', { coderId: mine.id, name: mine.name, detail: `${mine.name} submitted Press: ${title}` });
   }
   alert('Sent — I\'ll read it soon.');
-  document.getElementById('pressSubmitForm')?.reset();
+  form?.reset();
+  if(typeof refreshCoderProfileUI === 'function') refreshCoderProfileUI(mine.id, { tab: 'press' });
   if(typeof renderPress === 'function') renderPress();
 };
 
@@ -749,6 +802,7 @@ GameHub.renderPressQueue = function(){
     ${pending.map(s => `<article class="press-queue-item" data-press-sub="${esc(s.id)}">
       <header><strong>${esc(s.title)}</strong> <span>by ${esc(s.name)}</span> <time>${esc(new Date(s.at).toLocaleDateString())}</time></header>
       <p>${esc(s.excerpt || s.body?.slice(0, 160) || '')}</p>
+      ${s.image ? `<div class="press-queue-thumb"><img src="${esc(s.image)}" alt="" loading="lazy"></div>` : ''}
       <div class="press-queue-actions">
         <button type="button" class="btn primary" data-press-approve="${esc(s.id)}">Publish</button>
         <button type="button" class="btn" data-press-reject="${esc(s.id)}">Decline</button>
@@ -772,14 +826,14 @@ GameHub.approvePressSubmission = function(subId){
   ensureContentState();
   const article = {
     id: uid('art'),
-    section: 'Community',
+    section: sub.section || 'Community',
     title: sub.title,
     date: todayKey(),
     excerpt: sub.excerpt || sub.body?.slice(0, 140) || '',
     body: sub.body,
-    layout: 'note',
-    tags: `submission,${sub.name}`,
-    image: '',
+    layout: sub.layout || 'note',
+    tags: sub.tags ? `${sub.tags},submission,${sub.name}` : `submission,${sub.name}`,
+    image: sub.image || '',
     authorId: sub.characterId,
     authorName: sub.name,
   };

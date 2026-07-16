@@ -3569,7 +3569,14 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 .inbox-admin-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .inbox-admin-tab.is-active{border-color:var(--neon-cyan);box-shadow:0 0 14px rgba(58,214,224,0.2);}
 .inbox-admin-pane{display:none;}
-.inbox-admin-pane.is-active{display:block;}
+.profile-micro-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.profile-micro-btn{font-size:11px;padding:6px 10px;}
+.profile-quests-wrap{display:flex;flex-direction:column;gap:18px;}
+.profile-quest-compose{margin-bottom:4px;}
+.press-queue-thumb{margin-top:8px;max-width:220px;border:1px dashed var(--border-glass);}
+.press-queue-thumb img{width:100%;display:block;}
+.press-submit-image-block{margin:12px 0;}
+.modal-actions--split{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;}
 
 /* Profile site side-rail */
 .profile-site[data-profile-editable="1"] .edit-when-editing,
