@@ -296,6 +296,8 @@ const CONTENT = {
         "photos": [],
         "animals": []
       },
+      "active": true,
+      "status": "active",
     },
     {
       "id": "coder-1784136277276-1f50",
@@ -381,6 +383,8 @@ const CONTENT = {
       "imageFocusX": 50,
       "imageFocusY": 50,
       "type": "Person",
+      "active": true,
+      "status": "active",
     }
   ],
 
