@@ -1052,10 +1052,10 @@ function pinCoderThumb(coderId){
   if(!c) return '';
   const img = c.avatar || c.image;
   const accent = c.cardColor || '#38bdf8';
-  return `<div class="pin-coder-thumb" style="--pct-neon:${accent}">
+  return `<button type="button" class="pin-coder-thumb pin-coder-link" data-coder-board-link="${esc(coderId)}" style="--pct-neon:${accent}">
     <div class="pin-coder-frame">${img ? `<img src="${esc(img)}" alt="">` : `<span>${esc((c.name || '?').charAt(0))}</span>`}</div>
     <span class="pin-coder-name">${esc(c.name)}</span>
-  </div>`;
+  </button>`;
 }
 
 function cardWizardFieldsHtml(prefix, card, opts = {}){
@@ -1328,6 +1328,7 @@ function bindInstructionsActions(host){
 const ViewerWorld = {
   inited: false,
   pendingVlogFile: null,
+  pendingVlogData: '',
   pendingQuestClips: [],
   editingCardId: null,
   playerEditingCoderId: null,
@@ -2026,11 +2027,17 @@ const ViewerWorld = {
     const entries = (state.videoDiary || []).slice().reverse();
     let html = '';
     if(isAdmin()){
-      html += `<div class="vlog-upload sketch-card"><h3 class="viewer-wizard-title">Upload video note</h3>
+      html += `<div class="vlog-upload sketch-card"><h3 class="viewer-wizard-title">Video note</h3>
+        <p class="field-hint">Record in-browser, upload a file, or paste a URL.</p>
         <form id="vlogUploadForm">
           <div class="field-row"><div class="field"><label>Title</label><input type="text" id="vlogTitle" required></div>
           <div class="field"><label>Date</label><input type="date" id="vlogDate" value="${todayKey()}"></div></div>
-          <div class="field"><label>Video URL</label><input type="url" id="vlogUrl"></div>
+          <div class="field-row vlog-capture-row">
+            <button type="button" class="btn primary" id="vlogRecordBtn">🎬 Record now</button>
+            <button type="button" class="btn" id="vlogClearClip" hidden>Clear clip</button>
+          </div>
+          <div id="vlogClipPreview" class="vlog-clip-preview hidden"></div>
+          <div class="field"><label>Video URL</label><input type="url" id="vlogUrl" placeholder="or paste a link"></div>
           <div class="field"><label>Clip upload (&lt;4MB)</label><input type="file" id="vlogVideoFile" accept="video/*"></div>
           <div class="field"><label>English captions</label><textarea id="vlogCaptions" rows="4"></textarea></div>
           <button type="submit" class="btn primary">Publish</button>
@@ -2039,7 +2046,23 @@ const ViewerWorld = {
     html += entries.length ? `<div class="vlog-grid">${entries.map(v => this.vlogEntryHtml(v)).join('')}</div>` : `<p class="empty-hint">No vlogs yet.</p>`;
     host.innerHTML = html;
     document.getElementById('vlogUploadForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitVlog(); });
-    document.getElementById('vlogVideoFile')?.addEventListener('change', e => { this.pendingVlogFile = e.target.files?.[0] || null; });
+    document.getElementById('vlogVideoFile')?.addEventListener('change', e => { this.pendingVlogFile = e.target.files?.[0] || null; this.pendingVlogData = ''; });
+    document.getElementById('vlogRecordBtn')?.addEventListener('click', () => {
+      if(typeof MediaCapture === 'undefined') return;
+      MediaCapture.open({ mode: 'video', onResult: r => {
+        this.pendingVlogData = r.dataUrl;
+        this.pendingVlogFile = null;
+        const prev = document.getElementById('vlogClipPreview');
+        const clr = document.getElementById('vlogClearClip');
+        if(prev){ prev.classList.remove('hidden'); prev.innerHTML = `<video controls playsinline src="${esc(r.dataUrl)}"></video>`; }
+        if(clr) clr.hidden = false;
+      }});
+    });
+    document.getElementById('vlogClearClip')?.addEventListener('click', () => {
+      this.pendingVlogData = '';
+      document.getElementById('vlogClipPreview')?.classList.add('hidden');
+      document.getElementById('vlogClearClip').hidden = true;
+    });
   },
 
   vlogEntryHtml(v){
@@ -2054,8 +2077,8 @@ const ViewerWorld = {
 
   async submitVlog(){
     if(!isAdmin()) return;
-    let videoData = '';
-    if(this.pendingVlogFile){
+    let videoData = this.pendingVlogData || '';
+    if(!videoData && this.pendingVlogFile){
       if(this.pendingVlogFile.size > 4 * 1024 * 1024){ alert('Max 4MB'); return; }
       videoData = await new Promise((res, rej) => {
         const r = new FileReader();
@@ -2076,6 +2099,7 @@ const ViewerWorld = {
     });
     saveState();
     this.pendingVlogFile = null;
+    this.pendingVlogData = '';
     this.renderVlog();
   },
 

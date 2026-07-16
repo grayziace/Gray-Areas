@@ -344,18 +344,46 @@
     <section class="view neon-section" id="view-comm" style="--sec-neon:#38bdf8">
       <h2 class="view-title sketch-title">Community Board</h2>
       <p class="gallery-hint" id="commBoardHint">Posts stay permanently. Log in with My Card to post — your card shows on your note.</p>
+      <div class="comm-feed-tabs" id="commFeedTabs">
+        <button type="button" class="btn comm-feed-tab is-active" data-comm-feed="all">Recent</button>
+      </div>
       <div class="pinboard-layout">
         <form class="pin-form sketch-card" id="pinForm">
           <div id="pinAuthorPreview" class="pin-author-preview"></div>
           <div class="field-row">
+            <div class="field"><label>Post type</label>
+              <select id="pinPostType">
+                <option value="note">Note</option>
+                <option value="poll">Poll</option>
+                <option value="video">Video note</option>
+              </select>
+            </div>
             <div class="field"><label>Posting from</label><input type="text" id="pinLocation" required placeholder="Shenzhen, UK, café, flat…"></div>
           </div>
-          <div class="field"><label>Message</label><textarea id="pinText" required placeholder="leave a note on the board…" rows="4"></textarea></div>
-          <div class="field"><label>Photo note (optional)</label><input type="file" id="pinPhoto" accept="image/*" capture="environment"></div>
+          <div class="field pin-poll-fields hidden" id="pinPollFields">
+            <label>Poll options (one per line)</label>
+            <textarea id="pinPollOptions" rows="3" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
+          </div>
+          <div class="field"><label id="pinTextLabel">Message</label><textarea id="pinText" required placeholder="leave a note on the board…" rows="4"></textarea></div>
+          <div class="field pin-media-row">
+            <label>Media</label>
+            <div class="pin-media-btns">
+              <button type="button" class="btn" id="pinTakePhoto">📷 Photo now</button>
+              <button type="button" class="btn" id="pinTakeVideo">🎬 Video now</button>
+              <input type="file" id="pinPhoto" accept="image/*" capture="environment" class="pin-file-fallback">
+              <input type="file" id="pinVideoFile" accept="video/*" class="pin-file-fallback">
+            </div>
+            <div id="pinMediaPreview" class="pin-media-preview hidden"></div>
+          </div>
           <button class="btn primary" type="submit">Pin to board</button>
         </form>
         <div class="pin-wall" id="pinWall"></div>
       </div>
+    </section>
+
+    <section class="view neon-section" id="view-coder-board" style="--sec-neon:#e94ff5">
+      <button type="button" class="btn coder-board-back" id="coderBoardBack">← Back to deck</button>
+      <div id="coderBoardSpread"></div>
     </section>
 
     <section class="view neon-section" id="view-viewer-card" style="--sec-neon:#fcd34d">
@@ -702,6 +730,26 @@
   </div>
 </div>
 
+<div class="modal-back hidden" id="mediaCaptureBack">
+  <div class="modal sketch-card media-capture-modal">
+    <header class="mc-head">
+      <h3 id="mediaCaptureTitle">Capture</h3>
+      <button type="button" class="btn" id="closeMediaCapture">Close</button>
+    </header>
+    <video id="mcPreview" class="mc-preview" playsinline muted autoplay></video>
+    <canvas id="mcCanvas" class="hidden" aria-hidden="true"></canvas>
+    <p class="mc-video-status hidden" id="mcVideoStatus">Recording…</p>
+    <div class="mc-actions" id="mcPhotoActions">
+      <button type="button" class="btn primary" id="mcSnapPhoto">Snap photo</button>
+    </div>
+    <div class="mc-actions hidden" id="mcVideoActions">
+      <button type="button" class="btn primary" id="mcStartVideo">Start recording</button>
+      <button type="button" class="btn hidden" id="mcStopVideo">Stop &amp; use clip</button>
+    </div>
+    <button type="button" class="btn mc-flip-cam" id="mcSwitchCamera">Flip camera</button>
+  </div>
+</div>
+
 <div class="modal-back hidden" id="systemConsoleBack">
   <div class="modal sketch-card system-console-modal">
     <header class="sys-console-head">
@@ -742,7 +790,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'gray-console.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){

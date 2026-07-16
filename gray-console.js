@@ -6,38 +6,87 @@ const SYSTEM_CONSOLE_MODES = {
   personality: { label: 'Personality', icon: '◇', hint: 'Who you are, patterns, growth, inner work.' },
 };
 
-const GRAY_CONSOLE_DAY_KEY = 'ga-gray-console-day';
-
 function ensureSystemConsoleMemory(){
   if(!state.systemConsoleMemory || typeof state.systemConsoleMemory !== 'object'){
-    state.systemConsoleMemory = { facts: [], career: [], personality: [], messages: [] };
+    state.systemConsoleMemory = {
+      facts: [], career: [], personality: [], qualifications: [], messages: [],
+    };
   }
-  if(!Array.isArray(state.systemConsoleMemory.facts)) state.systemConsoleMemory.facts = [];
-  if(!Array.isArray(state.systemConsoleMemory.career)) state.systemConsoleMemory.career = [];
-  if(!Array.isArray(state.systemConsoleMemory.personality)) state.systemConsoleMemory.personality = [];
-  if(!Array.isArray(state.systemConsoleMemory.messages)) state.systemConsoleMemory.messages = [];
-  return state.systemConsoleMemory;
+  const m = state.systemConsoleMemory;
+  ['facts', 'career', 'personality', 'qualifications', 'messages'].forEach(k => {
+    if(!Array.isArray(m[k])) m[k] = [];
+  });
+  return m;
+}
+
+function collectSiteQualifications(){
+  const lines = [];
+  const player = typeof getPlayer === 'function' ? getPlayer() : {};
+  const pc = player.pokeCard || {};
+  if(player.cardDescription) lines.push(`Profile: ${player.cardDescription.slice(0, 200)}`);
+  if(player.cardSubtitle || pc.subtitle) lines.push(`Title: ${player.cardSubtitle || pc.subtitle}`);
+  if(pc.mbti) lines.push(`MBTI: ${pc.mbti}`);
+  (pc.abilities || []).forEach(a => { if(a?.name) lines.push(`Ability: ${a.name}`); });
+  (typeof getSkills === 'function' ? getSkills() : []).forEach(s => {
+    const hrs = typeof getTotalSkillHours === 'function' ? getTotalSkillHours(s.id) : 0;
+    const tier = typeof getSkillTier === 'function' ? getSkillTier(hrs) : null;
+    lines.push(`Skill ${s.name}: ${hrs}h · tier ${tier?.name || '—'}`);
+    (s.milestones || []).forEach(ms => {
+      if(ms?.title) lines.push(`Milestone [${s.name}]: ${ms.title} — ${ms.note || ''}`.trim());
+    });
+  });
+  (typeof getArticles === 'function' ? getArticles() : []).slice(0, 6).forEach(a => {
+    lines.push(`Writing [${a.section}]: ${a.title}`);
+  });
+  (typeof getCharacters === 'function' ? getCharacters() : []).slice(0, 8).forEach(c => {
+    if(c.cardDescription) lines.push(`Connection ${c.name}: ${c.cardDescription.slice(0, 120)}`);
+  });
+  if(state.bio) lines.push(`Bio: ${state.bio}`);
+  return [...new Set(lines)].slice(0, 48);
+}
+
+function syncSiteQualificationsToMemory(){
+  const mem = ensureSystemConsoleMemory();
+  const site = collectSiteQualifications();
+  site.forEach(line => {
+    if(!mem.qualifications.includes(line)) mem.qualifications.unshift(line);
+  });
+  if(mem.qualifications.length > 60) mem.qualifications.length = 60;
+  saveState();
 }
 
 function buildSystemContext(){
+  syncSiteQualificationsToMemory();
   const mem = ensureSystemConsoleMemory();
   const player = typeof getPlayer === 'function' ? getPlayer() : {};
   const skills = typeof getSkills === 'function' ? getSkills() : [];
   const recentDays = Object.keys(state.entries || {}).sort().slice(-7).map(k => {
     const n = typeof normalizeEntry === 'function' ? normalizeEntry(state.entries[k]) : {};
-    return `${k}: mood=${n.currentMood || n.mood || '—'}, people=${(n.people || []).join(', ') || '—'}, places=${(n.places || []).join(', ') || '—'}`;
+    return `${k}: mood=${n.currentMood || n.mood || '—'}, people=${(n.people || []).join(', ') || '—'}, places=${(n.places || []).join(', ')}`;
   });
+  const quests = (state.quests || []).filter(q => q.status === 'completed').slice(0, 5)
+    .map(q => `Quest done: ${q.title} (from ${q.fromName})`);
+  const media = (typeof allDramas === 'function' ? allDramas() : []).filter(d => d.status === 'watching' || d.finalReview)
+    .slice(0, 5).map(d => `Media: ${d.title} (${d.mediaType})`);
   return [
     `You are the System Console — Gray's private AI inside Gray Areas, a personal life-logging game site.`,
     `Gray (she/her) uses this in Shenzhen and the UK. Be warm, direct, a little playful — like a smart friend who knows the whole board.`,
     `Player profile: ${player.name || 'Gray'}, level ${player.pokeCard?.level || 0}, ${state.playerPoints || 0} XP.`,
     `Bio: ${state.bio || player.bio || '—'}`,
-    `Skills: ${skills.map(s => `${s.name} (${typeof getTotalSkillHours === 'function' ? getTotalSkillHours(s.id) : 0}h)`).join(', ') || 'none logged'}`,
+    `Card line: ${player.cardDescription || '—'}`,
+    `Skills: ${skills.map(s => {
+      const hrs = typeof getTotalSkillHours === 'function' ? getTotalSkillHours(s.id) : 0;
+      const t = typeof getSkillTier === 'function' ? getSkillTier(hrs) : {};
+      return `${s.name} ${hrs}h · ${t.name || 'tier?'}`;
+    }).join(', ') || 'none'}`,
+    `Qualifications & site knowledge: ${mem.qualifications.slice(0, 20).join(' · ') || 'building…'}`,
     `Recent days: ${recentDays.join(' | ') || 'none'}`,
-    `Career notes: ${mem.career.slice(0, 12).join(' · ') || 'none yet'}`,
-    `Personality notes: ${mem.personality.slice(0, 12).join(' · ') || 'none yet'}`,
+    `Quests completed lately: ${quests.join(' · ') || 'none'}`,
+    `Media: ${media.join(' · ') || 'none'}`,
+    `Career notes (Gray told you): ${mem.career.slice(0, 14).join(' · ') || 'none yet'}`,
+    `Personality notes: ${mem.personality.slice(0, 14).join(' · ') || 'none yet'}`,
     `General facts: ${mem.facts.slice(0, 16).join(' · ') || 'none yet'}`,
-    `Never mention System Overload vault contents, body logs, vents, or calories/weight — that data is strictly private.`,
+    `Never mention System Overload vault contents, body logs, vents, calories, or weight — strictly private.`,
   ].join('\n');
 }
 
@@ -47,12 +96,10 @@ const SystemConsole = {
 
   init(){
     const back = document.getElementById('systemConsoleBack');
-    if(back && !back.dataset.bound){
-      back.dataset.bound = '1';
+    if(!back || back.dataset.bound) return;
+    back.dataset.bound = '1';
     document.getElementById('closeSystemConsole')?.addEventListener('click', () => this.close());
-    document.getElementById('systemConsoleBack')?.addEventListener('click', e => {
-      if(e.target.id === 'systemConsoleBack') this.close();
-    });
+    back.addEventListener('click', e => { if(e.target.id === 'systemConsoleBack') this.close(); });
     document.getElementById('systemConsoleForm')?.addEventListener('submit', e => {
       e.preventDefault();
       this.send();
@@ -63,13 +110,13 @@ const SystemConsole = {
         document.querySelectorAll('[data-console-mode]').forEach(b => b.classList.toggle('is-active', b.dataset.consoleMode === this.mode));
       });
     });
-    }
   },
 
   open(){
     if(!isAdmin()) return;
     this.init();
     ensureSystemConsoleMemory();
+    syncSiteQualificationsToMemory();
     document.getElementById('systemConsoleBack')?.classList.remove('hidden');
     document.body.classList.add('system-console-open');
     this.renderMessages();
@@ -94,17 +141,17 @@ const SystemConsole = {
         <span class="sys-console-role">${m.role === 'user' ? 'Gray' : 'System'}</span>
         <p>${esc(m.text)}</p>
       </div>`).join('');
-    host.innerHTML = rows || '<p class="empty-hint">Say anything — I remember what matters.</p>';
+    host.innerHTML = rows || '<p class="empty-hint">Say anything — I pull from your whole site and remember what you tell me.</p>';
     host.scrollTop = host.scrollHeight;
   },
 
   rememberSnippet(text, mode){
     const mem = ensureSystemConsoleMemory();
-    const line = text.trim().slice(0, 240);
-    if(!line || line.length < 12) return;
+    const line = text.trim().slice(0, 320);
+    if(!line || line.length < 8) return;
     const bucket = mode === 'career' ? mem.career : mode === 'personality' ? mem.personality : mem.facts;
     if(!bucket.includes(line)) bucket.unshift(line);
-    if(bucket.length > 40) bucket.length = 40;
+    if(bucket.length > 50) bucket.length = 50;
     saveState();
   },
 
@@ -123,10 +170,10 @@ const SystemConsole = {
     if(replyHost) replyHost.insertAdjacentHTML('beforeend', '<div class="sys-console-msg is-assistant"><span class="sys-console-role">System</span><p class="sys-console-typing">…</p></div>');
     try{
       const modeHint = SYSTEM_CONSOLE_MODES[this.mode]?.hint || '';
-      const prompt = `${buildSystemContext()}\n\nMode: ${this.mode} — ${modeHint}\n\nGray says: ${text}\n\nReply in 2–5 sentences. Use "I" when speaking as the system friend.`;
+      const prompt = `${buildSystemContext()}\n\nMode: ${this.mode} — ${modeHint}\n\nGray says: ${text}\n\nReply in 2–6 sentences. Use "I" when speaking as the system friend. Reference site data when relevant.`;
       const res = await fetch('https://text.pollinations.ai/' + encodeURIComponent(prompt), { method: 'GET' });
       let reply = res.ok ? (await res.text()).trim() : 'Signal weak — try again in a moment.';
-      if(reply.length > 1200) reply = reply.slice(0, 1200) + '…';
+      if(reply.length > 1400) reply = reply.slice(0, 1400) + '…';
       mem.messages.push({ role: 'assistant', text: reply, mode: this.mode, at: new Date().toISOString() });
       if(typeof awardGrayPoints === 'function') awardGrayPoints(GRAY_XP_AWARDS.console_chat.xp, 'console_chat');
       saveState();

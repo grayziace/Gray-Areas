@@ -256,6 +256,9 @@ function mergeSiteStateFromFile(){
   saveState();
 }
 mergeSiteStateFromFile();
+let pendingPinMedia = { photo: '', video: '' };
+let commFeedFilter = 'all';
+let coderBoardId = '';
 let pendingContentImage = null;
 let pendingSpiritImage = null;
 let pendingDramaImage = null;
@@ -2421,6 +2424,7 @@ function navigateToView(view){
   document.body.dataset.activeView = view;
   if(view === 'sync') closeCoderNotify();
   if(view === 'comm') applyAdminUI();
+  if(view === 'coder-board' && coderBoardId) renderCoderBoardPage(coderBoardId);
   if(view === 'mind' && typeof OverloadLog !== 'undefined'){
     OverloadLog.embedded = false;
     document.body.classList.add('mind-channel-open');
@@ -2461,6 +2465,9 @@ function bootApp(){
   try{ if(typeof GoogleSteps !== 'undefined') GoogleSteps.init(); }catch(err){ console.error('Google steps init failed:', err); }
   try{ HomeCheckIn.init(); }catch(err){ console.error('Home check-in init failed:', err); }
   try{ if(typeof SystemConsole !== 'undefined') SystemConsole.init(); }catch(err){ console.error('System console init failed:', err); }
+  try{ if(typeof MediaCapture !== 'undefined') MediaCapture.init(); }catch(err){ console.error('Media capture init failed:', err); }
+  try{ initPinFormHandlers(); }catch(err){ console.error('Pin form init failed:', err); }
+  document.getElementById('coderBoardBack')?.addEventListener('click', () => navigateToView('characters'));
   try{ bindCommunityConsole(); }catch(err){ console.error('Community console failed:', err); }
   try{ if(typeof ViewerWorld !== 'undefined') ViewerWorld.init(); }catch(err){ console.error('Viewer world init failed:', err); }
   try{ initCommunityCommentModal(); }catch(err){ console.error('Community comment modal failed:', err); }
@@ -4199,6 +4206,55 @@ function getCoderPosts(coderId){
   );
 }
 
+function navigateToCoderBoard(coderId){
+  if(!coderId) return;
+  coderBoardId = coderId;
+  navigateToView('coder-board');
+}
+
+function getCoderByIdAny(coderId){
+  return (state.viewerCharacters || []).find(c => c.id === coderId)
+    || (typeof getCharacters === 'function' ? getCharacters() : []).find(c => c.id === coderId)
+    || null;
+}
+
+function renderCoderBoardPage(coderId){
+  const host = document.getElementById('coderBoardSpread');
+  if(!host) return;
+  const c = getCoderByIdAny(coderId);
+  if(!c){ host.innerHTML = '<p class="empty-hint">Coder not found.</p>'; return; }
+  const rankMap = typeof getCoderXpRankMap === 'function' ? getCoderXpRankMap() : new Map();
+  const card = typeof buildFlipPlayerCard === 'function'
+    ? buildFlipPlayerCard(c, 'character', 0, { xpRank: rankMap.get(c.id), rankNeon: typeof getCoderRankNeon === 'function' ? getCoderRankNeon(rankMap.get(c.id)) : '' })
+    : '';
+  const posts = getCoderPosts(coderId).sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+  const quests = (state.quests || []).filter(q => q.fromCharacterId === coderId);
+  const xpRows = (c.xpHistory || []).map(e =>
+    `<li><time>${esc(new Date(e.at).toLocaleString())}</time> +${e.amount} · ${esc(e.label || e.reason)}</li>`
+  ).join('');
+  const postHtml = posts.map(p => renderPinPostFull(p, c.id)).join('');
+  host.innerHTML = `
+    <header class="coder-board-hero sketch-card">
+      <h2 class="view-title sketch-title">${esc(c.name)}'s update board</h2>
+      <p class="gallery-hint">Everything they've posted — polls, notes, video — plus quests and XP.</p>
+    </header>
+    <div class="coder-board-card-wrap">${card}</div>
+    <section class="coder-board-section sketch-card">
+      <h3>Posts &amp; updates (${posts.length})</h3>
+      <div class="coder-board-posts">${postHtml || '<p class="empty-hint">Nothing posted yet.</p>'}</div>
+    </section>
+    <section class="coder-board-section sketch-card">
+      <h3>Recent XP</h3>
+      <ul class="coder-profile-xp">${xpRows || '<li>None yet.</li>'}</ul>
+    </section>
+    <section class="coder-board-section sketch-card">
+      <h3>Quests (${quests.length})</h3>
+      <ul>${quests.map(q => `<li><strong>${esc(q.title)}</strong> · ${esc(q.status)}</li>`).join('') || '<li>None yet.</li>'}</ul>
+    </section>`;
+  if(typeof bindFlipPlayerCards === 'function') bindFlipPlayerCards(host);
+  bindPollVoteButtons(host);
+}
+
 function openCoderProfileModal(coderId){
   const c = (state.viewerCharacters || []).find(x => x.id === coderId)
     || (typeof getCharacters === 'function' ? getCharacters() : []).find(x => x.id === coderId);
@@ -4217,7 +4273,10 @@ function openCoderProfileModal(coderId){
       <p>Lv ${c.pokeCard?.level || 0} · ${c.points || 0} XP · ${c.questsSent || 0} quests sent · ${c.questsCompleted || 0} completed</p>
     </header>
     <section class="coder-profile-section">
-      <h4>Update board</h4>
+      <button type="button" class="btn primary" data-coder-board-open="${esc(c.id)}">Open full update board →</button>
+    </section>
+    <section class="coder-profile-section">
+      <h4>Update board (preview)</h4>
       <div class="coder-profile-posts">${postRows || '<p class="empty-hint">No community posts yet.</p>'}</div>
     </section>
     <section class="coder-profile-section">
@@ -4233,6 +4292,10 @@ function openCoderProfileModal(coderId){
   const closeBtn = document.getElementById('closeCoderProfile');
   if(closeBtn) closeBtn.onclick = () => profileBack?.classList.add('hidden');
   if(profileBack) profileBack.onclick = e => { if(e.target.id === 'coderProfileBack') profileBack.classList.add('hidden'); };
+  document.querySelector('[data-coder-board-open]')?.addEventListener('click', () => {
+    profileBack?.classList.add('hidden');
+    navigateToCoderBoard(coderId);
+  });
 }
 
 function renderCharacters(){
@@ -4247,12 +4310,15 @@ function renderCharacters(){
     });
     const quoteLog = isAdmin() && isCoderDeckCard(c) ? renderCoderQuoteLog(c) : '';
     const profileBtn = isCoderDeckCard(c)
-      ? `<button type="button" class="btn coder-profile-btn" data-coder-profile="${esc(c.id)}">View profile</button>`
+      ? `<button type="button" class="btn coder-profile-btn" data-coder-board="${esc(c.id)}">Update board</button>`
       : '';
     return `<div class="char-deck-item">${card}${profileBtn}${quoteLog}</div>`;
   }).join('');
   bindFlipPlayerCards(deck);
   bindCoderQuoteLogs(deck);
+  deck.querySelectorAll('[data-coder-board]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); navigateToCoderBoard(btn.dataset.coderBoard); });
+  });
   deck.querySelectorAll('[data-coder-profile]').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); openCoderProfileModal(btn.dataset.coderProfile); });
   });
@@ -5409,7 +5475,13 @@ function initCommunityCommentModal(){
 }
 
 /* ---------- Pinboard — community board ---------- */
+function parsePollOptions(text){
+  return (text || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 8)
+    .map((t, i) => ({ id: 'opt-' + i, text: t }));
+}
+
 function normalizePinPost(p){
+  const postType = p.postType || (p.video ? 'video' : 'note');
   return {
     id: p.id,
     name: p.name || 'Anonymous',
@@ -5417,6 +5489,10 @@ function normalizePinPost(p){
     location: p.location || p.from || 'Unknown',
     text: p.text || '',
     photo: p.photo || '',
+    video: p.video || '',
+    postType,
+    pollOptions: Array.isArray(p.pollOptions) ? p.pollOptions : [],
+    pollVotes: p.pollVotes && typeof p.pollVotes === 'object' ? { ...p.pollVotes } : {},
     time: p.time || new Date().toISOString(),
     sourceType: p.sourceType || '',
     sourceId: p.sourceId || '',
@@ -5432,6 +5508,146 @@ function normalizePinPost(p){
       parentId: r.parentId || p.id,
     })) : [],
   };
+}
+
+function renderPollBlock(p, viewerCoderId){
+  const opts = p.pollOptions || [];
+  const votes = p.pollVotes || {};
+  const total = Object.keys(votes).length;
+  const myVote = viewerCoderId ? votes[viewerCoderId] : '';
+  const canVote = !!(viewerCoderId || isAdmin());
+  return `<div class="pin-poll" data-poll-id="${esc(p.id)}">
+    ${opts.map(o => {
+      const count = Object.values(votes).filter(v => v === o.id).length;
+      const pct = total ? Math.round((count / total) * 100) : 0;
+      const voted = myVote === o.id;
+      return `<div class="pin-poll-opt${voted ? ' is-voted' : ''}">
+        ${canVote && !myVote ? `<button type="button" class="btn pin-poll-vote" data-poll-vote="${esc(p.id)}" data-poll-opt="${esc(o.id)}">${esc(o.text)}</button>` : `<span class="pin-poll-label">${esc(o.text)}</span>`}
+        <span class="pin-poll-bar" style="--pp-pct:${pct}%"></span>
+        <span class="pin-poll-count">${count}${voted ? ' ✓' : ''}</span>
+      </div>`;
+    }).join('')}
+    <p class="pin-poll-total">${total} vote${total === 1 ? '' : 's'}</p>
+  </div>`;
+}
+
+function votePoll(postId, optionId){
+  const post = state.pinboard.find(p => p.id === postId);
+  if(!post) return;
+  const author = pinSessionAuthor();
+  const voterId = author?.characterId || (isAdmin() ? 'gray' : '');
+  if(!voterId){ alert('Log in to vote.'); return; }
+  if(!post.pollVotes) post.pollVotes = {};
+  if(post.pollVotes[voterId]) return;
+  post.pollVotes[voterId] = optionId;
+  saveState();
+  renderPinboard();
+  if(coderBoardId) renderCoderBoardPage(coderBoardId);
+}
+
+function bindPollVoteButtons(root){
+  (root || document).querySelectorAll('[data-poll-vote]').forEach(btn => {
+    btn.addEventListener('click', () => votePoll(btn.dataset.pollVote, btn.dataset.pollOpt));
+  });
+}
+
+function renderPinPostBody(p){
+  if(p.postType === 'poll') return renderPollBlock(p, getMyCoderCard()?.id);
+  let html = '';
+  if(p.video) html += `<div class="pin-video"><video controls playsinline src="${esc(p.video)}"></video></div>`;
+  if(p.photo) html += `<div class="pin-photo"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>`;
+  if(p.text) html += `<p class="pin-text">${esc(p.text)}</p>`;
+  return html;
+}
+
+function renderPinPostFull(p, viewerCoderId){
+  const norm = normalizePinPost(p);
+  return `<article class="pin-post community-pin pin-post-full" data-pin-id="${esc(norm.id)}">
+    <header class="pin-post-head">
+      ${pinAuthorBlock(norm)}
+      <span class="pin-location">📍 ${esc(norm.location)}</span>
+      <time class="pin-time">${esc(fmtPinDateTime(norm.time))}</time>
+      ${norm.postType !== 'note' ? `<span class="pin-type-badge">${esc(norm.postType)}</span>` : ''}
+    </header>
+    ${renderPinPostBody(norm)}
+  </article>`;
+}
+
+function buildCommFeedTabs(){
+  const tabs = document.getElementById('commFeedTabs');
+  if(!tabs) return;
+  const coders = (state.viewerCharacters || []).filter(c => getCoderPosts(c.id).length);
+  let html = `<button type="button" class="btn comm-feed-tab${commFeedFilter === 'all' ? ' is-active' : ''}" data-comm-feed="all">Recent</button>`;
+  coders.forEach(c => {
+    html += `<button type="button" class="btn comm-feed-tab${commFeedFilter === c.id ? ' is-active' : ''}" data-comm-feed="${esc(c.id)}">${esc(c.name)}</button>`;
+  });
+  tabs.innerHTML = html;
+  tabs.querySelectorAll('[data-comm-feed]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      commFeedFilter = btn.dataset.commFeed;
+      renderPinboard();
+    });
+  });
+}
+
+function initPinFormHandlers(){
+  const form = document.getElementById('pinForm');
+  if(!form || form.dataset.pinBound) return;
+  form.dataset.pinBound = '1';
+  const typeSel = document.getElementById('pinPostType');
+  const pollFields = document.getElementById('pinPollFields');
+  const textLabel = document.getElementById('pinTextLabel');
+  const syncType = () => {
+    const t = typeSel?.value || 'note';
+    pollFields?.classList.toggle('hidden', t !== 'poll');
+    if(textLabel) textLabel.textContent = t === 'poll' ? 'Poll question' : 'Message';
+  };
+  typeSel?.addEventListener('change', syncType);
+  syncType();
+  document.getElementById('pinTakePhoto')?.addEventListener('click', () => {
+    if(typeof MediaCapture !== 'undefined'){
+      MediaCapture.open({ mode: 'photo', onResult: r => {
+        pendingPinMedia.photo = r.dataUrl;
+        pendingPinMedia.video = '';
+        showPinMediaPreview();
+      }});
+    }
+  });
+  document.getElementById('pinTakeVideo')?.addEventListener('click', () => {
+    if(typeof MediaCapture !== 'undefined'){
+      MediaCapture.open({ mode: 'video', onResult: r => {
+        pendingPinMedia.video = r.dataUrl;
+        showPinMediaPreview();
+      }});
+    }
+  });
+  document.getElementById('pinPhoto')?.addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = () => { pendingPinMedia.photo = r.result; showPinMediaPreview(); };
+    r.readAsDataURL(f);
+  });
+  document.getElementById('pinVideoFile')?.addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if(!f) return;
+    if(f.size > 4 * 1024 * 1024){ alert('Max 4MB'); return; }
+    const r = new FileReader();
+    r.onload = () => { pendingPinMedia.video = r.result; showPinMediaPreview(); };
+    r.readAsDataURL(f);
+  });
+}
+
+function showPinMediaPreview(){
+  const el = document.getElementById('pinMediaPreview');
+  if(!el) return;
+  if(!pendingPinMedia.photo && !pendingPinMedia.video){ el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.classList.remove('hidden');
+  el.innerHTML = `${pendingPinMedia.photo ? `<img src="${esc(pendingPinMedia.photo)}" alt="">` : ''}${pendingPinMedia.video ? `<video src="${esc(pendingPinMedia.video)}" controls playsinline></video>` : ''}<button type="button" class="btn" id="pinClearMedia">Clear</button>`;
+  document.getElementById('pinClearMedia')?.addEventListener('click', () => {
+    pendingPinMedia = { photo: '', video: '' };
+    showPinMediaPreview();
+  });
 }
 
 function pinAuthorBlock(p){
@@ -5457,7 +5673,11 @@ function fmtPinDateTime(iso){
 function renderPinboard(){
   const wall = document.getElementById('pinWall');
   if(!wall) return;
-  const posts = (state.pinboard || []).map(normalizePinPost);
+  buildCommFeedTabs();
+  let posts = (state.pinboard || []).map(normalizePinPost);
+  if(commFeedFilter !== 'all'){
+    posts = posts.filter(p => p.characterId === commFeedFilter);
+  }
   if(!posts.length){
     const canPost = isAdmin() || (typeof isCoderLoggedIn === 'function' && isCoderLoggedIn());
     wall.innerHTML = `<p class="empty-hint pin-empty">${canPost ? 'Be the first to leave a note on the board.' : 'Log in to post on the board.'}</p>`;
@@ -5475,12 +5695,12 @@ function renderPinboard(){
           ${pinAuthorBlock(p)}
           <span class="pin-location">📍 ${esc(p.location)}</span>
           <time class="pin-time">${esc(fmtPinDateTime(p.time))}</time>
+          ${p.postType !== 'note' ? `<span class="pin-type-badge">${esc(p.postType)}</span>` : ''}
         </div>
         ${p.sourceLabel ? `<span class="pin-source-ref">↩ on ${esc(p.sourceType || 'post')}: ${esc(p.sourceLabel)}</span>` : ''}
         ${isAdmin() ? `<button type="button" class="pin-delete" data-pin="${esc(p.id)}" title="Remove">×</button>` : ''}
       </header>
-      ${p.photo ? `<div class="pin-photo"><img src="${esc(p.photo)}" alt="" loading="lazy"></div>` : ''}
-      <p class="pin-text">${esc(p.text)}</p>
+      ${renderPinPostBody(p)}
       <div class="pin-replies">${replies.map(r => `
         <div class="pin-reply" data-reply-id="${esc(r.id)}">
           <header class="pin-reply-head">
@@ -5569,6 +5789,10 @@ function renderPinboard(){
       } else addReply('');
     });
   });
+  bindPollVoteButtons(wall);
+  wall.querySelectorAll('[data-coder-board-link]').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); navigateToCoderBoard(btn.dataset.coderBoardLink); });
+  });
 }
 
 document.getElementById('pinForm')?.addEventListener('submit', e => {
@@ -5577,40 +5801,55 @@ document.getElementById('pinForm')?.addEventListener('submit', e => {
   if(!author){ alert(isAdmin() ? 'Something went wrong — try exiting and re-entering Player Gray mode.' : 'Log in to your card to post.'); return; }
   const location = document.getElementById('pinLocation').value.trim();
   const text = document.getElementById('pinText').value.trim();
-  const file = document.getElementById('pinPhoto').files[0];
+  const postType = document.getElementById('pinPostType')?.value || 'note';
   if(!location || !text) return;
 
-  const addPost = (photo) => {
+  const pollOptions = postType === 'poll' ? parsePollOptions(document.getElementById('pinPollOptions')?.value) : [];
+  if(postType === 'poll' && pollOptions.length < 2){ alert('Add at least 2 poll options.'); return; }
+
+  const photo = pendingPinMedia.photo || '';
+  const video = pendingPinMedia.video || (postType === 'video' ? pendingPinMedia.video : '');
+  const file = document.getElementById('pinPhoto')?.files?.[0];
+
+  const pushPost = (photoData) => {
     state.pinboard.push({
       id: 'pin-' + Date.now(),
       name: author.name,
       characterId: author.characterId,
       location, text,
-      photo: photo || '',
+      photo: photoData || photo,
+      video: video || '',
+      postType,
+      pollOptions,
+      pollVotes: {},
       time: new Date().toISOString(),
       replies: [],
     });
     saveState();
+    pendingPinMedia = { photo: '', video: '' };
+    showPinMediaPreview();
     if(author.characterId && typeof awardCoderPoints === 'function'){
       awardCoderPoints(author.characterId, XP_AWARDS.community_post.xp, 'community_post');
     }
     if(typeof logCoderActivity === 'function'){
-      logCoderActivity(author.characterId ? 'community_post' : 'community_post', {
+      logCoderActivity('community_post', {
         coderId: author.characterId || '',
         name: author.name,
-        detail: `${author.name} posted on Community`,
+        detail: `${author.name} posted ${postType} on Community`,
       });
     }
     LiveSync?.pinPosted(author.name, location);
     document.getElementById('pinForm').reset();
+    document.getElementById('pinPostType').value = 'note';
+    document.getElementById('pinPollFields')?.classList.add('hidden');
     renderPinboard();
   };
 
-  if(file){
+  if(file && !photo){
     const reader = new FileReader();
-    reader.onload = () => addPost(reader.result);
+    reader.onload = () => pushPost(reader.result);
     reader.readAsDataURL(file);
-  } else addPost('');
+  } else pushPost('');
 });
 
 /* ---------- Admin ---------- */
