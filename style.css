@@ -3577,13 +3577,36 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 .comm-section-panel.is-active{display:block;}
 .comm-animal-deck,.profile-animal-deck{width:100%;}
 .animal-flip{width:min(100%,260px);}
-.animal-art{display:flex;align-items:center;justify-content:center;min-height:160px;background:rgba(0,0,0,0.35);}
+.animal-art{position:relative;display:flex;align-items:center;justify-content:center;min-height:160px;background:rgba(0,0,0,0.35);}
 .animal-art img{width:100%;height:100%;object-fit:cover;}
 .animal-art-ph{font-family:var(--font-display);font-size:64px;opacity:0.35;}
-.animal-creator-chip{display:block;margin:8px auto 0;font-size:10px;padding:4px 10px;border:1px dashed color-mix(in srgb,var(--pc-accent,#34d399) 45%,var(--border-glass));background:rgba(0,0,0,0.3);color:var(--text-mid);cursor:pointer;border-radius:20px;}
-.animal-creator-chip:hover{border-color:var(--neon-cyan);color:var(--text-hi);}
+.animal-kind-badge{
+  align-self:center;display:inline-block;margin:0 auto 4px;font-family:var(--font-data);font-size:9px;letter-spacing:0.1em;
+  text-transform:uppercase;padding:3px 8px;border-radius:20px;
+  border:1px solid color-mix(in srgb,var(--pc-accent,#34d399) 50%,var(--border-glass));
+  color:var(--pc-accent,#34d399);background:rgba(0,0,0,0.25);
+}
+.animal-coder-sticker{
+  position:absolute;bottom:6px;right:6px;width:52px;height:52px;
+  border-radius:50%;border:3px solid var(--coder-neon,#38bdf8);
+  overflow:hidden;z-index:6;cursor:pointer;padding:0;
+  transform:rotate(8deg);
+  box-shadow:0 0 12px var(--coder-neon,#38bdf8),0 4px 10px rgba(0,0,0,0.5);
+  background:var(--void);
+}
+.animal-coder-sticker img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.animal-coder-initial{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:var(--font-voice);font-size:18px;color:var(--text-hi);}
+.animal-coder-sticker:hover{border-color:var(--neon-cyan);box-shadow:0 0 16px var(--neon-cyan),0 4px 10px rgba(0,0,0,0.5);}
 .animal-where-tease{font-size:10px;color:var(--text-low);margin:6px 12px 0;text-align:center;}
 .animal-back .pc-block p{font-size:12px;line-height:1.5;}
+.animal-color-preview-card{
+  width:48px;height:68px;border-radius:6px;flex-shrink:0;
+  border:3px solid var(--pc-accent,#34d399);
+  background:color-mix(in srgb,var(--pc-accent,#34d399) 22%,rgba(0,0,0,0.55));
+  box-shadow:0 0 12px color-mix(in srgb,var(--pc-accent,#34d399) 55%,transparent),
+    0 0 28px color-mix(in srgb,var(--pc-accent,#34d399) 25%,transparent),
+    inset 0 0 18px color-mix(in srgb,var(--pc-accent,#34d399) 12%,transparent);
+}
 .profile-gray-view--animals .card-deck{display:flex;flex-wrap:wrap;gap:18px;}
 .profile-quests-wrap{display:flex;flex-direction:column;gap:18px;}
 .profile-quest-compose{margin-bottom:4px;}

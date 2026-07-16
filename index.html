@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260716i">
+<link rel="stylesheet" href="style.css?v=20260716j">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -337,7 +337,7 @@
 
     <section class="view neon-section comm-board-view" id="view-comm" style="--sec-neon:#38bdf8">
       <h2 class="view-title sketch-title">Community</h2>
-      <p class="gallery-hint comm-board-tagline" id="commBoardHint">Board notes, polls, and animals coders have spotted in the wild.</p>
+      <p class="gallery-hint comm-board-tagline" id="commBoardHint">Board notes, polls, and animal cards — spotted in the wild or pets coders own.</p>
       <div class="comm-section-tabs" id="commSectionTabs">
         <button type="button" class="btn comm-section-tab is-active" data-comm-section="board">Community Board</button>
         <button type="button" class="btn comm-section-tab" data-comm-section="animals">Community Animals</button>
@@ -380,8 +380,8 @@
       </div>
       </div>
       <div id="commAnimalsPanel" class="comm-section-panel">
-        <p class="gallery-hint">Flip a card for the full story — <strong>Spotted by</strong> shows which coder created it. Animals also live in their My Profile collection.</p>
-        <button type="button" class="btn primary hidden" id="commAddAnimalBtn" style="margin-bottom:14px">+ Spot an animal</button>
+        <p class="gallery-hint">Flip a card for the <strong>animal story</strong> — the little circle shows which coder posted it. Spotted in the wild or a pet they own.</p>
+        <button type="button" class="btn primary hidden" id="commAddAnimalBtn" style="margin-bottom:14px">+ Add an animal</button>
         <div class="card-deck comm-animal-deck" id="commAnimalDeck"></div>
       </div>
     </section>
@@ -614,18 +614,35 @@
 
 <div class="modal-back hidden" id="coderAnimalModalBack">
   <div class="modal sketch-card">
-    <h3 id="coderAnimalModalTitle">Spot an animal</h3>
+    <h3 id="coderAnimalModalTitle">Add an animal</h3>
     <input type="hidden" id="coderAnimalCoderId">
     <input type="hidden" id="coderAnimalEditId">
     <div class="field-row">
-      <div class="field"><label>Name</label><input type="text" id="coderAnimalName" placeholder="Midnight, Street Dog #3…"></div>
-      <div class="field"><label>Species / type</label><input type="text" id="coderAnimalSpecies" placeholder="cat, pigeon, mystery beast…"></div>
+      <div class="field"><label>Name</label><input type="text" id="coderAnimalName" placeholder="Midnight, Mochi, Street Dog #3…"></div>
+      <div class="field"><label>Species</label><input type="text" id="coderAnimalSpecies" placeholder="cat, pigeon, golden retriever…"></div>
     </div>
-    <div class="field"><label>Where you saw them</label><input type="text" id="coderAnimalWhere" placeholder="alley, park, noodle shop…"></div>
-    <div class="field"><label>Vibe (short)</label><input type="text" id="coderAnimalVibe" placeholder="chaotic, regal, shy…"></div>
-    <div class="field"><label>Hangout story</label><textarea id="coderAnimalStory" rows="5" placeholder="What happened when you met them — where you hung out, what they did…"></textarea></div>
     <div class="field-row">
-      <div class="field"><label>Card colour</label><input type="color" id="coderAnimalColor" value="#34d399"></div>
+      <div class="field">
+        <label>Animal type</label>
+        <select id="coderAnimalKind">
+          <option value="spotted">Spotted in the wild</option>
+          <option value="pet">My pet</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label id="coderAnimalWhereLabel">Where you saw them</label><input type="text" id="coderAnimalWhere" placeholder="alley, park, noodle shop…"></div>
+    <div class="field"><label>Vibe (short)</label><input type="text" id="coderAnimalVibe" placeholder="chaotic, regal, shy…"></div>
+    <div class="field"><label>Animal story</label><textarea id="coderAnimalStory" rows="5" placeholder="The story of how you met them…"></textarea></div>
+    <div class="field card-border-field">
+      <label>Card colour</label>
+      <div class="card-border-picker-row">
+        <input type="color" id="coderAnimalColor" value="#34d399">
+        <div class="card-border-swatch" id="coderAnimalColorSwatch" style="--preview-neon:#34d399">
+          <span class="card-border-swatch-ring"></span>
+          <span class="card-border-swatch-label">Neon glow</span>
+        </div>
+        <div class="animal-color-preview-card" id="coderAnimalColorPreview" style="--pc-accent:#34d399" title="Card colour preview"></div>
+      </div>
     </div>
     <div id="coderAnimalImageBlock"></div>
     <div class="modal-actions modal-actions--split">
@@ -911,7 +928,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260716i';
+    s.src = files[i++] + '?v=20260716j';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

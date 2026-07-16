@@ -424,7 +424,7 @@ GameHub.bindFriendRequests = function(host){
 
 function profileCollectionAddForm(coderId, section, canEdit){
   if(!canEdit) return '';
-  const labels = { places: 'Add place', skills: 'Add skill card', media: 'Add media', photos: 'Add photo', animals: 'Spot an animal' };
+  const labels = { places: 'Add place', skills: 'Add skill card', media: 'Add media', photos: 'Add photo', animals: 'Add an animal' };
   const attrs = { places: 'data-coder-add-place', skills: 'data-coder-add-skill', media: 'data-coder-add-media', photos: 'data-coder-add-photo', animals: 'data-coder-add-animal' };
   const attr = attrs[section];
   if(!attr) return '';
@@ -481,7 +481,7 @@ GameHub.renderCollectionSection = function(coderId, section){
   if(section === 'animals'){
     return `<div class="profile-gray-view profile-gray-view--animals neon-section" style="--sec-neon:#34d399" data-coder-gray-view="animals">
       <h2 class="view-title sketch-title">My Animals</h2>
-      <p class="gallery-hint">Creatures you've spotted — flip for the story. Also on Community → Community Animals for everyone.</p>
+      <p class="gallery-hint">Spotted in the wild or pets you own — flip for the animal story. Also on Community → Community Animals for everyone.</p>
       <div class="card-deck profile-animal-deck" data-coder-deck="animals"></div>
       ${add}
     </div>`;

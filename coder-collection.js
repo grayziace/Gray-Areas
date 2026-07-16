@@ -535,19 +535,49 @@ function saveCoderEpisodeFromModal(){
 }
 
 /* ---------- Animal editor ---------- */
+function syncCoderAnimalEditorLabels(){
+  const kind = document.getElementById('coderAnimalKind')?.value || 'spotted';
+  const whereLabel = document.getElementById('coderAnimalWhereLabel');
+  const whereInput = document.getElementById('coderAnimalWhere');
+  const storyInput = document.getElementById('coderAnimalStory');
+  const title = document.getElementById('coderAnimalModalTitle');
+  const isEdit = !!document.getElementById('coderAnimalEditId')?.value;
+  if(kind === 'pet'){
+    if(whereLabel) whereLabel.textContent = 'Where they live';
+    if(whereInput) whereInput.placeholder = 'home, garden, your room…';
+    if(storyInput) storyInput.placeholder = 'How you met, their personality, favourite things…';
+    if(title && !isEdit) title.textContent = 'Add your pet';
+  } else {
+    if(whereLabel) whereLabel.textContent = 'Where you saw them';
+    if(whereInput) whereInput.placeholder = 'alley, park, noodle shop…';
+    if(storyInput) storyInput.placeholder = 'The story of how you met them — where, what happened…';
+    if(title && !isEdit) title.textContent = 'Spot an animal';
+  }
+  if(title && isEdit) title.textContent = 'Edit animal card';
+}
+
+function syncCoderAnimalColorPreview(){
+  const raw = document.getElementById('coderAnimalColor')?.value || '#34d399';
+  const neon = typeof toNeonAccent === 'function' ? (toNeonAccent(raw) || raw) : raw;
+  document.getElementById('coderAnimalColorSwatch')?.style.setProperty('--preview-neon', neon);
+  document.getElementById('coderAnimalColorPreview')?.style.setProperty('--pc-accent', neon);
+}
+
 function openCoderAnimalEditor(coderId, animalId){
   if(!canEditCoderCollection(coderId)) return;
   const a = animalId ? getCoderCollectionItem(coderId, 'animals', animalId) : null;
   pendingCoderAnimalImage = null;
   document.getElementById('coderAnimalCoderId').value = coderId;
   document.getElementById('coderAnimalEditId').value = animalId || '';
-  document.getElementById('coderAnimalModalTitle').textContent = a ? 'Edit animal card' : 'Spot an animal';
   document.getElementById('coderAnimalName').value = a?.name || '';
   document.getElementById('coderAnimalSpecies').value = a?.species || '';
+  document.getElementById('coderAnimalKind').value = (a?.kind === 'pet' || a?.animalType === 'pet') ? 'pet' : 'spotted';
   document.getElementById('coderAnimalWhere').value = a?.whereSeen || '';
   document.getElementById('coderAnimalVibe').value = a?.vibe || '';
   document.getElementById('coderAnimalStory').value = a?.story || '';
   document.getElementById('coderAnimalColor').value = a?.color || '#34d399';
+  syncCoderAnimalEditorLabels();
+  syncCoderAnimalColorPreview();
   const imgHost = document.getElementById('coderAnimalImageBlock');
   if(imgHost && typeof ImageTools !== 'undefined'){
     imgHost.innerHTML = ImageTools.blockHtml({
@@ -574,9 +604,12 @@ function saveCoderAnimal(){
   const name = document.getElementById('coderAnimalName').value.trim();
   if(!name || !coderId) return;
   const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
+  const prev = editId ? getCoderCollectionItem(coderId, 'animals', editId) : null;
+  const kind = document.getElementById('coderAnimalKind')?.value === 'pet' ? 'pet' : 'spotted';
   const item = {
     id: editId || uid('canim'),
     name,
+    kind,
     species: document.getElementById('coderAnimalSpecies').value.trim(),
     whereSeen: document.getElementById('coderAnimalWhere').value.trim(),
     vibe: document.getElementById('coderAnimalVibe').value.trim(),
@@ -584,7 +617,7 @@ function saveCoderAnimal(){
     color: document.getElementById('coderAnimalColor').value || '#34d399',
     image: pendingCoderAnimalImage !== null ? pendingCoderAnimalImage : document.getElementById('coderAnimalImage')?.value?.trim() || '',
     imagePrompt: document.getElementById('ce_canimal_desc')?.value?.trim() || '',
-    at: new Date().toISOString(),
+    at: prev?.at || new Date().toISOString(),
   };
   upsertCoderCollectionItem(coderId, 'animals', item);
   pendingCoderAnimalImage = null;
@@ -593,7 +626,8 @@ function saveCoderAnimal(){
   refreshCoderProfileUI(coderId, { tab: 'animals' });
   if(typeof renderCommunityAnimals === 'function') renderCommunityAnimals();
   if(typeof logCoderActivity === 'function' && c){
-    logCoderActivity('animal_spot', { coderId, name: c.name, detail: `${c.name} spotted ${name}` });
+    const verb = kind === 'pet' ? 'added pet' : 'spotted';
+    logCoderActivity('animal_spot', { coderId, name: c.name, detail: `${c.name} ${verb} ${name}` });
   }
   if(typeof awardCoderPoints === 'function' && !editId) awardCoderPoints(coderId, 8, 'collection_animal');
 }
@@ -773,6 +807,8 @@ function wireCoderCollectionModals(){
 
   document.getElementById('saveCoderAnimal')?.addEventListener('click', saveCoderAnimal);
   document.getElementById('cancelCoderAnimal')?.addEventListener('click', () => document.getElementById('coderAnimalModalBack').classList.add('hidden'));
+  document.getElementById('coderAnimalKind')?.addEventListener('change', syncCoderAnimalEditorLabels);
+  document.getElementById('coderAnimalColor')?.addEventListener('input', syncCoderAnimalColorPreview);
 }
 
 if(typeof document !== 'undefined'){

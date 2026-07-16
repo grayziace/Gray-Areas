@@ -4830,7 +4830,7 @@ function hydrateCoderProfileDecks(coderId, root){
     const canEdit = mine?.id === coderId || (typeof isAdmin === 'function' && isAdmin());
     const animals = (col.animals || []).map(a => ({ ...a, creatorId: coderId, creatorName: typeof getCoderByIdAny === 'function' ? (getCoderByIdAny(coderId)?.name || '') : '' }));
     if(!animals.length){
-      animalDeck.innerHTML = '<p class="empty-hint">No animal cards yet — spot creatures you meet in the wild.</p>';
+      animalDeck.innerHTML = '<p class="empty-hint">No animal cards yet — spot creatures in the wild or add a pet you own.</p>';
     } else {
       animalDeck.innerHTML = animals.map((a, i) => typeof buildFlipAnimalCard === 'function' ? buildFlipAnimalCard(a, i, { canEdit }) : '').join('');
       if(typeof bindAnimalCards === 'function') bindAnimalCards(animalDeck, { coderId });
@@ -4879,7 +4879,7 @@ function renderCoderProfileShell(c, opts = {}){
   const microActions = isMine ? `<div class="profile-micro-actions">
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="quests">✦ Send me a quest</button>
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="skills">◆ Log a skill</button>
-    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="animals">🐾 Spot an animal</button>
+    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="animals">🐾 Add an animal</button>
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="press">✎ Write for The Press</button>
   </div>` : '';
   const feedHtml = typeof renderCoderUpdateFeed === 'function' ? renderCoderUpdateFeed(posts, accent) : '';
@@ -6327,8 +6327,8 @@ function renderCommunityAnimals(){
   }
   if(!animals.length){
     deck.innerHTML = `<p class="empty-hint">${typeof isCoderLoggedIn === 'function' && isCoderLoggedIn()
-      ? 'No community animals yet — spot the first one with the button above.'
-      : 'Log in to spot animals and add them to your profile.'}</p>`;
+      ? 'No community animals yet — add the first one with the button above.'
+      : 'Log in to add animals — spotted in the wild or pets you own.'}</p>`;
     return;
   }
   deck.innerHTML = animals.map((a, i) => {

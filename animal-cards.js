@@ -1,36 +1,73 @@
-/* ===== Community animal cards — coder-spotted creatures ===== */
+/* ===== Community animal cards — spotted creatures & pets ===== */
+
+function normalizeAnimalKind(animal){
+  const k = (animal?.kind || animal?.animalType || 'spotted').toLowerCase();
+  return k === 'pet' ? 'pet' : 'spotted';
+}
+
+function animalKindMeta(kind){
+  if(kind === 'pet'){
+    return {
+      badge: 'My pet',
+      whereTitle: 'Where they live',
+      whereTease: '🏠',
+      storyPlaceholder: 'How you met, their personality, favourite things…',
+    };
+  }
+  return {
+    badge: 'Spotted',
+    whereTitle: 'Where spotted',
+    whereTease: '📍',
+    storyPlaceholder: 'The story of how you met them — where, what happened…',
+  };
+}
+
+function buildAnimalCoderSticker(creatorId){
+  if(!creatorId) return '';
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(creatorId)
+    : (typeof getCoderById === 'function' ? getCoderById(creatorId) : null);
+  if(!c) return '';
+  const img = c.avatar || c.image;
+  const accent = c.cardColor || '#38bdf8';
+  const inner = img
+    ? `<img src="${esc(img)}" alt="${esc(c.name || '')}">`
+    : `<span class="animal-coder-initial">${esc((c.name || '?').charAt(0))}</span>`;
+  return `<button type="button" class="animal-coder-sticker" data-coder-board="${esc(creatorId)}" style="--coder-neon:${esc(accent)}" title="${esc(c.name || 'Coder')}">${inner}</button>`;
+}
 
 function buildAnimalCardFront(animal, opts = {}){
   const accent = animal.color || stableNeon(animal.id || animal.name, opts.index || 0);
+  const kind = normalizeAnimalKind(animal);
+  const meta = animalKindMeta(kind);
   const art = animal.image
     ? `<img src="${esc(animal.image)}" alt="" loading="lazy">`
     : `<span class="animal-art-ph">${esc((animal.name || '?').charAt(0).toUpperCase())}</span>`;
-  const creator = animal.creatorName
-    ? `<button type="button" class="animal-creator-chip" data-coder-board="${esc(animal.creatorId || '')}">Spotted by ${esc(animal.creatorName)}</button>`
-    : '';
+  const creator = buildAnimalCoderSticker(animal.creatorId);
   return `<div class="pc-front animal-front" style="--pc-accent:${accent}">
     <div class="pc-frame-glow"></div>
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${esc(animal.name || 'Animal')}</span>
       <span class="pc-lv">${esc(animal.species || 'creature')}</span>
     </div>
-    <div class="pc-art animal-art">${art}</div>
-    ${animal.whereSeen ? `<p class="animal-where-tease">📍 ${esc(animal.whereSeen.slice(0, 48))}${animal.whereSeen.length > 48 ? '…' : ''}</p>` : ''}
-    ${creator}
-    <span class="flip-hint-front">↻ story</span>
+    <span class="animal-kind-badge">${esc(meta.badge)}</span>
+    <div class="pc-art animal-art">${art}${creator}</div>
+    ${animal.whereSeen ? `<p class="animal-where-tease">${meta.whereTease} ${esc(animal.whereSeen.slice(0, 48))}${animal.whereSeen.length > 48 ? '…' : ''}</p>` : ''}
+    <span class="flip-hint-front">↻ animal story</span>
   </div>`;
 }
 
 function buildAnimalCardBack(animal, opts = {}){
   const accent = animal.color || stableNeon(animal.id || animal.name, opts.index || 0);
+  const kind = normalizeAnimalKind(animal);
+  const meta = animalKindMeta(kind);
   const canEdit = !!opts.canEdit;
   return `<div class="pc-back animal-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(animal.name || 'Animal')}</div>
+    <div class="pc-row"><span>Type</span><span>${esc(meta.badge)}</span></div>
     ${animal.species ? `<div class="pc-row"><span>Species</span><span>${esc(animal.species)}</span></div>` : ''}
-    ${animal.whereSeen ? `<div class="pc-block"><div class="pc-block-title">Where spotted</div><p>${esc(animal.whereSeen)}</p></div>` : ''}
-    ${animal.story ? `<div class="pc-block"><div class="pc-block-title">Hangout story</div><p>${esc(animal.story)}</p></div>` : ''}
+    ${animal.whereSeen ? `<div class="pc-block"><div class="pc-block-title">${esc(meta.whereTitle)}</div><p>${esc(animal.whereSeen)}</p></div>` : ''}
+    ${animal.story ? `<div class="pc-block"><div class="pc-block-title">Animal story</div><p>${esc(animal.story)}</p></div>` : ''}
     ${animal.vibe ? `<div class="pc-row"><span>Vibe</span><span>${esc(animal.vibe)}</span></div>` : ''}
-    ${animal.creatorName ? `<div class="pc-row"><span>Card by</span><span>${esc(animal.creatorName)}</span></div>` : ''}
     ${canEdit ? `<div class="pc-admin-row edit-when-editing">
       <button type="button" class="btn flip-edit-btn" data-animal-edit="${esc(animal.id)}">Edit</button>
       <button type="button" class="btn admin-delete" data-animal-del="${esc(animal.id)}">Delete</button>
@@ -43,7 +80,7 @@ function buildFlipAnimalCard(animal, index, opts = {}){
   const accent = animal.color || stableNeon(animal.id || animal.name, index);
   const tilt = ((index % 5) * 1.0 - 2).toFixed(1);
   const cardOpts = { ...opts, index };
-  return `<figure class="poke-flip animal-flip" style="--pc-accent:${accent};--tilt:${tilt}deg" data-card-id="${esc(animal.id)}" data-card-type="animal" data-creator-id="${esc(animal.creatorId || '')}">
+  return `<figure class="poke-flip animal-flip" style="--pc-accent:${accent};--tilt:${tilt}deg" data-card-id="${esc(animal.id)}" data-card-type="animal" data-creator-id="${esc(animal.creatorId || '')}" data-animal-kind="${esc(normalizeAnimalKind(animal))}">
     <div class="poke-flip-scene"><div class="poke-flip-inner">
       <div class="poke-flip-face poke-flip-front">${buildAnimalCardFront(animal, cardOpts)}</div>
       <div class="poke-flip-face poke-flip-back">${buildAnimalCardBack(animal, cardOpts)}</div>
