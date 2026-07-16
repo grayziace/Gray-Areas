@@ -11,6 +11,17 @@ const SITE_STATE = {
             "at": "2026-07-16T09:25:35.562Z",
             "type": "wake",
             "text": "Day started"
+          },
+          {
+            "id": "n-1784194015559-d5zs",
+            "at": "2026-07-16T09:26:27.000Z",
+            "type": "note",
+            "text": "Testerrrr testerrrr",
+            "body": "I did wake up a while ago I just forgot to test this today whoops.",
+            "data": {
+              "title": "Testerrrr testerrrr",
+              "body": "I did wake up a while ago I just forgot to test this today whoops."
+            }
           }
         ]
       },
@@ -281,8 +292,15 @@ const SITE_STATE = {
       "reason": "practical_help"
     }
   ],
-  "playerPoints": 3,
+  "playerPoints": 8,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784194015603-qvxq",
+      "at": "2026-07-16T09:26:55.603Z",
+      "amount": 5,
+      "reason": "pulse",
+      "label": "Pulse dropped live"
+    },
     {
       "id": "gxp-1784149579224-01et",
       "at": "2026-07-15T21:06:19.224Z",
