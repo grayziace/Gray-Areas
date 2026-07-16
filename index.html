@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260716h">
+<link rel="stylesheet" href="style.css?v=20260716i">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -336,11 +336,16 @@
     </section>
 
     <section class="view neon-section comm-board-view" id="view-comm" style="--sec-neon:#38bdf8">
-      <h2 class="view-title sketch-title">Community Board</h2>
-      <p class="gallery-hint comm-board-tagline" id="commBoardHint">Permanent pinboard — coders leave notes, polls, and updates.</p>
-      <div class="comm-feed-tabs" id="commFeedTabs">
-        <button type="button" class="btn comm-feed-tab is-active" data-comm-feed="all">Recent</button>
+      <h2 class="view-title sketch-title">Community</h2>
+      <p class="gallery-hint comm-board-tagline" id="commBoardHint">Board notes, polls, and animals coders have spotted in the wild.</p>
+      <div class="comm-section-tabs" id="commSectionTabs">
+        <button type="button" class="btn comm-section-tab is-active" data-comm-section="board">Community Board</button>
+        <button type="button" class="btn comm-section-tab" data-comm-section="animals">Community Animals</button>
       </div>
+      <div class="comm-feed-tabs" id="commFeedTabs">
+        <button type="button" class="btn comm-feed-tab is-active" data-comm-feed="all">Everyone</button>
+      </div>
+      <div id="commBoardPanel" class="comm-section-panel is-active">
       <div class="pinboard-layout">
         <form class="pin-form sketch-card" id="pinForm">
           <div id="pinAuthorPreview" class="pin-author-preview"></div>
@@ -372,6 +377,12 @@
           <button class="btn primary" type="submit">Pin to board</button>
         </form>
         <div class="pin-wall" id="pinWall"></div>
+      </div>
+      </div>
+      <div id="commAnimalsPanel" class="comm-section-panel">
+        <p class="gallery-hint">Flip a card for the full story — <strong>Spotted by</strong> shows which coder created it. Animals also live in their My Profile collection.</p>
+        <button type="button" class="btn primary hidden" id="commAddAnimalBtn" style="margin-bottom:14px">+ Spot an animal</button>
+        <div class="card-deck comm-animal-deck" id="commAnimalDeck"></div>
       </div>
     </section>
 
@@ -597,6 +608,29 @@
       <button type="button" class="btn" id="coderRecommendSkillCardBtn">Send to me</button>
       <button type="button" class="btn" id="cancelCoderSkill">Cancel</button>
       <button type="button" class="btn primary" id="saveCoderSkill">Save skill card</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back hidden" id="coderAnimalModalBack">
+  <div class="modal sketch-card">
+    <h3 id="coderAnimalModalTitle">Spot an animal</h3>
+    <input type="hidden" id="coderAnimalCoderId">
+    <input type="hidden" id="coderAnimalEditId">
+    <div class="field-row">
+      <div class="field"><label>Name</label><input type="text" id="coderAnimalName" placeholder="Midnight, Street Dog #3…"></div>
+      <div class="field"><label>Species / type</label><input type="text" id="coderAnimalSpecies" placeholder="cat, pigeon, mystery beast…"></div>
+    </div>
+    <div class="field"><label>Where you saw them</label><input type="text" id="coderAnimalWhere" placeholder="alley, park, noodle shop…"></div>
+    <div class="field"><label>Vibe (short)</label><input type="text" id="coderAnimalVibe" placeholder="chaotic, regal, shy…"></div>
+    <div class="field"><label>Hangout story</label><textarea id="coderAnimalStory" rows="5" placeholder="What happened when you met them — where you hung out, what they did…"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Card colour</label><input type="color" id="coderAnimalColor" value="#34d399"></div>
+    </div>
+    <div id="coderAnimalImageBlock"></div>
+    <div class="modal-actions modal-actions--split">
+      <button type="button" class="btn" id="cancelCoderAnimal">Cancel</button>
+      <button type="button" class="btn primary" id="saveCoderAnimal">Save animal card</button>
     </div>
   </div>
 </div>
@@ -864,7 +898,7 @@
 
 <script>
 (function(){
-  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'game-hub.js', 'coder-collection.js', 'code-export.js', 'code-sync.js'];
+  var files = ['content.js', 'site-state.js', 'mood-catalog.js', 'player-cards.js', 'place-cards.js', 'skill-cards.js', 'animal-cards.js', 'character-gen.js', 'image-tools.js', 'script.js', 'live-sync.js', 'google-steps.js', 'overload-log.js', 'media-capture.js', 'gray-console.js', 'viewer-world.js', 'game-hub.js', 'coder-collection.js', 'code-export.js', 'code-sync.js'];
   var i = 0;
   function loadNext(){
     if(i >= files.length){
@@ -877,7 +911,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260716h';
+    s.src = files[i++] + '?v=20260716i';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

@@ -257,6 +257,7 @@ function mergeSiteStateFromFile(){
 mergeSiteStateFromFile();
 let pendingPinMedia = { photo: '', video: '' };
 let commFeedFilter = 'all';
+let commSectionTab = 'board';
 let coderBoardId = '';
 let pendingContentImage = null;
 let pendingSpiritImage = null;
@@ -2343,6 +2344,10 @@ function initGlobalEditHandlers(){
           openCoderSkillEditor(coderId, poke.dataset.cardId);
           return;
         }
+        if(poke?.dataset.cardType === 'animal' && typeof openCoderAnimalEditor === 'function'){
+          openCoderAnimalEditor(coderId, poke.dataset.cardId);
+          return;
+        }
         const photo = editBtn.closest('.photo-flip');
         if(photo?.dataset.photoId && typeof openCoderPhotoEditor === 'function'){
           openCoderPhotoEditor(coderId, photo.dataset.photoId);
@@ -2451,7 +2456,10 @@ function navigateToView(view){
   document.getElementById('view-' + view)?.classList.add('active');
   document.body.dataset.activeView = view;
   if(view === 'sync') closeCoderNotify();
-  if(view === 'comm') applyAdminUI();
+  if(view === 'comm'){
+    applyAdminUI();
+    if(typeof renderCommunityView === 'function') renderCommunityView();
+  }
   if(view === 'coder-board' && coderBoardId) renderCoderBoardPage(coderBoardId);
   if(view === 'chat'){
     if(typeof GameHub !== 'undefined'){
@@ -4611,7 +4619,7 @@ function openCoderMediaDetail(m){
 
 function getCoderCollection(coderId){
   const c = getCoderByIdAny(coderId);
-  if(!c) return { places: [], skills: [], media: [], photos: [], friends: [] };
+  if(!c) return { places: [], skills: [], media: [], photos: [], animals: [], friends: [] };
   if(typeof ensurePlayerCollection === 'function') return ensurePlayerCollection(c);
   if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], media: [], friends: [] };
   return c.collection;
@@ -4816,6 +4824,19 @@ function hydrateCoderProfileDecks(coderId, root){
     }
   }
 
+  const animalDeck = host.querySelector('[data-coder-deck="animals"]');
+  if(animalDeck){
+    const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+    const canEdit = mine?.id === coderId || (typeof isAdmin === 'function' && isAdmin());
+    const animals = (col.animals || []).map(a => ({ ...a, creatorId: coderId, creatorName: typeof getCoderByIdAny === 'function' ? (getCoderByIdAny(coderId)?.name || '') : '' }));
+    if(!animals.length){
+      animalDeck.innerHTML = '<p class="empty-hint">No animal cards yet — spot creatures you meet in the wild.</p>';
+    } else {
+      animalDeck.innerHTML = animals.map((a, i) => typeof buildFlipAnimalCard === 'function' ? buildFlipAnimalCard(a, i, { canEdit }) : '').join('');
+      if(typeof bindAnimalCards === 'function') bindAnimalCards(animalDeck, { coderId });
+    }
+  }
+
   if(typeof bindCoderCollectionUI === 'function') bindCoderCollectionUI(host, coderId);
 }
 
@@ -4842,6 +4863,7 @@ function renderCoderProfileShell(c, opts = {}){
     { id: 'skills', label: 'Skills', icon: '◆', neon: '#38bdf8' },
     { id: 'media', label: 'Media', icon: '◈', neon: '#22d3ee' },
     { id: 'places', label: 'Places', icon: '◇', neon: '#4ade80' },
+    { id: 'animals', label: 'Animals', icon: '🐾', neon: '#34d399' },
     { id: 'press', label: 'Press', icon: '✎', neon: '#f472b6' },
     { id: 'quests', label: 'Quests', icon: '✦', neon: '#fb923c' },
   ];
@@ -4857,6 +4879,7 @@ function renderCoderProfileShell(c, opts = {}){
   const microActions = isMine ? `<div class="profile-micro-actions">
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="quests">✦ Send me a quest</button>
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="skills">◆ Log a skill</button>
+    <button type="button" class="btn profile-micro-btn" data-profile-tab-go="animals">🐾 Spot an animal</button>
     <button type="button" class="btn profile-micro-btn" data-profile-tab-go="press">✎ Write for The Press</button>
   </div>` : '';
   const feedHtml = typeof renderCoderUpdateFeed === 'function' ? renderCoderUpdateFeed(posts, accent) : '';
@@ -4902,6 +4925,7 @@ function renderCoderProfileShell(c, opts = {}){
         <section class="profile-site-panel profile-site-panel--deck${activeTab === 'skills' ? ' is-active' : ''}" data-ps-panel="skills">${colSection('skills')}</section>
         <section class="profile-site-panel profile-site-panel--deck${activeTab === 'media' ? ' is-active' : ''}" data-ps-panel="media">${colSection('media')}</section>
         <section class="profile-site-panel profile-site-panel--deck${activeTab === 'places' ? ' is-active' : ''}" data-ps-panel="places">${colSection('places')}</section>
+        <section class="profile-site-panel profile-site-panel--deck${activeTab === 'animals' ? ' is-active' : ''}" data-ps-panel="animals">${colSection('animals')}</section>
         <section class="profile-site-panel profile-site-panel--deck${activeTab === 'press' ? ' is-active' : ''}" data-ps-panel="press">${colSection('press')}</section>
         <section class="profile-site-panel${activeTab === 'quests' ? ' is-active' : ''}" data-ps-panel="quests">${questHtml}</section>
       </main>
@@ -6247,6 +6271,83 @@ function initCommunityCommentModal(){
   });
 }
 
+/* ---------- Community animals ---------- */
+function getAllCommunityAnimals(){
+  const animals = [];
+  (state.viewerCharacters || []).forEach(c => {
+    const list = c.collection?.animals;
+    if(!Array.isArray(list)) return;
+    list.forEach(a => {
+      animals.push({
+        ...a,
+        creatorId: c.id,
+        creatorName: c.name,
+      });
+    });
+  });
+  return animals.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+}
+
+function initCommSectionTabs(){
+  const tabs = document.getElementById('commSectionTabs');
+  if(!tabs || tabs.dataset.bound) return;
+  tabs.dataset.bound = '1';
+  tabs.querySelectorAll('[data-comm-section]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      commSectionTab = btn.dataset.commSection || 'board';
+      tabs.querySelectorAll('[data-comm-section]').forEach(b => b.classList.toggle('is-active', b.dataset.commSection === commSectionTab));
+      const boardPanel = document.getElementById('commBoardPanel');
+      const animalsPanel = document.getElementById('commAnimalsPanel');
+      boardPanel?.classList.toggle('is-active', commSectionTab === 'board');
+      animalsPanel?.classList.toggle('is-active', commSectionTab === 'animals');
+      if(commSectionTab === 'board') renderPinboard();
+      else renderCommunityAnimals();
+    });
+  });
+}
+
+function renderCommunityAnimals(){
+  const deck = document.getElementById('commAnimalDeck');
+  if(!deck) return;
+  const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
+  const addBtn = document.getElementById('commAddAnimalBtn');
+  if(addBtn){
+    const canAdd = typeof isCoderLoggedIn === 'function' && isCoderLoggedIn() && mine;
+    addBtn.classList.toggle('hidden', !canAdd);
+    if(!addBtn.dataset.bound && canAdd){
+      addBtn.dataset.bound = '1';
+      addBtn.addEventListener('click', () => {
+        if(typeof openCoderAnimalEditor === 'function') openCoderAnimalEditor(mine.id, null);
+      });
+    }
+  }
+  let animals = getAllCommunityAnimals();
+  if(commFeedFilter !== 'all'){
+    animals = animals.filter(a => a.creatorId === commFeedFilter);
+  }
+  if(!animals.length){
+    deck.innerHTML = `<p class="empty-hint">${typeof isCoderLoggedIn === 'function' && isCoderLoggedIn()
+      ? 'No community animals yet — spot the first one with the button above.'
+      : 'Log in to spot animals and add them to your profile.'}</p>`;
+    return;
+  }
+  deck.innerHTML = animals.map((a, i) => {
+    const canEdit = mine?.id === a.creatorId || (typeof isAdmin === 'function' && isAdmin());
+    return typeof buildFlipAnimalCard === 'function'
+      ? buildFlipAnimalCard(a, i, { canEdit })
+      : '';
+  }).join('');
+  if(typeof bindAnimalCards === 'function'){
+    bindAnimalCards(deck, { coderId: mine?.id });
+  }
+}
+
+function renderCommunityView(){
+  initCommSectionTabs();
+  if(commSectionTab === 'animals') renderCommunityAnimals();
+  else renderPinboard();
+}
+
 /* ---------- Pinboard — community board ---------- */
 function parsePollOptions(text){
   return (text || '').split('\n').map(s => s.trim()).filter(Boolean).slice(0, 8)
@@ -6349,8 +6450,12 @@ function renderPinPostFull(p, viewerCoderId){
 function buildCommFeedTabs(){
   const tabs = document.getElementById('commFeedTabs');
   if(!tabs) return;
-  const coders = (state.viewerCharacters || []).filter(c => getCoderPosts(c.id).length);
-  let html = `<button type="button" class="btn comm-feed-tab${commFeedFilter === 'all' ? ' is-active' : ''}" data-comm-feed="all">Recent</button>`;
+  const coders = (state.viewerCharacters || []).filter(c => {
+    const posts = getCoderPosts(c.id).length;
+    const animals = (c.collection?.animals || []).length;
+    return posts || animals;
+  });
+  let html = `<button type="button" class="btn comm-feed-tab${commFeedFilter === 'all' ? ' is-active' : ''}" data-comm-feed="all">Everyone</button>`;
   coders.forEach(c => {
     html += `<button type="button" class="btn comm-feed-tab${commFeedFilter === c.id ? ' is-active' : ''}" data-comm-feed="${esc(c.id)}">${esc(c.name)}</button>`;
   });
@@ -6358,7 +6463,7 @@ function buildCommFeedTabs(){
   tabs.querySelectorAll('[data-comm-feed]').forEach(btn => {
     btn.addEventListener('click', () => {
       commFeedFilter = btn.dataset.commFeed;
-      renderPinboard();
+      renderCommunityView();
     });
   });
 }
@@ -6653,7 +6758,7 @@ function renderAll(){
     renderDramaDeck,
     renderPress,
     renderGallery,
-    renderPinboard,
+    () => { if(typeof renderCommunityView === 'function') renderCommunityView(); else renderPinboard(); },
     () => { if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll(); },
   ].forEach(safeRender);
   applyAdminUI();

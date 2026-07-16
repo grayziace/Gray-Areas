@@ -22,6 +22,7 @@ const XP_AWARDS = {
   community_post: { label: 'Community post', xp: 25, auto: true },
   community_comment: { label: 'Comment on the board', xp: 15, auto: true },
   collection_place: { label: 'Collection place card', xp: 5, auto: true },
+  collection_animal: { label: 'Spotted an animal', xp: 8, auto: true },
   collection_skill: { label: 'Collection skill card', xp: 5, auto: true },
   collection_media: { label: 'Collection media card', xp: 5, auto: true },
   friend_card: { label: 'Collected coder card', xp: 10, auto: true },
@@ -1347,6 +1348,7 @@ function buildDefaultInstructionsHtml(){
         <li><strong>Skills</strong> — same idea as my Skill Cards: flip cards, skyline towers, log hours, add milestones. Edit from the card or the tower. Hit <strong>Send to me</strong> when you want me to try something.</li>
         <li><strong>Media</strong> — TV, film, books, albums, songs. Full shelves, episode reviews, posters. Again — Send to me when you've got a rec.</li>
         <li><strong>Places</strong> — vibe / experience / utility ranks plus your actual stories from being there.</li>
+        <li><strong>Animals</strong> — spot creatures you've met. Upload or generate a photo, write where and how you hung out. Shows on Community Animals too.</li>
         <li><strong>Press</strong> — write articles for The Press with photos and layout. I read everything; I publish what sings.</li>
         <li><strong>Quests</strong> — <em>only here now</em>, not in the sidebar. Send me missions: visit somewhere, eat something, comfort me, or <strong>update the website</strong> with a feature you want coded in.</li>
       </ul>
@@ -1355,7 +1357,7 @@ function buildDefaultInstructionsHtml(){
       <ul class="instructions-nav-list">
         <li><strong>Messages</strong> — DM me or friends you've collected</li>
         <li><strong>Chat</strong> — live room; your public updates echo here</li>
-        <li><strong>Community</strong> — pinboard with polls and media</li>
+        <li><strong>Community</strong> — pinboard with polls and media, plus <strong>Community Animals</strong> — flip cards of creatures coders have spotted</li>
         <li><strong>Bonus XP</strong> — request XP for off-site wins (meetups, birthdays, being a legend)</li>
       </ul>
 

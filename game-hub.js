@@ -134,13 +134,14 @@ function mergeHubVisitorData(remote){
 }
 
 function ensurePlayerCollection(c){
-  if(!c) return { places: [], skills: [], media: [], friends: [] };
+  if(!c) return { places: [], skills: [], media: [], friends: [], photos: [], animals: [] };
   if(!c.collection || typeof c.collection !== 'object') c.collection = { places: [], skills: [], media: [], friends: [] };
   if(!Array.isArray(c.collection.places)) c.collection.places = [];
   if(!Array.isArray(c.collection.skills)) c.collection.skills = [];
   if(!Array.isArray(c.collection.media)) c.collection.media = [];
   if(!Array.isArray(c.collection.friends)) c.collection.friends = [];
   if(!Array.isArray(c.collection.photos)) c.collection.photos = [];
+  if(!Array.isArray(c.collection.animals)) c.collection.animals = [];
   return c.collection;
 }
 
@@ -423,8 +424,8 @@ GameHub.bindFriendRequests = function(host){
 
 function profileCollectionAddForm(coderId, section, canEdit){
   if(!canEdit) return '';
-  const labels = { places: 'Add place', skills: 'Add skill card', media: 'Add media', photos: 'Add photo' };
-  const attrs = { places: 'data-coder-add-place', skills: 'data-coder-add-skill', media: 'data-coder-add-media', photos: 'data-coder-add-photo' };
+  const labels = { places: 'Add place', skills: 'Add skill card', media: 'Add media', photos: 'Add photo', animals: 'Spot an animal' };
+  const attrs = { places: 'data-coder-add-place', skills: 'data-coder-add-skill', media: 'data-coder-add-media', photos: 'data-coder-add-photo', animals: 'data-coder-add-animal' };
   const attr = attrs[section];
   if(!attr) return '';
   return `<button type="button" class="btn primary profile-col-add-btn" ${attr}="${esc(coderId)}" style="margin-top:14px">+ ${labels[section]}</button>`;
@@ -474,6 +475,14 @@ GameHub.renderCollectionSection = function(coderId, section){
       <h2 class="view-title sketch-title">Photo Wall</h2>
       <p class="gallery-hint">Click a photo to flip it over.</p>
       <div class="photo-wall profile-photo-wall" data-coder-deck="photos"></div>
+      ${add}
+    </div>`;
+  }
+  if(section === 'animals'){
+    return `<div class="profile-gray-view profile-gray-view--animals neon-section" style="--sec-neon:#34d399" data-coder-gray-view="animals">
+      <h2 class="view-title sketch-title">My Animals</h2>
+      <p class="gallery-hint">Creatures you've spotted — flip for the story. Also on Community → Community Animals for everyone.</p>
+      <div class="card-deck profile-animal-deck" data-coder-deck="animals"></div>
       ${add}
     </div>`;
   }

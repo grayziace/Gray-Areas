@@ -2,6 +2,7 @@
 
 let pendingCoderPlaceImage = null;
 let pendingCoderPhotoImage = null;
+let pendingCoderAnimalImage = null;
 
 function getCoderProfileActiveTab(coderId){
   try{ return sessionStorage.getItem(`coderProfileTab:${coderId}`) || 'updates'; }catch(e){ return 'updates'; }
@@ -533,6 +534,70 @@ function saveCoderEpisodeFromModal(){
   return true;
 }
 
+/* ---------- Animal editor ---------- */
+function openCoderAnimalEditor(coderId, animalId){
+  if(!canEditCoderCollection(coderId)) return;
+  const a = animalId ? getCoderCollectionItem(coderId, 'animals', animalId) : null;
+  pendingCoderAnimalImage = null;
+  document.getElementById('coderAnimalCoderId').value = coderId;
+  document.getElementById('coderAnimalEditId').value = animalId || '';
+  document.getElementById('coderAnimalModalTitle').textContent = a ? 'Edit animal card' : 'Spot an animal';
+  document.getElementById('coderAnimalName').value = a?.name || '';
+  document.getElementById('coderAnimalSpecies').value = a?.species || '';
+  document.getElementById('coderAnimalWhere').value = a?.whereSeen || '';
+  document.getElementById('coderAnimalVibe').value = a?.vibe || '';
+  document.getElementById('coderAnimalStory').value = a?.story || '';
+  document.getElementById('coderAnimalColor').value = a?.color || '#34d399';
+  const imgHost = document.getElementById('coderAnimalImageBlock');
+  if(imgHost && typeof ImageTools !== 'undefined'){
+    imgHost.innerHTML = ImageTools.blockHtml({
+      prefix: 'ce_canimal',
+      label: 'Animal photo',
+      currentUrl: a?.image || '',
+      descValue: a?.imagePrompt || a?.species || a?.name || '',
+      descPlaceholder: 'Striped alley cat, golden retriever in rain, neon pigeon…',
+      hiddenId: 'coderAnimalImage',
+    });
+    ImageTools.wire({
+      prefix: 'ce_canimal',
+      kind: 'gallery',
+      hiddenId: 'coderAnimalImage',
+      onChange: url => { pendingCoderAnimalImage = url; },
+    });
+  }
+  document.getElementById('coderAnimalModalBack').classList.remove('hidden');
+}
+
+function saveCoderAnimal(){
+  const coderId = document.getElementById('coderAnimalCoderId').value;
+  const editId = document.getElementById('coderAnimalEditId').value;
+  const name = document.getElementById('coderAnimalName').value.trim();
+  if(!name || !coderId) return;
+  const c = typeof getCoderByIdAny === 'function' ? getCoderByIdAny(coderId) : null;
+  const item = {
+    id: editId || uid('canim'),
+    name,
+    species: document.getElementById('coderAnimalSpecies').value.trim(),
+    whereSeen: document.getElementById('coderAnimalWhere').value.trim(),
+    vibe: document.getElementById('coderAnimalVibe').value.trim(),
+    story: document.getElementById('coderAnimalStory').value.trim(),
+    color: document.getElementById('coderAnimalColor').value || '#34d399',
+    image: pendingCoderAnimalImage !== null ? pendingCoderAnimalImage : document.getElementById('coderAnimalImage')?.value?.trim() || '',
+    imagePrompt: document.getElementById('ce_canimal_desc')?.value?.trim() || '',
+    at: new Date().toISOString(),
+  };
+  upsertCoderCollectionItem(coderId, 'animals', item);
+  pendingCoderAnimalImage = null;
+  document.getElementById('coderAnimalModalBack').classList.add('hidden');
+  setCoderProfileActiveTab(coderId, 'animals');
+  refreshCoderProfileUI(coderId, { tab: 'animals' });
+  if(typeof renderCommunityAnimals === 'function') renderCommunityAnimals();
+  if(typeof logCoderActivity === 'function' && c){
+    logCoderActivity('animal_spot', { coderId, name: c.name, detail: `${c.name} spotted ${name}` });
+  }
+  if(typeof awardCoderPoints === 'function' && !editId) awardCoderPoints(coderId, 8, 'collection_animal');
+}
+
 /* ---------- Photo editor ---------- */
 function openCoderPhotoEditor(coderId, photoId){
   if(!canEditCoderCollection(coderId)) return;
@@ -667,6 +732,11 @@ function bindCoderCollectionUI(host, coderId){
     btn.dataset.coderUiBound = '1';
     btn.addEventListener('click', () => openCoderPhotoEditor(coderId, null));
   });
+  host.querySelectorAll('[data-coder-add-animal]').forEach(btn => {
+    if(btn.dataset.coderUiBound) return;
+    btn.dataset.coderUiBound = '1';
+    btn.addEventListener('click', () => openCoderAnimalEditor(coderId, null));
+  });
 }
 
 function wireCoderCollectionModals(){
@@ -700,6 +770,9 @@ function wireCoderCollectionModals(){
 
   document.getElementById('saveCoderPhoto')?.addEventListener('click', saveCoderPhoto);
   document.getElementById('cancelCoderPhoto')?.addEventListener('click', () => document.getElementById('coderPhotoModalBack').classList.add('hidden'));
+
+  document.getElementById('saveCoderAnimal')?.addEventListener('click', saveCoderAnimal);
+  document.getElementById('cancelCoderAnimal')?.addEventListener('click', () => document.getElementById('coderAnimalModalBack').classList.add('hidden'));
 }
 
 if(typeof document !== 'undefined'){
