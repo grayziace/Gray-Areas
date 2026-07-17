@@ -4759,29 +4759,44 @@ function evidenceRectsCollide(a, b, gap = 18){
     && a.top + a.h + gap > b.top;
 }
 
+const EVIDENCE_PAGE = { padL: 48, padR: 48, padT: 44, padB: 52 };
+
+function evidenceClampToPage(left, top, w, wallW, wallH){
+  const minL = EVIDENCE_PAGE.padL;
+  const maxL = wallW - EVIDENCE_PAGE.padR - w;
+  const minT = EVIDENCE_PAGE.padT;
+  const maxT = Math.max(minT, wallH - EVIDENCE_PAGE.padB - 40);
+  return {
+    left: Math.max(minL, Math.min(maxL, left)),
+    top: Math.max(minT, Math.min(maxT, top)),
+  };
+}
+
 function evidenceClusterOffset(f, anchor, i){
   const stack = [
-    { dx: anchor.w + 8, dy: 18 },
-    { dx: -f.w + 24, dy: 42 },
-    { dx: 22, dy: anchor.h + 6 },
-    { dx: anchor.w - 12, dy: -f.h + 28 },
+    { dx: anchor.w - 18, dy: anchor.h - 12 },
+    { dx: -f.w + 22, dy: 28 },
+    { dx: 10, dy: anchor.h - 6 },
+    { dx: anchor.w - 8, dy: -4 },
+    { dx: anchor.w + 4, dy: Math.round(anchor.h * 0.38) },
   ];
   const s = stack[i % stack.length];
   return {
-    left: anchor.left + s.dx + (f.seed % 10) - 4,
-    top: anchor.top + s.dy + ((f.seed >> 2) % 8),
+    left: anchor.left + s.dx + (f.seed % 6) - 2,
+    top: anchor.top + s.dy + ((f.seed >> 2) % 5),
   };
 }
 
 function evidenceBoardQuadrants(wallW, wallH){
+  const p = EVIDENCE_PAGE;
   const midX = Math.round(wallW * 0.5);
-  const midY = Math.round(wallH * 0.46);
+  const midY = Math.round(wallH * 0.48);
   return {
-    mc: { x0: Math.round(wallW * 0.26), x1: Math.round(wallW * 0.74), y0: 40, y1: Math.round(wallH * 0.58) },
-    tl: { x0: 10, x1: midX - 24, y0: 36, y1: midY },
-    tr: { x0: midX + 24, x1: wallW - 10, y0: 36, y1: midY },
-    bl: { x0: 10, x1: midX - 24, y0: midY + 20, y1: wallH - 20 },
-    br: { x0: midX + 24, x1: wallW - 10, y0: midY + 20, y1: wallH - 20 },
+    mc: { x0: Math.round(wallW * 0.28), x1: Math.round(wallW * 0.72), y0: p.padT, y1: Math.round(wallH * 0.55) },
+    tl: { x0: p.padL, x1: midX - 20, y0: p.padT, y1: midY },
+    tr: { x0: midX + 20, x1: wallW - p.padR, y0: p.padT, y1: midY },
+    bl: { x0: p.padL, x1: midX - 20, y0: midY + 16, y1: wallH - p.padB },
+    br: { x0: midX + 20, x1: wallW - p.padR, y0: midY + 16, y1: wallH - p.padB },
   };
 }
 
@@ -4802,13 +4817,14 @@ function evidenceOrbitSlot(f, hero, slotIdx, occupied, wallW){
   const anchor = evidenceOccupiedRect(hero.layout.leftPx, hero.layout.topPx, hero.w, hero.h);
   const clustered = evidenceClusterOffset(f, anchor, slotIdx);
   const box = evidenceOccupiedRect(clustered.left, clustered.top, f.w, f.h);
-  if(clustered.left >= 6 && clustered.top >= 28 && clustered.left + f.w < wallW - 6
-    && !occupied.some(o => evidenceRectsCollide(box, o, slotIdx === 0 ? 6 : 10))){
-    return clustered;
+  if(clustered.left >= EVIDENCE_PAGE.padL && clustered.top >= EVIDENCE_PAGE.padT
+    && clustered.left + f.w < wallW - EVIDENCE_PAGE.padR
+    && !occupied.some(o => evidenceRectsCollide(box, o, slotIdx === 0 ? 2 : 6))){
+    return evidenceClampToPage(clustered.left, clustered.top, f.w, wallW, 900);
   }
   const hl = hero.layout.leftPx;
   const ht = hero.layout.topPx;
-  const gap = 10;
+  const gap = 4;
   const slots = [
     { left: hl + hero.w + gap, top: ht + Math.round(hero.h * 0.1) },
     { left: hl - f.w - gap, top: ht + Math.round(hero.h * 0.22) },
@@ -4817,12 +4833,12 @@ function evidenceOrbitSlot(f, hero, slotIdx, occupied, wallW){
   ];
   for(let j = 0; j < slots.length; j++){
     const s = slots[(slotIdx + j) % slots.length];
-    const left = Math.max(6, Math.min(wallW - f.w - 6, s.left));
-    const top = Math.max(28, s.top);
+    const left = Math.max(EVIDENCE_PAGE.padL, Math.min(wallW - f.w - EVIDENCE_PAGE.padR, s.left));
+    const top = Math.max(EVIDENCE_PAGE.padT, s.top);
     const tryBox = evidenceOccupiedRect(left, top, f.w, f.h);
-    if(!occupied.some(o => evidenceRectsCollide(tryBox, o, 8))) return { left, top };
+    if(!occupied.some(o => evidenceRectsCollide(tryBox, o, 4))) return { left, top };
   }
-  return clustered;
+  return evidenceClampToPage(clustered.left, clustered.top, f.w, wallW, 900);
 }
 
 function layoutEvidenceFragments(fragments){
@@ -4856,23 +4872,25 @@ function layoutEvidenceFragments(fragments){
       const side = i % 2 ? quads.tr : quads.tl;
       pos = evidenceTryPlace(f, side, occupied, f.seed);
     }
-    if(!pos) pos = { left: heroPos.left + hero.w + 28 + i * 8, top: heroPos.top + 40 + i * 36 };
+    if(!pos) pos = evidenceClampToPage(heroPos.left + hero.w - 12, heroPos.top + 36 + i * 22, f.w, BOARD_W, wallH);
     f.layout = { leftPx: pos.left, topPx: pos.top, z: 24 + i, rot: pinRotation(f.seed, f.tier || 'sticker') };
     occupied.push(evidenceOccupiedRect(pos.left, pos.top, f.w, f.h));
   });
 
-  const quadCycle = ['tl', 'tr', 'bl', 'br'];
   others.forEach((f, i) => {
-    let pos = null;
-    for(let attempt = 0; attempt < 4 && !pos; attempt++){
-      const q = evidenceBoardQuadrants(BOARD_W, wallH)[quadCycle[(i + attempt) % quadCycle.length]];
+    const myCluster = clusters.find(c => c.some(x => x.id === f.id));
+    const clusterHub = myCluster?.find(x => x.layout && (x.media || x.isHero)) || myCluster?.find(x => x.layout) || hero;
+    let pos = evidenceOrbitSlot(f, clusterHub, i + mates.length, occupied, BOARD_W);
+    if(!pos){
+      const quadCycle = ['tl', 'tr', 'bl', 'br'];
+      const q = evidenceBoardQuadrants(BOARD_W, wallH)[quadCycle[i % quadCycle.length]];
       pos = evidenceTryPlace(f, q, occupied, f.seed + i * 11);
     }
     if(!pos){
-      wallH += 130;
-      pos = evidenceTryPlace(f, evidenceBoardQuadrants(BOARD_W, wallH).bl, occupied, f.seed + i * 19)
-        || { left: 14 + (i % 4) * 150, top: wallH - 110 };
+      wallH += 100;
+      pos = evidenceTryPlace(f, evidenceBoardQuadrants(BOARD_W, wallH).bl, occupied, f.seed + i * 19);
     }
+    if(!pos) pos = evidenceClampToPage(heroPos.left + 20, heroPos.top + hero.h + 8 + i * 18, f.w, BOARD_W, wallH);
     f.layout = { leftPx: pos.left, topPx: pos.top, z: 10 + i, rot: pinRotation(f.seed, f.tier || 'sticker') };
     occupied.push(evidenceOccupiedRect(pos.left, pos.top, f.w, f.h));
   });
@@ -4898,7 +4916,7 @@ function layoutEvidenceFragments(fragments){
         x1: hx, y1: hy,
         x2: f.layout.leftPx + f.w * 0.5,
         y2: f.layout.topPx + f.h * 0.5,
-        neon: stableNeon(hub.id, 1),
+        neon: 'rgba(88,78,102,0.32)',
       });
     });
   });
@@ -4934,16 +4952,15 @@ function evidenceFragmentMeta(item, index, frag){
   };
 }
 
-function buildPolaroidTape(neon, seed){
+function buildPolaroidTape(_neon, seed){
   const rot = (seed % 2 ? -38 : 42) + ((seed % 9) - 4);
-  return `<span class="polaroid-tape" style="--tape-neon:${neon};--tape-rot:${rot}deg" aria-hidden="true"></span>`;
+  return `<span class="polaroid-tape" style="--tape-rot:${rot}deg" aria-hidden="true"></span>`;
 }
 
 function buildEvidenceAmbientDecor(wallW, wallH, seed){
   const pools = ['mood', 'music', 'task'];
   const spots = [
-    { x: 0.06, y: 0.12 }, { x: 0.88, y: 0.08 }, { x: 0.04, y: 0.78 },
-    { x: 0.86, y: 0.72 }, { x: 0.72, y: 0.38 }, { x: 0.14, y: 0.44 },
+    { x: 0.1, y: 0.18 }, { x: 0.84, y: 0.14 }, { x: 0.12, y: 0.76 }, { x: 0.8, y: 0.68 },
   ];
   return spots.map((s, i) => {
     const cat = pools[i % pools.length];
@@ -5201,6 +5218,7 @@ function buildEvidenceWall(wallItems, key){
   return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
     <span class="evidence-board-label" aria-hidden="true">Evidence board · case file</span>
     <div class="evidence-surface" style="--wall-w:${wallW}px;--wall-h:${wallHeight}px">
+      <div class="evidence-page-inset" aria-hidden="true"></div>
       <div class="evidence-grid-lines" aria-hidden="true"></div>
       ${buildEvidenceAmbientDecor(wallW, wallHeight, ambSeed)}
       ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
