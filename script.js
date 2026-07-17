@@ -75,8 +75,8 @@ function applyAdminUI(){
 
 function lockAdmin(){
   sessionStorage.removeItem('ga-admin');
-  if(typeof returnToLogin === 'function') returnToLogin();
-  else if(typeof showEntryGate === 'function') showEntryGate({ force: true });
+  if(typeof ensureSiteOpen === 'function') ensureSiteOpen();
+  else if(typeof enterMainSite === 'function') enterMainSite();
   applyAdminUI();
   renderAll();
   if(typeof renderCoderWelcomeBar === 'function') renderCoderWelcomeBar();
@@ -2480,8 +2480,7 @@ function initGlobalEditHandlers(){
 }
 
 function showLoginIfNeeded(){
-  if(typeof isSiteUnlocked === 'function' && isSiteUnlocked()) return;
-  if(typeof showEntryGate === 'function') showEntryGate();
+  if(typeof ensureSiteOpen === 'function') ensureSiteOpen();
 }
 
 function dismissLoading(){
@@ -2591,6 +2590,8 @@ function navigateToView(view){
 function bootApp(){
   if(window.__grayAreasBooted) return;
   window.__grayAreasBooted = true;
+  if(typeof ensureSiteOpen === 'function') ensureSiteOpen();
+  else if(typeof enterMainSite === 'function') enterMainSite();
   if(typeof clearAuthSession === 'function') clearAuthSession();
   try{
     bindIntroSkip();
@@ -2622,7 +2623,7 @@ function bootApp(){
   document.getElementById('grayRewardsFab')?.addEventListener('click', toggleGrayRewardsDrawer);
   document.getElementById('grayRewardsBackdrop')?.addEventListener('click', closeGrayRewardsDrawer);
   document.getElementById('closeGrayRewardsDrawer')?.addEventListener('click', closeGrayRewardsDrawer);
-  showLoginIfNeeded();
+  if(typeof ensureSiteOpen === 'function') ensureSiteOpen();
   document.getElementById('bootError')?.classList.add('hidden');
   window.__gaCancelBootWatchdog?.();
   window.__grayAreasReady = true;

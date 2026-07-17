@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260717e">
+<link rel="stylesheet" href="style.css?v=20260717f">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -58,6 +58,14 @@
     if(e.persisted) earlyDismiss();
   });
   document.addEventListener('DOMContentLoaded', function(){
+    try{
+      sessionStorage.setItem('ga-site-mode', 'watch');
+      sessionStorage.setItem('ga-saw-intro', '1');
+    }catch(e){}
+    document.body.classList.remove('login-screen-active');
+    document.body.classList.add('site-unlocked');
+    var app = document.getElementById('app');
+    if(app) app.classList.remove('hidden');
     document.getElementById('enterSiteBtn')?.addEventListener('click', earlyDismiss);
     document.getElementById('skipLoading')?.addEventListener('click', earlyDismiss);
     document.getElementById('bootErrorContinue')?.addEventListener('click', hideBootError);
@@ -104,26 +112,7 @@
   </div>
 </div>
 
-<div id="loginPage" class="login-page hidden" hidden aria-hidden="true">
-  <div class="login-page-glow" aria-hidden="true"></div>
-  <div class="login-page-inner">
-    <header class="login-page-brand">
-      <h1 class="login-page-title">Gray Areas</h1>
-      <p class="login-page-sub">my life log · project shenzhen</p>
-    </header>
-    <div class="login-fork sketch-card" id="loginFork">
-      <p class="field-hint login-fork-hint">A soft scrapbook of what I'm up to.</p>
-      <div class="login-fork-actions">
-        <button type="button" class="btn primary login-fork-btn login-fork-watch" id="enterWatchMode">
-          <span class="login-fork-label">Enter</span>
-        </button>
-      </div>
-    </div>
-    <div class="login-page-card sketch-card hidden" id="loginGamePanel"></div>
-  </div>
-</div>
-
-<div id="app" class="hidden">
+<div id="app">
   <aside class="sidebar">
     <div class="brand"><div class="name" id="brandName" title="">Gray Areas</div></div>
     <nav class="node-nav" id="tabs">
@@ -883,7 +872,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260717e';
+    s.src = files[i++] + '?v=20260717f';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

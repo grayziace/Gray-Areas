@@ -531,8 +531,12 @@ function isCreatingCard(){
 }
 
 function isSiteUnlocked(){
-  return isAdmin() || !!getCoderSessionId() || isGuest() || isCreatingCard()
-    || (typeof isWatchMode === 'function' && isWatchMode());
+  return true;
+}
+
+function ensureSiteOpen(){
+  try{ sessionStorage.setItem('ga-site-mode', 'watch'); }catch(e){}
+  enterMainSite();
 }
 
 function enterCardCreationMode(){
@@ -718,7 +722,7 @@ function unlockCoderSession(cardId, opts = {}){
 
 function lockCoderSession(){
   try{ sessionStorage.removeItem(CODERS_SESSION_KEY); }catch(e){}
-  if(!isAdmin()) showEntryGate();
+  ensureSiteOpen();
 }
 
 function getMyCoderCard(){
@@ -1370,28 +1374,25 @@ function requireLoginScreen(){
 }
 
 function showEntryGate(opts = {}){
-  if(!opts.force && isSiteUnlocked()) return;
-  if(opts.force) clearAuthSession();
-  document.getElementById('loginPage')?.classList.remove('hidden');
-  document.getElementById('app')?.classList.add('hidden');
-  document.body.classList.add('login-screen-active');
-  document.body.classList.remove('site-unlocked');
-  if(typeof GameHub !== 'undefined') GameHub.showLandingFork();
+  if(opts.force && typeof clearAuthSession === 'function') clearAuthSession();
+  ensureSiteOpen();
 }
 
 function enterMainSite(){
   document.getElementById('loginPage')?.classList.add('hidden');
+  document.getElementById('loginPage')?.setAttribute('hidden', '');
   document.getElementById('app')?.classList.remove('hidden');
   document.body.classList.remove('login-screen-active');
   document.body.classList.add('site-unlocked');
 }
 
 function hideEntryGate(){
-  enterMainSite();
+  ensureSiteOpen();
 }
 
 function returnToLogin(){
-  showEntryGate({ force: true });
+  if(typeof clearAuthSession === 'function') clearAuthSession();
+  ensureSiteOpen();
   applyAdminUI?.();
 }
 
@@ -1705,7 +1706,7 @@ const ViewerWorld = {
       this.pendingQuestClips = [...(e.target.files || [])];
     });
     fetchVisitorData().then(() => {
-      if(!isSiteUnlocked()) showEntryGate();
+      ensureSiteOpen();
       if(getMyCoderCard()) startPresenceHeartbeat();
       ViewerWorld.renderAll();
     });

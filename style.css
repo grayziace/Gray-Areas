@@ -109,7 +109,7 @@ body{
   opacity:1;transform:translateY(0);max-height:2em;margin-top:22px;
 }
 
-.login-page{display:none!important;}
+.login-page,#loginPage{display:none!important;visibility:hidden!important;pointer-events:none!important;}
 .view .gallery-hint{display:none!important;}
 .plc-location{
   margin:0 0 8px;font-family:var(--font-data);font-size:10px;letter-spacing:0.06em;
@@ -2584,8 +2584,8 @@ body.is-viewer #view-profile .view-title::after{
 .instructions-steps li{margin-bottom:10px;}
 .instructions-note{font-size:12px;color:var(--text-low);font-style:italic;margin:16px 0;}
 body.coder-gate-active #app{filter:blur(3px);pointer-events:none;}
-body.login-screen-active #app{display:none !important;}
-body.login-screen-active #loginPage{display:flex !important;}
+body.login-screen-active #app{display:block !important;}
+body.login-screen-active #loginPage{display:none !important;}
 body.site-unlocked #loginPage{display:none !important;}
 
 .login-page{
