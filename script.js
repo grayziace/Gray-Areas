@@ -4554,6 +4554,16 @@ function getScrapbookWallItems(key, e, stream){
       at: stream.endedAt || stream.startedAt || `${key}T23:59:00`,
     });
   }
+  const moodId = resolveEntryMood(n);
+  if(moodId && !items.some(it => it.node?.type === 'mood')){
+    items.unshift({
+      id: `mood-${key}`,
+      kind: 'meta',
+      metaType: 'mood',
+      moodId,
+      at: stream.startedAt || `${key}T08:00:00`,
+    });
+  }
   items.sort((a, b) => {
     const ta = a.at ? new Date(a.at).getTime() : 0;
     const tb = b.at ? new Date(b.at).getTime() : 0;
@@ -4595,6 +4605,7 @@ const EVIDENCE_SHAPES = {
 };
 
 function evidenceFragmentShape(item){
+  if(item.kind === 'meta' && item.metaType === 'mood') return 'strip';
   if(item.kind === 'photo') return 'photo';
   if(item.kind === 'diary') return 'wide';
   const node = item.node;
@@ -4768,6 +4779,12 @@ function layoutEvidenceFragments(fragments){
     maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 48);
   });
 
+  fragments.forEach(f => {
+    if(!f.layout) return;
+    f.layout.leftPct = Math.max(1, Math.min(74, (f.layout.leftPx / wallW) * 100));
+    f.layout.topPct = Math.max(2, (f.layout.topPx / maxBottom) * 100);
+  });
+
   const tethers = [];
   clusters.forEach(cluster => {
     if(cluster.length < 2) return;
@@ -4839,7 +4856,7 @@ function buildScrapbookFlipCard(item, index, opts){
   const w = frag?.w || 220;
   const h = frag?.h || 180;
   const style = layout
-    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
+    ? `--frag-left-pct:${layout.leftPct};--frag-top-pct:${layout.topPct};--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
     : `--frag-neon:${neon};--frag-w:${w}px;--frag-h:${h}px`;
   const heroCls = frag?.isHero ? ' is-hero' : '';
   const shapeCls = frag?.shape ? ` frag-${frag.shape}` : '';
@@ -4918,6 +4935,16 @@ function buildScrapbookWritingFlip(item, index, key, opts){
 
 function buildScrapbookWallItem(item, index, key, frag){
   const pass = { frag, fragMeta: evidenceFragmentMeta(item, index) };
+  if(item.kind === 'meta' && item.metaType === 'mood'){
+    return buildScrapbookWritingFlip(item, index, key, {
+      neon: moodColor(item.moodId),
+      when: item.at ? fmtNodeStamp(item.at, key) : '',
+      title: `${moodIcon(item.moodId)} ${moodLabel(item.moodId)}`,
+      body: 'Day mood logged',
+      typeLabel: 'Mood',
+      ...pass,
+    });
+  }
   if(item.kind === 'photo'){
     return buildScrapbookPhotoPost(item, index, key, pass);
   }
@@ -5015,10 +5042,11 @@ function buildEvidenceWall(wallItems, key){
     const frag = fragMap.get(item.id || String(i));
     return buildScrapbookWallItem(item, i, key, frag);
   }).join('');
-  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
+  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px">
+    <span class="evidence-board-label" aria-hidden="true">Evidence board · case file</span>
     <div class="evidence-surface">
       ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
-      ${html}
+      ${html || '<p class="empty-hint evidence-empty">Post on Coming To You Live — fragments land here.</p>'}
     </div>
   </div>`;
 }
