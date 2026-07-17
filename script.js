@@ -4562,39 +4562,305 @@ function getScrapbookWallItems(key, e, stream){
   return items;
 }
 
-function scrapbookLayout(item, index){
-  const p = resolveGalleryLayout({ id: item.id || String(index), layoutPreset: index % GALLERY_LAYOUTS.length }, index);
-  const rot = Number(p.rotate) || 0;
-  const sx = Number(p.shiftX) || 0;
-  const sy = Number(p.shiftY) || 0;
+const SCRAPBOOK_DOODLE_ASSETS = {
+  music: ['doodles/music/headphone.svg', 'doodles/music/note.svg', 'doodles/music/wave.svg'],
+  mood: ['doodles/mood/star.svg', 'doodles/mood/heart.svg', 'doodles/mood/bolt.svg'],
+  task: ['doodles/task/check.svg', 'doodles/task/scribble.svg'],
+  photo: ['doodles/photo/frame.svg', 'doodles/mood/star.svg'],
+};
+
+const SCRAPBOOK_DOODLE_CATEGORY = {
+  song: 'music', film: 'music', book: 'music', video: 'music', drink: 'music',
+  mood: 'mood', win: 'mood', anxiety: 'mood', health: 'mood', dream: 'mood', weather: 'mood',
+  work: 'task', workout: 'task', idea: 'task', note: 'task', story: 'task', event: 'task',
+  glitch: 'task', press: 'task', purchase: 'task', hobby: 'task',
+  photo: 'photo', travel: 'photo', hangout: 'mood', person: 'mood', place: 'photo',
+  food: 'mood', diary: 'task',
+};
+
+function scrapbookSeedFromId(id){
+  let h = 0;
+  const s = String(id ?? '');
+  for(let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+const EVIDENCE_SHAPES = {
+  photo: { w: 248, h: 272, weight: 100 },
+  video: { w: 248, h: 272, weight: 98 },
+  wide: { w: 292, h: 168, weight: 68 },
+  tall: { w: 128, h: 224, weight: 58 },
+  strip: { w: 228, h: 82, weight: 30 },
+  block: { w: 208, h: 196, weight: 48 },
+};
+
+function evidenceFragmentShape(item){
+  if(item.kind === 'photo') return 'photo';
+  if(item.kind === 'diary') return 'wide';
+  const node = item.node;
+  if(!node) return 'strip';
+  if(node.video || node.type === 'video') return 'video';
+  if(node.photo || node.type === 'photo') return 'photo';
+  if(['song', 'book', 'film'].includes(node.type)) return 'tall';
+  if(['mood', 'win', 'health', 'food', 'weather', 'anxiety', 'dream'].includes(node.type)) return 'strip';
+  if(['story', 'hangout', 'event', 'travel', 'work', 'glitch'].includes(node.type)) return 'wide';
+  const text = String(node.body || node.data?.body || node.text || '');
+  if(text.length < 55) return 'strip';
+  if(text.length < 170) return 'wide';
+  return 'block';
+}
+
+function evidenceLinkKey(item){
+  const d = item.node?.data || {};
+  const parts = [
+    ...(d.linkedPeople || []),
+    ...(d.linkedPlaces || []),
+    ...(d.linkedHobbies || []),
+  ].map(x => String(x).toLowerCase()).sort();
+  return parts.length ? parts.join('|') : '';
+}
+
+function evidencePulseType(item){
+  if(item.kind === 'photo') return 'photo';
+  if(item.kind === 'diary') return 'diary';
+  return item.node?.type || 'note';
+}
+
+function describeEvidenceFragment(item, index){
+  const shape = evidenceFragmentShape(item);
+  const seed = scrapbookSeedFromId(item.id || String(index));
+  const base = EVIDENCE_SHAPES[shape] || EVIDENCE_SHAPES.block;
+  const wJitter = (seed % 28) - 14;
+  const hJitter = ((seed >> 3) % 24) - 12;
   return {
-    ...p,
-    rotate: Math.sign(rot || 1) * Math.min(Math.abs(rot), 2.5),
-    shiftX: Math.round(sx * 0.35),
-    shiftY: Math.round(sy * 0.35),
-    gridWide: false,
+    item,
+    index,
+    id: item.id || String(index),
+    shape,
+    weight: base.weight + (shape === 'photo' ? seed % 5 : 0),
+    w: Math.max(108, base.w + wJitter),
+    h: Math.max(72, base.h + hJitter),
+    seed,
+    at: item.at || item.node?.at || '',
+    pulseType: evidencePulseType(item),
+    linkKey: evidenceLinkKey(item),
+    clipVariant: seed % 4,
   };
 }
 
+function areEvidenceRelated(a, b){
+  if(a.linkKey && b.linkKey && a.linkKey === b.linkKey) return true;
+  const music = new Set(['song', 'film', 'book', 'video']);
+  if(music.has(a.pulseType) && music.has(b.pulseType)){
+    const ta = a.at ? new Date(a.at).getTime() : 0;
+    const tb = b.at ? new Date(b.at).getTime() : 0;
+    if(ta && tb && Math.abs(ta - tb) < 7200000) return true;
+  }
+  if((a.pulseType === 'mood' || b.pulseType === 'mood') && (a.shape === 'photo' || b.shape === 'photo')){
+    const ta = a.at ? new Date(a.at).getTime() : 0;
+    const tb = b.at ? new Date(b.at).getTime() : 0;
+    if(ta && tb && Math.abs(ta - tb) < 5400000) return true;
+  }
+  if(a.pulseType === 'hangout' && (b.pulseType === 'person' || b.pulseType === 'place')) return true;
+  if(b.pulseType === 'hangout' && (a.pulseType === 'person' || a.pulseType === 'place')) return true;
+  return false;
+}
+
+function groupEvidenceClusters(fragments){
+  const clusters = [];
+  const used = new Set();
+  fragments.forEach(f => {
+    if(used.has(f.id)) return;
+    const cluster = [f];
+    used.add(f.id);
+    let changed = true;
+    while(changed){
+      changed = false;
+      fragments.forEach(other => {
+        if(used.has(other.id)) return;
+        if(cluster.some(c => areEvidenceRelated(c, other))){
+          cluster.push(other);
+          used.add(other.id);
+          changed = true;
+        }
+      });
+    }
+    clusters.push(cluster);
+  });
+  return clusters.sort((a, b) => {
+    const wa = a.reduce((s, f) => s + f.weight, 0);
+    const wb = b.reduce((s, f) => s + f.weight, 0);
+    return wb - wa;
+  });
+}
+
+function layoutEvidenceFragments(fragments){
+  if(!fragments.length) return { fragments: [], wallHeight: 420, tethers: [] };
+  const sorted = [...fragments].sort((a, b) => b.weight - a.weight);
+  const hero = sorted[0];
+  hero.isHero = true;
+  const clusters = groupEvidenceClusters(fragments);
+  const heroCluster = clusters.find(c => c.some(f => f.id === hero.id)) || [hero];
+  const placed = new Set();
+  const wallW = 920;
+
+  const applyLayout = (f, leftPx, topPx, z, rot) => {
+    f.layout = { leftPx, topPx, z, rot };
+    placed.add(f.id);
+  };
+
+  const hSeed = scrapbookSeedFromId(fragments.map(f => f.id).join(''));
+  const heroLeft = Math.round(wallW * (0.30 + (hSeed % 12) / 100));
+  const heroTop = Math.round(24 + (hSeed % 28));
+  applyLayout(hero, heroLeft, heroTop, 14, ((hSeed % 15) - 7) / 10);
+
+  heroCluster.filter(f => f.id !== hero.id).forEach((f, i) => {
+    applyLayout(
+      f,
+      heroLeft + 36 + i * 22 + (f.seed % 14),
+      heroTop + 48 + i * 26 + (f.seed % 10),
+      11 + i,
+      ((f.seed % 19) - 9) / 10,
+    );
+  });
+
+  const slots = [
+    { x: 0.03, y: 0.04, z: 4 },
+    { x: 0.68, y: 0.02, z: 5 },
+    { x: 0.74, y: 0.38, z: 6 },
+    { x: 0.04, y: 0.42, z: 7 },
+    { x: 0.52, y: 0.52, z: 5 },
+    { x: 0.34, y: 0.68, z: 4 },
+    { x: 0.78, y: 0.62, z: 3 },
+    { x: 0.12, y: 0.72, z: 6 },
+  ];
+
+  let slotIdx = 0;
+  clusters.forEach(cluster => {
+    if(cluster.every(f => placed.has(f.id))) return;
+    const slot = slots[slotIdx++ % slots.length];
+    const baseLeft = Math.round(wallW * slot.x + (hSeed % 20));
+    const baseTop = Math.round(40 + slot.y * 420 + (slotIdx * 7) % 18);
+    cluster.filter(f => !placed.has(f.id)).forEach((f, i) => {
+      applyLayout(
+        f,
+        baseLeft + i * 18 + (f.seed % 12),
+        baseTop + i * 24 + ((f.seed >> 2) % 16),
+        slot.z + i,
+        ((f.seed % 23) - 11) / 10,
+      );
+    });
+  });
+
+  fragments.filter(f => !placed.has(f.id)).forEach((f, i) => {
+    applyLayout(
+      f,
+      Math.round(wallW * (0.08 + (i * 0.13) % 0.72)),
+      Math.round(60 + i * 88 + (f.seed % 24)),
+      3 + (i % 5),
+      ((f.seed % 17) - 8) / 10,
+    );
+  });
+
+  let maxBottom = 320;
+  fragments.forEach(f => {
+    if(!f.layout) return;
+    maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 48);
+  });
+
+  const tethers = [];
+  clusters.forEach(cluster => {
+    if(cluster.length < 2) return;
+    const pts = cluster.filter(f => f.layout).map(f => ({
+      id: f.id,
+      x: f.layout.leftPx + f.w * 0.5,
+      y: f.layout.topPx + f.h * 0.35,
+      neon: stableNeon(f.id, 1),
+    }));
+    if(pts.length < 2) return;
+    const hub = pts[0];
+    for(let i = 1; i < pts.length; i++){
+      tethers.push({ x1: hub.x, y1: hub.y, x2: pts[i].x, y2: pts[i].y, neon: hub.neon });
+    }
+  });
+
+  return { fragments, wallHeight: maxBottom, wallW, tethers };
+}
+
+function scrapbookDoodleCategory(item){
+  if(item.kind === 'photo') return 'photo';
+  if(item.kind === 'diary') return 'task';
+  const type = item.node?.type || 'note';
+  return SCRAPBOOK_DOODLE_CATEGORY[type] || 'task';
+}
+
+function getScrapbookDoodle(item, index){
+  const cat = scrapbookDoodleCategory(item);
+  const assets = SCRAPBOOK_DOODLE_ASSETS[cat] || SCRAPBOOK_DOODLE_ASSETS.task;
+  const seed = scrapbookSeedFromId(item.id || String(index));
+  return assets[seed % assets.length];
+}
+
+function evidenceFragmentMeta(item, index){
+  const seed = scrapbookSeedFromId(item.id || String(index));
+  const side = seed % 2 ? 'left' : 'right';
+  return {
+    doodle: getScrapbookDoodle(item, index),
+    doodleSide: side,
+    doodleRot: (seed % 21) - 10,
+    doodleOff: 6 + (seed % 18),
+  };
+}
+
+function buildEvidenceBrackets(){
+  return `<span class="evidence-bracket evidence-bracket-tl" aria-hidden="true"></span>
+    <span class="evidence-bracket evidence-bracket-tr" aria-hidden="true"></span>
+    <span class="evidence-bracket evidence-bracket-bl" aria-hidden="true"></span>
+    <span class="evidence-bracket evidence-bracket-br" aria-hidden="true"></span>`;
+}
+
+function buildEvidenceDoodle(meta, neon){
+  if(!meta.doodle) return '';
+  const side = meta.doodleSide === 'left' ? 'is-left' : 'is-right';
+  return `<div class="evidence-doodle-wrap ${side}" style="--doodle-rot:${meta.doodleRot}deg;--doodle-off:${meta.doodleOff}px;--doodle-neon:${neon}">
+    <span class="evidence-doodle-tether" aria-hidden="true"></span>
+    <img class="evidence-doodle" src="${esc(meta.doodle)}" alt="" width="44" height="44" loading="lazy">
+  </div>`;
+}
+
 function buildScrapbookFlipCard(item, index, opts){
-  const p = opts.layout || scrapbookLayout(item, index);
+  const frag = opts.frag;
+  const layout = frag?.layout;
   const neon = opts.neon || stableNeon(item.id || String(index), index);
+  const meta = opts.fragMeta || evidenceFragmentMeta(item, index);
   const caption = opts.caption || 'Untitled';
   const stamp = opts.stamp || '';
   const hint = opts.hintFront || '↻ story';
-  return `<figure class="photo-flip scrapbook-sticker layout-${p.layoutPreset} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
-    <div class="photo-flip-scene">
-      <div class="photo-flip-inner">
-        <div class="photo-flip-face photo-flip-front">
-          ${stamp ? `<time class="scrapbook-stamp">${esc(stamp)}</time>` : ''}
-          <div class="photo-frame">${opts.frameHtml}</div>
-          <figcaption class="photo-caption">${esc(caption)}</figcaption>
-          <span class="flip-hint-front">${hint}</span>
+  const w = frag?.w || 220;
+  const h = frag?.h || 180;
+  const style = layout
+    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
+    : `--frag-neon:${neon};--frag-w:${w}px;--frag-h:${h}px`;
+  const heroCls = frag?.isHero ? ' is-hero' : '';
+  const shapeCls = frag?.shape ? ` frag-${frag.shape}` : '';
+  const clipCls = frag ? ` clip-v${frag.clipVariant}` : '';
+  return `<article class="evidence-fragment${heroCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
+    ${buildEvidenceBrackets()}
+    ${buildEvidenceDoodle(meta, neon)}
+    <figure class="photo-flip scrapbook-sticker has-story" style="--flip-neon:${neon}">
+      <div class="photo-flip-scene">
+        <div class="photo-flip-inner">
+          <div class="photo-flip-face photo-flip-front">
+            ${stamp ? `<time class="scrapbook-stamp">${esc(stamp)}</time>` : ''}
+            <div class="photo-frame evidence-frame">${opts.frameHtml}</div>
+            <figcaption class="photo-caption">${esc(caption)}</figcaption>
+            <span class="flip-hint-front">${hint}</span>
+          </div>
+          <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${opts.backHtml}</div></div>
         </div>
-        <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${opts.backHtml}</div></div>
       </div>
-    </div>
-  </figure>`;
+    </figure>
+  </article>`;
 }
 
 function buildScrapbookNoteFrame(typeLabel, excerpt){
@@ -4607,7 +4873,6 @@ function buildScrapbookNoteFrame(typeLabel, excerpt){
 }
 
 function buildScrapbookPhotoPost(item, index, key, opts = {}){
-  const p = scrapbookLayout(item, index);
   const neon = stableNeon(item.id || String(index), index);
   const when = item.at ? fmtNodeStamp(item.at, key) : '';
   const caption = item.caption || 'Untitled';
@@ -4621,11 +4886,10 @@ function buildScrapbookPhotoPost(item, index, key, opts = {}){
     ${adminEdit}
     <span class="flip-hint-back">tap to flip back</span>`;
   const frameHtml = `<img src="${esc(item.src)}" alt="" loading="lazy">`;
-  return buildScrapbookFlipCard(item, index, { layout: p, neon, caption, stamp: when, frameHtml, backHtml });
+  return buildScrapbookFlipCard(item, index, { neon, caption, stamp: when, frameHtml, backHtml, frag: opts.frag, fragMeta: opts.fragMeta });
 }
 
 function buildScrapbookWritingFlip(item, index, key, opts){
-  const p = scrapbookLayout(item, index);
   const neon = opts.neon || '#9b5cff';
   const when = opts.when || '';
   const title = opts.title || '';
@@ -4641,19 +4905,21 @@ function buildScrapbookWritingFlip(item, index, key, opts){
     ${adminEdit}
     <span class="flip-hint-back">tap to flip back</span>`;
   return buildScrapbookFlipCard(item, index, {
-    layout: p,
     neon,
     caption,
     stamp: when,
     frameHtml: buildScrapbookNoteFrame(typeLabel, body || title),
     backHtml,
     hintFront: '↻ read',
+    frag: opts.frag,
+    fragMeta: opts.fragMeta,
   });
 }
 
-function buildScrapbookWallItem(item, index, key){
+function buildScrapbookWallItem(item, index, key, frag){
+  const pass = { frag, fragMeta: evidenceFragmentMeta(item, index) };
   if(item.kind === 'photo'){
-    return buildScrapbookPhotoPost(item, index, key);
+    return buildScrapbookPhotoPost(item, index, key, pass);
   }
 
   if(item.kind === 'diary'){
@@ -4663,6 +4929,7 @@ function buildScrapbookWallItem(item, index, key){
       title: 'Diary',
       body: item.text || '',
       typeLabel: 'Diary',
+      ...pass,
     });
   }
 
@@ -4686,7 +4953,7 @@ function buildScrapbookWallItem(item, index, key){
       caption: photoDetails.caption || getPulseNodeTitle(node),
       place: photoDetails.place,
       at: node.at,
-    }, index, key, { nodeId: node.id, linksHtml });
+    }, index, key, { nodeId: node.id, linksHtml, ...pass });
   }
 
   if(node.type === 'video' && node.video){
@@ -4705,6 +4972,8 @@ function buildScrapbookWallItem(item, index, key){
       frameHtml: `<video src="${esc(node.video)}" muted playsinline preload="metadata"></video>`,
       backHtml,
       hintFront: '↻ notes',
+      frag,
+      fragMeta: pass.fragMeta,
     });
   }
 
@@ -4715,7 +4984,7 @@ function buildScrapbookWallItem(item, index, key){
       caption: title || meta.label,
       place: '',
       at: node.at,
-    }, index, key, { nodeId: node.id, linksHtml });
+    }, index, key, { nodeId: node.id, linksHtml, ...pass });
   }
 
   return buildScrapbookWritingFlip(item, index, key, {
@@ -4726,7 +4995,32 @@ function buildScrapbookWallItem(item, index, key){
     typeLabel: meta.label,
     adminEdit,
     linksHtml,
+    ...pass,
   });
+}
+
+function buildEvidenceTethersSvg(tethers, wallW, wallH){
+  if(!tethers.length) return '';
+  const lines = tethers.map(t =>
+    `<line class="evidence-tether-line" x1="${t.x1}" y1="${t.y1}" x2="${t.x2}" y2="${t.y2}" stroke="${esc(t.neon)}"/>`
+  ).join('');
+  return `<svg class="evidence-tethers" viewBox="0 0 ${wallW} ${wallH}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${lines}</svg>`;
+}
+
+function buildEvidenceWall(wallItems, key){
+  const fragments = wallItems.map((item, i) => describeEvidenceFragment(item, i));
+  const { wallHeight, wallW, tethers } = layoutEvidenceFragments(fragments);
+  const fragMap = new Map(fragments.map(f => [f.id, f]));
+  const html = wallItems.map((item, i) => {
+    const frag = fragMap.get(item.id || String(i));
+    return buildScrapbookWallItem(item, i, key, frag);
+  }).join('');
+  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
+    <div class="evidence-surface">
+      ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
+      ${html}
+    </div>
+  </div>`;
 }
 
 function buildEmptyScrapbookPage(key, nav){
@@ -4769,7 +5063,7 @@ function buildDayScrapbookHTML(key, e, nav = {}){
     </div>
     ${renderDayScoreChips(deltas)}
     ${renderScrapbookTodos(key)}
-    <div class="photo-wall scrapbook-wall">${wallItems.map((item, i) => buildScrapbookWallItem(item, i, key)).join('')}</div>
+    <div class="evidence-wall-host">${buildEvidenceWall(wallItems, key)}</div>
     ${renderDayReflectionHTML(n.dayReflection)}
   </div>`;
 }
@@ -4798,15 +5092,20 @@ function   bindScrapbookNav(host){
       if(typeof HomeCheckIn !== 'undefined') HomeCheckIn.openPulseEditor(btn.dataset.scrapPulseEdit, btn.dataset.scrapKey);
     });
   });
-  const wall = host.querySelector('.scrapbook-wall');
+  const wall = host.querySelector('.evidence-surface') || host.querySelector('.scrapbook-wall');
   if(wall && !wall._scrapHandler){
     wall._scrapHandler = e => {
       if(e.target.closest('.scrapbook-edit-day, [data-scrap-day], .scrap-pulse-edit')) return;
       const fig = e.target.closest('.photo-flip');
       if(!fig || !wall.contains(fig)) return;
+      const cell = fig.closest('.evidence-fragment');
       const wasFlipped = fig.classList.contains('is-flipped');
       wall.querySelectorAll('.photo-flip.is-flipped').forEach(f => f.classList.remove('is-flipped'));
-      if(!wasFlipped && fig.querySelector('.photo-flip-inner')) fig.classList.add('is-flipped');
+      wall.querySelectorAll('.evidence-fragment.is-flipped').forEach(c => c.classList.remove('is-flipped'));
+      if(!wasFlipped && fig.querySelector('.photo-flip-inner')){
+        fig.classList.add('is-flipped');
+        if(cell) cell.classList.add('is-flipped');
+      }
     };
     wall.addEventListener('click', wall._scrapHandler);
   }
