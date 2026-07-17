@@ -1199,6 +1199,190 @@ function normalizeEntry(e){
     daySummary: e.daySummary || null,
     dayStartSnapshot: e.dayStartSnapshot || null,
     plannedTodos: e.plannedTodos || null,
+    scrapbookLayout: e.scrapbookLayout || null,
+  };
+}
+
+const CURATOR_SESSION_KEY = 'ga-curator-key';
+
+function isCuratorMode(key){
+  return isAdmin() && sessionStorage.getItem(CURATOR_SESSION_KEY) === key;
+}
+
+function setCuratorMode(key, on){
+  if(on && key) sessionStorage.setItem(CURATOR_SESSION_KEY, key);
+  else sessionStorage.removeItem(CURATOR_SESSION_KEY);
+}
+
+function getScrapbookLayout(key){
+  return state.entries[key]?.scrapbookLayout || null;
+}
+
+function ensureEntryForKey(key){
+  if(!state.entries[key]) state.entries[key] = {};
+  return state.entries[key];
+}
+
+function syncScrapbookLayoutWithItems(key, itemIds){
+  const entry = ensureEntryForKey(key);
+  if(!entry.scrapbookLayout) entry.scrapbookLayout = { stickers: {}, initialized: false };
+  const layout = entry.scrapbookLayout;
+  if(!layout.stickers) layout.stickers = {};
+  itemIds.forEach(id => {
+    if(!layout.stickers[id]){
+      layout.stickers[id] = { placed: false, left: 80, top: 120, rot: 0, scale: 1, z: 4, pinned: false, tape: false, doodle: '' };
+    }
+  });
+  Object.keys(layout.stickers).forEach(id => {
+    if(!itemIds.includes(id)) delete layout.stickers[id];
+  });
+}
+
+function initScrapbookLayoutFromAuto(key, fragments, autoResult){
+  const entry = ensureEntryForKey(key);
+  const stickers = {};
+  autoResult.fragments.forEach(f => {
+    if(!f.layout) return;
+    stickers[f.id] = {
+      placed: true,
+      left: f.layout.leftPx,
+      top: f.layout.topPx,
+      rot: f.layout.rot,
+      scale: 1,
+      z: f.layout.z,
+      pinned: !!f.isHero,
+      tape: f.media || f.shape === 'photo' || f.shape === 'video',
+      doodle: f.isHero ? (getScrapbookDoodle(f.item, f.index) || '') : '',
+    };
+  });
+  entry.scrapbookLayout = {
+    initialized: true,
+    stickers,
+    wallH: autoResult.wallHeight,
+    wallW: autoResult.wallW,
+  };
+  saveState();
+}
+
+function applySavedLayoutToFragments(fragments, key){
+  const layout = getScrapbookLayout(key);
+  if(!layout?.stickers) return { placed: [], inbox: fragments, wallH: layout?.wallH || 620, wallW: layout?.wallW || 920, tethers: [] };
+
+  const placed = [];
+  const inbox = [];
+  let maxBottom = 380;
+  let maxZ = 20;
+
+  fragments.forEach(f => {
+    const s = layout.stickers[f.id];
+    if(!s || !s.placed){
+      inbox.push(f);
+      return;
+    }
+    f.isHero = !!s.pinned;
+    f.layout = {
+      leftPx: s.left,
+      topPx: s.top,
+      z: s.z || 4,
+      rot: s.rot || 0,
+      scale: s.scale || 1,
+    };
+    if(s.pinned) f.tier = 'hero';
+    placed.push(f);
+    maxBottom = Math.max(maxBottom, s.top + f.h * (s.scale || 1) + 56);
+    maxZ = Math.max(maxZ, s.z || 4);
+  });
+
+  const tethers = [];
+  const hub = placed.find(f => f.isHero) || placed.find(f => f.shape === 'photo' || f.shape === 'video');
+  if(hub?.layout){
+    const hx = hub.layout.leftPx + hub.w * 0.5;
+    const hy = hub.layout.topPx + hub.h * 0.45;
+    placed.filter(f => f.id !== hub.id).forEach(f => {
+      const dx = (f.layout.leftPx + f.w * 0.5) - hx;
+      const dy = (f.layout.topPx + f.h * 0.5) - hy;
+      if(Math.hypot(dx, dy) > 320) return;
+      tethers.push({
+        x1: hx, y1: hy,
+        x2: f.layout.leftPx + f.w * 0.5,
+        y2: f.layout.topPx + f.h * 0.5,
+        neon: f.isHero ? 'rgba(155,92,255,0.35)' : 'rgba(88,78,102,0.32)',
+      });
+    });
+  }
+
+  return {
+    placed,
+    inbox,
+    wallHeight: Math.max(layout.wallH || 620, maxBottom),
+    wallW: layout.wallW || 920,
+    tethers,
+    maxZ,
+  };
+}
+
+function saveScrapbookSticker(key, itemId, patch){
+  const entry = ensureEntryForKey(key);
+  if(!entry.scrapbookLayout) entry.scrapbookLayout = { stickers: {}, initialized: true };
+  const cur = entry.scrapbookLayout.stickers[itemId] || { placed: false, left: 80, top: 120, rot: 0, scale: 1, z: 4, pinned: false, tape: false, doodle: '' };
+  entry.scrapbookLayout.stickers[itemId] = { ...cur, ...patch };
+  entry.scrapbookLayout.initialized = true;
+  saveState();
+}
+
+function getScrapbookSticker(key, itemId){
+  return getScrapbookLayout(key)?.stickers?.[itemId] || null;
+}
+
+function resolveEvidenceWallLayout(fragments, key, _autoPlacing){
+  const itemIds = fragments.map(f => f.id);
+  syncScrapbookLayoutWithItems(key, itemIds);
+  const layout = getScrapbookLayout(key);
+  const curating = isCuratorMode(key);
+  const hasSaved = layout?.initialized && Object.values(layout.stickers || {}).some(s => s.placed);
+
+  if(!hasSaved && !curating){
+    const auto = layoutEvidenceFragments(fragments);
+    return { ...auto, inbox: [], mode: 'auto' };
+  }
+
+  if(!layout?.initialized && curating){
+    const auto = layoutEvidenceFragments(fragments);
+    initScrapbookLayoutFromAuto(key, fragments, auto);
+  }
+
+  let saved = applySavedLayoutToFragments(fragments, key);
+
+  if(saved.inbox.length && !curating && !_autoPlacing){
+    const boardFrags = saved.placed;
+    const heroFrag = boardFrags.find(f => f.isHero) || boardFrags.find(f => f.shape === 'photo' || f.shape === 'video') || boardFrags[0];
+    let z = saved.maxZ || 20;
+    saved.inbox.forEach((f, i) => {
+      let pos = null;
+      if(heroFrag?.layout){
+        const heroBox = { left: heroFrag.layout.leftPx, top: heroFrag.layout.topPx, w: heroFrag.w, h: heroFrag.h };
+        pos = evidenceOrbitSlot(f, { layout: heroFrag.layout, w: heroFrag.w, h: heroFrag.h, ...heroFrag }, i, [], saved.wallW);
+      }
+      if(!pos) pos = evidenceClampToPage(60 + i * 24, saved.wallHeight - 120 - i * 18, f.w, saved.wallW, saved.wallHeight);
+      saveScrapbookSticker(key, f.id, {
+        placed: true,
+        left: pos.left,
+        top: pos.top,
+        rot: pinRotation(f.seed, f.tier || 'sticker'),
+        z: ++z,
+      });
+    });
+    saved = applySavedLayoutToFragments(fragments, key);
+  }
+
+  return {
+    fragments: saved.placed,
+    inbox: curating ? saved.inbox : [],
+    wallHeight: saved.wallHeight,
+    wallW: saved.wallW,
+    tethers: saved.tethers,
+    mode: 'curator',
+    maxZ: saved.maxZ,
   };
 }
 
@@ -4994,8 +5178,11 @@ function buildScrapbookScribbleBody(typeLabel, excerpt, tier = 'sticker'){
 function buildScrapbookFlipCard(item, index, opts){
   const frag = opts.frag;
   const layout = frag?.layout;
+  const key = opts.dayKey || '';
+  const sticker = key ? getScrapbookSticker(key, item.id) : null;
   const neon = opts.neon || stableNeon(item.id || String(index), index);
   const meta = opts.fragMeta || evidenceFragmentMeta(item, index, frag);
+  if(sticker?.doodle) meta.doodle = sticker.doodle;
   const tier = meta.tier || frag?.tier || 'sticker';
   const isMedia = meta.isMedia;
   const caption = opts.caption || 'Untitled';
@@ -5003,17 +5190,35 @@ function buildScrapbookFlipCard(item, index, opts){
   const hint = opts.hintFront || '↻ story';
   const w = frag?.w || 220;
   const seed = frag?.seed || scrapbookSeedFromId(item.id || String(index));
+  const scale = layout?.scale || sticker?.scale || 1;
+  const pinnedCls = (frag?.isHero || sticker?.pinned) ? ' is-pinned' : '';
+  const curatingCls = opts.curating ? ' is-curating' : '';
   const style = layout
-    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-neon:${neon}`
-    : `--frag-neon:${neon};--frag-w:${w}px`;
+    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-scale:${scale};--frag-w:${Math.round(w * scale)}px;--frag-neon:${neon}`
+    : `--frag-neon:${neon};--frag-w:${w}px;--frag-scale:1`;
   const heroCls = frag?.isHero ? ' is-hero' : '';
   const kindCls = isMedia ? ' pin-polaroid' : ' pin-scribble';
   const tierCls = ` pin-${tier}`;
   const shapeCls = frag?.shape ? ` frag-${frag.shape}` : '';
   const clipCls = isMedia && frag ? ` clip-v${frag.clipVariant}` : '';
+  const showTape = isMedia && (sticker?.tape !== false);
+  const curatorBar = opts.curating
+    ? `<div class="curator-frag-bar" data-curator-bar="${esc(item.id)}">
+        <button type="button" class="curator-btn" data-curator-act="pin" title="Pin focal point">📌</button>
+        <button type="button" class="curator-btn" data-curator-act="rot-min" title="Rotate left">↺</button>
+        <button type="button" class="curator-btn" data-curator-act="rot-plus" title="Rotate right">↻</button>
+        <button type="button" class="curator-btn" data-curator-act="scale-min" title="Smaller">−</button>
+        <button type="button" class="curator-btn" data-curator-act="scale-plus" title="Larger">+</button>
+        <button type="button" class="curator-btn" data-curator-act="layer-up" title="Bring forward">▲</button>
+        <button type="button" class="curator-btn" data-curator-act="layer-down" title="Send back">▼</button>
+        <button type="button" class="curator-btn" data-curator-act="tape" title="Toggle tape">▬</button>
+        <button type="button" class="curator-btn" data-curator-act="inbox" title="Return to drawer">⊖</button>
+      </div>`
+    : '';
 
   if(!isMedia){
-    return `<article class="evidence-fragment${heroCls}${kindCls}${tierCls}${shapeCls}" style="${style}" data-scrap-id="${esc(item.id)}">
+    return `<article class="evidence-fragment${heroCls}${pinnedCls}${kindCls}${tierCls}${shapeCls}${curatingCls}" style="${style}" data-scrap-id="${esc(item.id)}" draggable="${opts.curating ? 'true' : 'false'}">
+      ${curatorBar}
       <figure class="photo-flip scribble-flip has-story" style="--flip-neon:${neon}">
         <div class="photo-flip-scene">
           <div class="photo-flip-inner">
@@ -5029,8 +5234,9 @@ function buildScrapbookFlipCard(item, index, opts){
     </article>`;
   }
 
-  return `<article class="evidence-fragment${heroCls}${kindCls}${tierCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
-    ${buildPolaroidTape(neon, seed)}
+  return `<article class="evidence-fragment${heroCls}${pinnedCls}${kindCls}${tierCls}${shapeCls}${clipCls}${curatingCls}" style="${style}" data-scrap-id="${esc(item.id)}" draggable="${opts.curating ? 'true' : 'false'}">
+    ${curatorBar}
+    ${showTape ? buildPolaroidTape(neon, seed) : ''}
     ${buildEvidenceDoodle(meta, neon)}
     <figure class="photo-flip polaroid-flip has-story" style="--flip-neon:${neon}">
       <div class="photo-flip-scene">
@@ -5096,8 +5302,8 @@ function buildScrapbookWritingFlip(item, index, key, opts){
   });
 }
 
-function buildScrapbookWallItem(item, index, key, frag){
-  const pass = { frag, fragMeta: evidenceFragmentMeta(item, index, frag) };
+function buildScrapbookWallItem(item, index, key, frag, opts = {}){
+  const pass = { frag, fragMeta: evidenceFragmentMeta(item, index, frag), dayKey: key, curating: !!opts.curating };
   if(item.kind === 'meta' && item.metaType === 'mood'){
     return buildScrapbookWritingFlip(item, index, key, {
       neon: moodColor(item.moodId),
@@ -5197,34 +5403,106 @@ function buildEvidenceTethersSvg(tethers, wallW, wallH){
   return `<svg class="evidence-tethers" viewBox="0 0 ${wallW} ${wallH}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${lines}</svg>`;
 }
 
+function buildCuratorToolbarHTML(key){
+  const active = isCuratorMode(key);
+  return `<div class="curator-toolbar${active ? ' is-active' : ''}" data-curator-key="${esc(key)}">
+    <div class="curator-toolbar-inner">
+      <span class="curator-toolbar-kicker">Player Gray · Living Scrapbook</span>
+      <p class="curator-toolbar-hint">${active ? 'Drag stickers onto the board. Pin a focal point. Neon marks — it does not grid.' : 'Your day captures wait in the drawer until you compose the page.'}</p>
+      <div class="curator-toolbar-actions">
+        <button type="button" class="btn curator-toggle${active ? ' is-on' : ''}" data-curator-toggle="${esc(key)}">${active ? 'Done arranging' : 'Curate this day'}</button>
+        ${active ? `<button type="button" class="btn" data-curator-auto="${esc(key)}">Auto-cluster</button>` : ''}
+      </div>
+    </div>
+    <div class="curator-decor-strip${active ? '' : ' hidden'}" aria-label="Decor library">
+      <span class="curator-decor-label">Neon tape &amp; marks</span>
+      <button type="button" class="curator-decor-chip" data-curator-decor="tape" title="Add tape to selection">▬ tape</button>
+      <button type="button" class="curator-decor-chip" data-curator-decor="doodle-music" title="Music doodle">♪</button>
+      <button type="button" class="curator-decor-chip" data-curator-decor="doodle-mood" title="Mood doodle">✦</button>
+      <button type="button" class="curator-decor-chip" data-curator-decor="doodle-task" title="Task doodle">✓</button>
+    </div>
+  </div>`;
+}
+
+function buildCuratorInboxCard(item, index, key, frag){
+  const label = item.kind === 'diary' ? 'Diary'
+    : item.kind === 'photo' ? 'Photo'
+    : item.kind === 'meta' ? 'Mood'
+    : (STREAM_NODE_META[item.node?.type]?.label || item.node?.type || 'Update');
+  const preview = getEvidenceText(item).slice(0, 72) || label;
+  const when = item.at ? fmtNodeStamp(item.at, key) : '';
+  return `<button type="button" class="curator-inbox-card" draggable="true" data-inbox-id="${esc(item.id)}" data-inbox-index="${index}">
+    <span class="curator-inbox-type">${esc(label)}</span>
+    ${when ? `<time class="curator-inbox-time">${esc(when)}</time>` : ''}
+    <span class="curator-inbox-preview">${esc(preview)}</span>
+  </button>`;
+}
+
+function buildCuratorInboxHTML(key, inboxItems, fragMap){
+  if(!isAdmin()) return '';
+  const active = isCuratorMode(key);
+  const cards = inboxItems.map((item, i) => {
+    const frag = fragMap.get(item.id || String(i));
+    return buildCuratorInboxCard(item, i, key, frag);
+  }).join('');
+  return `<aside class="curator-drawer${active ? ' is-open' : ''}" id="curatorDrawer" aria-label="Fragment drawer">
+    <div class="curator-drawer-head">
+      <h3 class="curator-drawer-title">Drawer</h3>
+      <span class="curator-drawer-count">${inboxItems.length} waiting</span>
+      <p class="curator-drawer-sub">Raw captures from today — drag onto the board when you're ready.</p>
+    </div>
+    <div class="curator-drawer-scroll">${cards || '<p class="curator-inbox-empty">All fragments placed on the board.</p>'}</div>
+  </aside>`;
+}
+
 function buildEvidenceWall(wallItems, key){
   const fragments = wallItems.map((item, i) => describeEvidenceFragment(item, i, false));
-  const { wallHeight, wallW, tethers } = layoutEvidenceFragments(fragments);
-  fragments.forEach(f => {
+  const resolved = resolveEvidenceWallLayout(fragments, key);
+  const curating = isCuratorMode(key);
+  const boardFragments = resolved.fragments || resolved.placed || fragments;
+  const inboxItems = (resolved.inbox || []).map(f => f.item);
+
+  boardFragments.forEach(f => {
     if((f.shape === 'photo' || f.shape === 'video') && !f.isHero){
       f.tier = 'support';
       f.media = true;
       const sized = shrinkWrapFragmentSize(f.item, f.shape, f.seed, false);
-      f.w = sized.w;
-      f.h = sized.h;
+      const scale = f.layout?.scale || getScrapbookSticker(key, f.id)?.scale || 1;
+      f.w = Math.round(sized.w * scale);
+      f.h = Math.round(sized.h * scale);
     }
   });
+
   const fragMap = new Map(fragments.map(f => [f.id, f]));
+  const placedMap = new Map(boardFragments.map(f => [f.id, f]));
   const html = wallItems.map((item, i) => {
-    const frag = fragMap.get(item.id || String(i));
-    return buildScrapbookWallItem(item, i, key, frag);
+    const frag = placedMap.get(item.id || String(i));
+    if(!frag) return '';
+    return buildScrapbookWallItem(item, i, key, frag, { curating });
   }).join('');
+
   const ambSeed = scrapbookSeedFromId(wallItems.map(it => it.id).join(key));
-  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
-    <span class="evidence-board-label" aria-hidden="true">Evidence board · case file</span>
-    <div class="evidence-surface" style="--wall-w:${wallW}px;--wall-h:${wallHeight}px">
-      <div class="evidence-page-inset" aria-hidden="true"></div>
-      <div class="evidence-grid-lines" aria-hidden="true"></div>
-      ${buildEvidenceAmbientDecor(wallW, wallHeight, ambSeed)}
-      ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
-      ${html || '<p class="empty-hint evidence-empty">Post on Coming To You Live — fragments land here.</p>'}
-    </div>
-  </div>`;
+  const wallHeight = resolved.wallHeight || resolved.wallH || 520;
+  const wallW = resolved.wallW || 920;
+  const tethers = resolved.tethers || [];
+
+  return {
+    html: `<div class="evidence-wall scrapbook-wall${curating ? ' is-curating' : ''}${resolved.mode === 'curator' ? ' has-curator-layout' : ''}" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px" data-day-key="${esc(key)}">
+      <span class="evidence-board-label" aria-hidden="true">${curating ? 'Curator mode · arrange your day' : 'Evidence board · case file'}</span>
+      ${buildCuratorToolbarHTML(key)}
+      <div class="evidence-wall-body">
+        <div class="evidence-surface" style="--wall-w:${wallW}px;--wall-h:${wallHeight}px" data-curator-surface="${esc(key)}">
+          <div class="evidence-page-inset" aria-hidden="true"></div>
+          <div class="evidence-grid-lines" aria-hidden="true"></div>
+          ${buildEvidenceAmbientDecor(wallW, wallHeight, ambSeed)}
+          ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
+          ${html || (curating ? '<p class="empty-hint evidence-empty">Drag fragments from the drawer onto the board.</p>' : '<p class="empty-hint evidence-empty">Post on Coming To You Live — fragments land here.</p>')}
+        </div>
+        ${buildCuratorInboxHTML(key, inboxItems, fragMap)}
+      </div>
+    </div>`,
+    inboxCount: inboxItems.length,
+  };
 }
 
 function buildEmptyScrapbookPage(key, nav){
@@ -5267,9 +5545,184 @@ function buildDayScrapbookHTML(key, e, nav = {}){
     </div>
     ${renderDayScoreChips(deltas)}
     ${renderScrapbookTodos(key)}
-    <div class="evidence-wall-host">${buildEvidenceWall(wallItems, key)}</div>
+    <div class="evidence-wall-host">${buildEvidenceWall(wallItems, key).html}</div>
     ${renderDayReflectionHTML(n.dayReflection)}
   </div>`;
+}
+
+function bindCuratorMode(host, key){
+  if(!host || !isAdmin()) return;
+  if(host._curatorDelegated) return;
+  host._curatorDelegated = true;
+
+  let dragSurface = null;
+  let dragId = null;
+  let dragOffset = { x: 0, y: 0 };
+  let dragEl = null;
+
+  function activeWall(){
+    return host.querySelector('.evidence-wall');
+  }
+
+  function activeKey(){
+    return activeWall()?.dataset?.dayKey || getLogFocusKey();
+  }
+
+  function rerender(){
+    renderLogBook();
+  }
+
+  function surfacePoint(surface, clientX, clientY){
+    const r = surface.getBoundingClientRect();
+    return { x: clientX - r.left + surface.scrollLeft, y: clientY - r.top + surface.scrollTop };
+  }
+
+  host.addEventListener('click', e => {
+    const wall = activeWall();
+    if(!wall) return;
+    const key = activeKey();
+    const toggle = e.target.closest('[data-curator-toggle]');
+    if(toggle){
+      const k = toggle.dataset.curatorToggle;
+      setCuratorMode(k, !isCuratorMode(k));
+      rerender();
+      return;
+    }
+    const autoBtn = e.target.closest('[data-curator-auto]');
+    if(autoBtn){
+      const k = autoBtn.dataset.curatorAuto;
+      const items = getScrapbookWallItems(k, state.entries[k], getDayStream(k));
+      const frags = items.map((item, i) => describeEvidenceFragment(item, i, false));
+      const auto = layoutEvidenceFragments(frags);
+      initScrapbookLayoutFromAuto(k, frags, auto);
+      setCuratorMode(k, true);
+      rerender();
+      return;
+    }
+    const decor = e.target.closest('[data-curator-decor]');
+    if(decor && isCuratorMode(key)){
+      const selected = wall.querySelector('.evidence-fragment.is-selected');
+      const id = selected?.dataset.scrapId;
+      if(!id) return;
+      const kind = decor.dataset.curatorDecor;
+      if(kind === 'tape') saveScrapbookSticker(key, id, { tape: true });
+      else if(kind === 'doodle-music') saveScrapbookSticker(key, id, { doodle: SCRAPBOOK_DOODLE_ASSETS.music[0] });
+      else if(kind === 'doodle-mood') saveScrapbookSticker(key, id, { doodle: SCRAPBOOK_DOODLE_ASSETS.mood[0] });
+      else if(kind === 'doodle-task') saveScrapbookSticker(key, id, { doodle: SCRAPBOOK_DOODLE_ASSETS.task[0] });
+      rerender();
+      return;
+    }
+    const actBtn = e.target.closest('[data-curator-act]');
+    if(actBtn){
+      e.stopPropagation();
+      const frag = actBtn.closest('.evidence-fragment');
+      const id = frag?.dataset.scrapId;
+      if(!id) return;
+      const s = getScrapbookSticker(key, id) || {};
+      const act = actBtn.dataset.curatorAct;
+      if(act === 'pin'){
+        Object.keys(getScrapbookLayout(key)?.stickers || {}).forEach(otherId => {
+          if(otherId !== id && getScrapbookSticker(key, otherId)?.pinned) saveScrapbookSticker(key, otherId, { pinned: false });
+        });
+        const item = getScrapbookWallItems(key, state.entries[key], getDayStream(key)).find(it => it.id === id);
+        const doodle = item ? getScrapbookDoodle(item, 0) : '';
+        saveScrapbookSticker(key, id, { pinned: !s.pinned, doodle: s.pinned ? s.doodle : (doodle || s.doodle) });
+      } else if(act === 'rot-min') saveScrapbookSticker(key, id, { rot: (s.rot || 0) - 6 });
+      else if(act === 'rot-plus') saveScrapbookSticker(key, id, { rot: (s.rot || 0) + 6 });
+      else if(act === 'scale-min') saveScrapbookSticker(key, id, { scale: Math.max(0.55, (s.scale || 1) - 0.08) });
+      else if(act === 'scale-plus') saveScrapbookSticker(key, id, { scale: Math.min(1.45, (s.scale || 1) + 0.08) });
+      else if(act === 'layer-up') saveScrapbookSticker(key, id, { z: (s.z || 4) + 1 });
+      else if(act === 'layer-down') saveScrapbookSticker(key, id, { z: Math.max(2, (s.z || 4) - 1) });
+      else if(act === 'tape') saveScrapbookSticker(key, id, { tape: !s.tape });
+      else if(act === 'inbox') saveScrapbookSticker(key, id, { placed: false, pinned: false });
+      rerender();
+      return;
+    }
+    const fragEl = e.target.closest('.evidence-fragment.is-curating');
+    if(fragEl && isCuratorMode(key)){
+      if(e.target.closest('.photo-flip-inner') && !e.target.closest('.curator-frag-bar')) return;
+      wall.querySelectorAll('.evidence-fragment.is-selected').forEach(el => el.classList.remove('is-selected'));
+      fragEl.classList.add('is-selected');
+    }
+  });
+
+  host.addEventListener('dragstart', e => {
+    const key = activeKey();
+    if(!isCuratorMode(key)) return;
+    const inboxCard = e.target.closest('.curator-inbox-card');
+    const frag = e.target.closest('.evidence-fragment.is-curating');
+    const id = inboxCard?.dataset.inboxId || frag?.dataset.scrapId;
+    if(!id) return;
+    e.dataTransfer.setData('text/scrap-id', id);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  host.addEventListener('dragover', e => {
+    const key = activeKey();
+    if(!isCuratorMode(key)) return;
+    if(!e.target.closest('[data-curator-surface]')) return;
+    e.preventDefault();
+    e.target.closest('[data-curator-surface]')?.classList.add('is-drop-target');
+  });
+
+  host.addEventListener('dragleave', e => {
+    e.target.closest('[data-curator-surface]')?.classList.remove('is-drop-target');
+  });
+
+  host.addEventListener('drop', e => {
+    const key = activeKey();
+    const surface = e.target.closest('[data-curator-surface]');
+    if(!surface || !isCuratorMode(key)) return;
+    e.preventDefault();
+    surface.classList.remove('is-drop-target');
+    const id = e.dataTransfer.getData('text/scrap-id');
+    if(!id) return;
+    const pt = surfacePoint(surface, e.clientX, e.clientY);
+    const stickers = getScrapbookLayout(key)?.stickers || {};
+    const maxZ = Math.max(4, ...Object.values(stickers).map(s => s.z || 4));
+    saveScrapbookSticker(key, id, { placed: true, left: Math.round(pt.x - 40), top: Math.round(pt.y - 20), z: maxZ + 1 });
+    rerender();
+  });
+
+  host.addEventListener('mousedown', e => {
+    const key = activeKey();
+    if(!isCuratorMode(key) || e.button !== 0) return;
+    const frag = e.target.closest('.evidence-fragment.is-curating');
+    if(!frag || e.target.closest('.curator-frag-bar, .curator-btn')) return;
+    if(e.target.closest('.photo-flip-inner')) return;
+    e.preventDefault();
+    const surface = host.querySelector('[data-curator-surface]');
+    if(!surface) return;
+    dragSurface = surface;
+    dragId = frag.dataset.scrapId;
+    dragEl = frag;
+    const s = getScrapbookSticker(key, dragId) || {};
+    const start = surfacePoint(surface, e.clientX, e.clientY);
+    dragOffset = { x: start.x - (s.left || 0), y: start.y - (s.top || 0) };
+    host.querySelectorAll('.evidence-fragment.is-selected').forEach(el => el.classList.remove('is-selected'));
+    frag.classList.add('is-selected');
+  });
+
+  document.addEventListener('mousemove', e => {
+    if(!dragSurface || !dragId || !dragEl) return;
+    const pt = surfacePoint(dragSurface, e.clientX, e.clientY);
+    const left = Math.round(pt.x - dragOffset.x);
+    const top = Math.round(pt.y - dragOffset.y);
+    dragEl.style.setProperty('--frag-left', `${left}px`);
+    dragEl.style.setProperty('--frag-top', `${top}px`);
+    dragEl._pendingPos = { left, top };
+  });
+
+  document.addEventListener('mouseup', () => {
+    if(!dragId) return;
+    const key = activeKey();
+    const pos = dragEl?._pendingPos;
+    if(pos) saveScrapbookSticker(key, dragId, { placed: true, left: pos.left, top: pos.top });
+    dragSurface = null;
+    dragId = null;
+    dragEl = null;
+    if(pos) rerender();
+  });
 }
 
 function   bindScrapbookNav(host){
@@ -5297,9 +5750,12 @@ function   bindScrapbookNav(host){
     });
   });
   const wall = host.querySelector('.evidence-surface') || host.querySelector('.scrapbook-wall');
+  const dayKey = host.querySelector('.evidence-wall')?.dataset?.dayKey || getLogFocusKey();
+  bindCuratorMode(host, dayKey);
   if(wall && !wall._scrapHandler){
     wall._scrapHandler = e => {
-      if(e.target.closest('.scrapbook-edit-day, [data-scrap-day], .scrap-pulse-edit')) return;
+      if(e.target.closest('.scrapbook-edit-day, [data-scrap-day], .scrap-pulse-edit, .curator-toolbar, .curator-drawer, .curator-frag-bar, [data-curator-toggle], [data-curator-act]')) return;
+      if(isCuratorMode(dayKey)) return;
       const fig = e.target.closest('.photo-flip');
       if(!fig || !wall.contains(fig)) return;
       const cell = fig.closest('.evidence-fragment');
