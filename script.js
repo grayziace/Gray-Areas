@@ -577,9 +577,10 @@ function openContentEditor(type, id, isNew){
   } else if(type === 'character'){
     item = isNew ? {} : getCharacters().find(c => c.id === id);
     if(!item && id && typeof getCoderById === 'function') item = getCoderById(id);
-    title = isNew ? 'New player card' : 'Edit player card';
+    title = isNew ? (window.__gaNewCharacterIsPet ? 'New pet card' : 'New person card') : 'Edit person card';
     fields = playerCardEditorHtml(item, { isPlace: false })
-      + fieldHtml('Kind', 'ce_type', item?.type || 'Person');
+      + fieldHtml('Kind', 'ce_type', item?.type || 'Person')
+      + fieldHtml('Pet / animal', 'ce_is_pet', item?.isPet || window.__gaNewCharacterIsPet, 'checkbox');
   } else if(type === 'place'){
     item = isNew ? { unlocked: true, placeCard: defaultPlaceCard() } : getPlaces().find(p => p.id === id);
     title = isNew ? 'New place card' : 'Edit place card';
@@ -696,7 +697,12 @@ function cardFormData(type, image){
   }
   if(type === 'character'){
     const g = id => document.getElementById(id)?.value?.trim?.() ?? '';
-    return { ...base, type: g('ce_type') || 'Person', image: image || '' };
+    return {
+      ...base,
+      type: g('ce_type') || 'Person',
+      image: image || '',
+      isPet: document.getElementById('ce_is_pet')?.checked || false,
+    };
   }
   return base;
 }
@@ -774,7 +780,9 @@ function saveContentEdit(){
       const i = state.content.characters.findIndex(c => c.id === id);
       if(i >= 0) state.content.characters[i] = { ...state.content.characters[i], ...data };
     } else {
-      state.content.characters.push({ id: uid('char'), ...data });
+      const isPet = window.__gaNewCharacterIsPet || document.getElementById('ce_is_pet')?.checked || false;
+      window.__gaNewCharacterIsPet = false;
+      state.content.characters.push({ id: uid('char'), isPet, ...data });
     }
   } else if(type === 'place'){
     if(!data.name) return;
@@ -1133,11 +1141,11 @@ function getActiveDayKey(){
 }
 
 function fmtDate(key){
-  return new Date(key + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Date(key + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function fmtDateLong(key){
-  return new Date(key + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  return new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 function moodWord(m){
@@ -1180,6 +1188,7 @@ function normalizeEntry(e){
     mandarinHours: e.mandarinHours,
     hobby: e.hobby,
     hobbyHours: e.hobbyHours,
+    hobbyLogs: e.hobbyLogs || [],
     people,
     places,
     diary: e.diary || e.note || e.thoughts || '',
@@ -2297,7 +2306,12 @@ function getTotalSkillHours(skillId){
 
   Object.values(state.entries).forEach(raw => {
     const e = normalizeEntry(raw);
-    if(e.hobby){
+    if(e.hobbyLogs?.length){
+      e.hobbyLogs.forEach(h => {
+        const mapped = getHobbySkillMap()[h.hobby];
+        if(mapped === skillId) hrs += Number(h.hours) || 0;
+      });
+    } else if(e.hobby){
       const mapped = getHobbySkillMap()[e.hobby];
       if(mapped === skillId) hrs += Number(e.hobbyHours) || 0;
     }
@@ -2476,11 +2490,15 @@ function dismissLoading(){
     el.dataset.dismissed = '1';
     el.classList.add('is-dismissed');
     document.body.classList.add('app-ready');
-    try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
+    try{
+      sessionStorage.setItem('ga-saw-intro', '1');
+      sessionStorage.setItem('ga-site-mode', 'watch');
+    }catch(e){}
     setTimeout(() => el.remove(), 700);
   }
   document.getElementById('bootError')?.classList.add('hidden');
-  showLoginIfNeeded();
+  if(typeof enterMainSite === 'function') enterMainSite();
+  else if(typeof GameHub !== 'undefined') GameHub.enterWatchMode?.();
 }
 
 function bindIntroSkip(){
@@ -2533,7 +2551,7 @@ function navigateToView(view){
     closeInboxDrawer();
   }
   if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin()){
-    const blockedViews = ['comm', 'chat', 'viewer-card', 'inbox', 'xp-requests', 'quests'];
+    const blockedViews = ['comm', 'chat', 'viewer-card', 'inbox', 'xp-requests'];
     if(blockedViews.includes(view)) return;
   }
   if(view === 'instructions' && typeof shouldShowInstructionsNav === 'function' && !shouldShowInstructionsNav()){
@@ -3576,12 +3594,13 @@ const HomeCheckIn = {
     mountMoodPicker('endMoodPicker', resolveEntryMood(n) || getCurrentMood(), { name: 'endMood', compact: true });
     document.getElementById('endSteps').value = n.steps || 0;
     document.getElementById('endWork').value = n.workHours || 0;
-    const hobbySel = document.getElementById('endHobbySelect');
-    hobbySel.innerHTML = '<option value="">—</option>' + getHobbyOptions().map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-    hobbySel.value = n.hobby || '';
-    document.getElementById('endHobbyHours').value = n.hobbyHours || 0;
-    document.getElementById('endPeople').value = (n.people || []).join(', ');
-    document.getElementById('endPlaces').value = (n.places || []).filter(p => !CONTENT.zones.includes(p)).join(', ');
+    const petNames = getPeopleCards('pet').map(p => p.name);
+    const peopleMet = (n.people || []).filter(name => !petNames.includes(name));
+    const petsMet = (n.pets || []).length ? n.pets : (n.people || []).filter(name => petNames.includes(name));
+    document.getElementById('endHobbyPicks').innerHTML = renderEndHobbyPicks(n);
+    document.getElementById('endPeoplePicks').innerHTML = renderEndCardPickGrid(getPeopleCards('person'), peopleMet, 'person');
+    document.getElementById('endPetsPicks').innerHTML = renderEndCardPickGrid(getPeopleCards('pet'), petsMet, 'pet');
+    document.getElementById('endPlacesPicks').innerHTML = renderEndCardPickGrid(getPlaces(), (n.places || []).filter(p => !CONTENT.zones.includes(p)), 'place');
     const draft = streamDiaryDraft(stream.nodes);
     document.getElementById('endDiary').value = n.diary || draft;
     const ref = state.entries[key]?.dayReflection || {};
@@ -3589,6 +3608,7 @@ const HomeCheckIn = {
     document.getElementById('endHardestMoment').value = ref.hardestMoment || '';
     document.getElementById('endGratefulFor').value = ref.gratefulFor || '';
     document.getElementById('endTomorrowFocus').value = ref.tomorrowFocus || '';
+    bindEndDayPickers();
     document.getElementById('endDayBack')?.classList.remove('hidden');
   },
 
@@ -3629,8 +3649,10 @@ const HomeCheckIn = {
     stream.nodes.push({ id: 'n-sleep-' + Date.now(), at: now, type: 'sleep', text: 'Day sealed' });
     const dayMood = readMoodPickerValue(document.getElementById('endMoodPicker'), 'endMood');
     if(dayMood) setCurrentMood(dayMood);
-    const people = document.getElementById('endPeople').value.split(',').map(s => s.trim()).filter(Boolean);
-    const places = document.getElementById('endPlaces').value.split(',').map(s => s.trim()).filter(Boolean);
+    const hobbyLogs = readEndHobbyLogs();
+    const people = readEndCardPicks('endPeoplePicks');
+    const pets = readEndCardPicks('endPetsPicks');
+    const places = readEndCardPicks('endPlacesPicks');
     const existing = state.entries[key] || {};
     const durationMs = stream.startedAt ? new Date(now) - new Date(stream.startedAt) : 0;
     state.entries[key] = {
@@ -3639,9 +3661,11 @@ const HomeCheckIn = {
       mood: dayMood,
       steps: document.getElementById('endSteps').value,
       workHours: document.getElementById('endWork').value,
-      hobby: document.getElementById('endHobbySelect').value,
-      hobbyHours: document.getElementById('endHobbyHours').value,
-      people,
+      hobby: hobbyLogs[0]?.hobby || '',
+      hobbyHours: hobbyLogs[0]?.hours || 0,
+      hobbyLogs,
+      people: [...people, ...pets],
+      pets,
       places,
       diary: document.getElementById('endDiary').value,
       photos: existing.photos || [],
@@ -3800,7 +3824,7 @@ const HomeCheckIn = {
   },
 
   renderLiveTodos(admin){
-    return this.renderPlannedTodosBoard(admin, todayKey(), { hideDayPicker: true });
+    return this.renderPlannedTodosBoard(admin, getActiveDayKey(), { hideDayPicker: true });
   },
 
   bindPlannedTodos(spread, opts = {}){
@@ -4102,7 +4126,10 @@ function renderHomeCheckIn(){
         <div class="live-on-air ${onAir ? 'is-live' : ''}${sealed ? ' is-sealed' : ''}">
           <span class="live-on-air-dot"></span>
           <span class="live-on-air-text">${sealed ? 'Off air' : onAir ? 'On air' : 'Off air'}</span>
-          <span class="live-on-air-date">${fmtDateLong(key)}</span>
+          <div class="live-on-air-dates">
+            <span class="live-on-air-date">${fmtDateLong(key)}</span>
+            ${key !== todayKey() ? `<span class="live-on-air-span">Day in progress · calendar ${fmtDateLong(todayKey())}</span>` : ''}
+          </div>
         </div>
         <div class="live-clocks-mini">
           <span class="live-clock-mini" id="clockShenzhen">--:--</span>
@@ -4361,22 +4388,34 @@ function getScrapbookWallItems(key, e, stream){
 
 function buildScrapbookPhotoPost(item, index, key, opts = {}){
   const layout = resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
-  const wideClass = ' layout-wide';
+  const wideClass = layout.gridWide ? ' layout-wide' : '';
   const sizeClass = ` size-${layout.size}`;
-  const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;`;
   const neon = stableNeon(item.id, index);
+  const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}`;
   const when = item.at ? fmtNodeStamp(item.at, key) : '';
   const adminEdit = isAdmin() && opts.nodeId
     ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(opts.nodeId)}" data-scrap-key="${esc(key)}">Edit</button>`
     : '';
-  return `<figure class="scrap-photo-post scrap-item${wideClass}${sizeClass}" style="${style}--scrap-neon:${neon}" data-scrap-id="${esc(item.id)}">
-    <div class="scrap-photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
-    <figcaption class="scrap-photo-meta">
-      ${when ? `<time class="scrap-photo-time">${esc(when)}</time>` : ''}
-      ${item.caption ? `<p class="scrap-photo-desc">${esc(item.caption)}</p>` : ''}
-      ${item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : ''}
-      ${adminEdit}
-    </figcaption>
+  const caption = item.caption || '';
+  const backBody = [
+    when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : '',
+    caption ? `<h3 class="flip-caption">${esc(caption)}</h3>` : '',
+    item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : '',
+    adminEdit,
+    `<span class="flip-hint-back">tap to flip back</span>`,
+  ].filter(Boolean).join('');
+
+  return `<figure class="photo-flip scrap-item${wideClass}${sizeClass}" style="${style}" data-scrap-id="${esc(item.id)}">
+    <div class="photo-flip-scene card-scene-border">
+      <div class="photo-flip-inner">
+        <div class="photo-flip-face photo-flip-front">
+          <div class="photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
+          <figcaption class="photo-caption">${esc(caption || 'Pulse')}</figcaption>
+          <span class="flip-hint-front">↻ story</span>
+        </div>
+        <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${backBody}</div></div>
+      </div>
+    </div>
   </figure>`;
 }
 
@@ -4393,8 +4432,8 @@ function buildScrapbookWallItem(item, index, key){
   if(item.kind === 'diary'){
     const neon = '#9b5cff';
     const when = item.at ? fmtNodeStamp(item.at, key) : '';
-    return `<figure class="photo-flip scrap-item scrap-item--writing${wideClass}${sizeClass}" style="${style}--flip-neon:${neon}" data-scrap-id="${esc(item.id)}">
-      <div class="photo-flip-scene">
+    return `<figure class="photo-flip scrap-item scrap-item--writing${wideClass}${sizeClass}" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+      <div class="photo-flip-scene card-scene-border">
         <div class="scrap-pulse-card">
           ${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
           <span class="scrap-pulse-type">Diary</span>
@@ -4435,14 +4474,23 @@ function buildScrapbookWallItem(item, index, key){
     const adminEdit = isAdmin()
       ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
       : '';
-    return `<figure class="scrap-photo-post scrap-item layout-wide" data-scrap-id="${esc(item.id)}">
-      <div class="scrap-photo-frame"><video src="${esc(node.video)}" controls playsinline></video></div>
-      <figcaption class="scrap-photo-meta">
-        ${when ? `<time class="scrap-photo-time">${esc(when)}</time>` : ''}
-        ${title ? `<p class="scrap-photo-desc">${esc(title)}</p>` : ''}
-        ${body ? `<p class="scrap-photo-desc scrap-photo-desc--sub">${esc(body)}</p>` : ''}
-        ${adminEdit}
-      </figcaption>
+    return `<figure class="photo-flip scrap-item layout-wide size-md" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+      <div class="photo-flip-scene card-scene-border">
+        <div class="photo-flip-inner">
+          <div class="photo-flip-face photo-flip-front">
+            <div class="photo-frame"><video src="${esc(node.video)}" muted playsinline preload="metadata"></video></div>
+            <figcaption class="photo-caption">${esc(title || 'Video')}</figcaption>
+            <span class="flip-hint-front">↻ notes</span>
+          </div>
+          <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">
+            ${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
+            ${title ? `<h3 class="flip-caption">${esc(title)}</h3>` : ''}
+            ${body ? `<p class="flip-desc">${esc(body)}</p>` : ''}
+            ${adminEdit}
+            <span class="flip-hint-back">tap to flip back</span>
+          </div></div>
+        </div>
+      </div>
     </figure>`;
   }
 
@@ -4479,14 +4527,24 @@ function buildScrapbookWallItem(item, index, key){
     </figure>`;
   }
 
-  return `<figure class="photo-flip scrap-item scrap-item--writing${writeWide}${sizeClass}" style="${style}--flip-neon:${neon}" data-scrap-id="${esc(item.id)}">
-    <div class="photo-flip-scene">
-      <div class="scrap-pulse-card">
-        <time class="scrap-pulse-time">${esc(when)}</time>
-        <span class="scrap-pulse-type">${meta.icon} ${meta.label}</span>
-        ${title ? `<h3 class="scrap-pulse-title">${esc(title)}</h3>` : ''}
-        ${text ? `<p class="scrap-pulse-body">${esc(text)}</p>` : ''}
-        ${adminEdit}
+  return `<figure class="photo-flip scrap-item scrap-item--writing${writeWide}${sizeClass}" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+    <div class="photo-flip-scene card-scene-border">
+      <div class="photo-flip-inner">
+        <div class="photo-flip-face photo-flip-front">
+          <div class="scrap-pulse-card scrap-pulse-card--front">
+            <time class="scrap-pulse-time">${esc(when)}</time>
+            <span class="scrap-pulse-type">${meta.icon} ${meta.label}</span>
+            ${title ? `<h3 class="scrap-pulse-title">${esc(title)}</h3>` : ''}
+            <span class="flip-hint-front">↻ read</span>
+          </div>
+        </div>
+        <div class="photo-flip-face photo-flip-back">
+          <div class="scrap-pulse-card">
+            ${text ? `<p class="scrap-pulse-body">${esc(text)}</p>` : ''}
+            ${adminEdit}
+            <span class="flip-hint-back">tap to flip back</span>
+          </div>
+        </div>
       </div>
     </div>
   </figure>`;
@@ -5358,9 +5416,88 @@ function openCoderProfileModal(coderId){
   });
 }
 
-function getPeopleCards(){
-  return (typeof getCharacters === 'function' ? getCharacters() : [])
+function getPeopleCards(kind){
+  const all = (typeof getCharacters === 'function' ? getCharacters() : [])
     .filter(c => !c.isCoderCard && !(typeof isCoderDeckCard === 'function' && isCoderDeckCard(c)));
+  if(kind === 'pet') return all.filter(c => c.isPet);
+  if(kind === 'person') return all.filter(c => !c.isPet);
+  return all;
+}
+
+function renderEndCardPickGrid(cards, selectedNames, addKind){
+  const inner = (cards || []).map(c => {
+    const thumb = c.image || c.avatar;
+    const checked = selectedNames.includes(c.name) ? 'checked' : '';
+    return `<label class="end-card-pick"><input type="checkbox" value="${esc(c.name)}" ${checked}>
+      ${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="end-card-pick-ph">${esc((c.name || '?')[0])}</span>`}
+      <span>${esc(c.name)}</span></label>`;
+  }).join('');
+  return `${inner || '<p class="empty-hint">No cards yet.</p>'}
+    ${isAdmin() ? `<button type="button" class="btn end-card-add" data-end-add="${esc(addKind)}">+ New</button>` : ''}`;
+}
+
+function renderEndHobbyPicks(entry){
+  const logs = entry.hobbyLogs?.length ? entry.hobbyLogs : (entry.hobby ? [{ hobby: entry.hobby, hours: entry.hobbyHours }] : []);
+  const selected = new Map(logs.map(h => [h.hobby || h.name, h.hours]));
+  return getHobbyOptions().map(h => {
+    const hrs = selected.has(h) ? selected.get(h) : '';
+    const checked = selected.has(h) ? 'checked' : '';
+    return `<label class="end-hobby-pick"><input type="checkbox" data-end-hobby="${esc(h)}" ${checked}><span>${esc(h)}</span><input type="number" class="end-hobby-hrs" data-end-hobby-name="${esc(h)}" min="0" step="0.5" value="${hrs}" placeholder="hrs"></label>`;
+  }).join('');
+}
+
+function readEndCardPicks(containerId){
+  return [...document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)].map(cb => cb.value.trim()).filter(Boolean);
+}
+
+function readEndHobbyLogs(){
+  return [...document.querySelectorAll('[data-end-hobby]:checked')].map(cb => {
+    const name = cb.dataset.endHobby;
+    const hrsEl = document.querySelector(`[data-end-hobby-name="${CSS.escape(name)}"]`);
+    return { hobby: name, hours: parseFloat(hrsEl?.value) || 0 };
+  });
+}
+
+function bindEndDayPickers(){
+  document.querySelectorAll('[data-end-add]').forEach(btn => {
+    if(btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const kind = btn.dataset.endAdd;
+      if(kind === 'place') openContentEditor('place', null, true);
+      else {
+        window.__gaNewCharacterIsPet = kind === 'pet';
+        openContentEditor('character', null, true);
+      }
+    });
+  });
+}
+
+function renderPersonDeck(deckId, metaId, cards, addLabel, isPet){
+  const deck = document.getElementById(deckId);
+  if(!deck) return;
+  const header = document.getElementById(metaId);
+  if(header){
+    header.innerHTML = isAdmin()
+      ? `<button type="button" class="btn primary" data-add-person="${isPet ? 'pet' : 'person'}">+ ${addLabel}</button>`
+      : '';
+  }
+  deck.innerHTML = cards.length
+    ? cards.map((c, i) => (typeof buildFlipPersonCard === 'function' ? buildFlipPersonCard(c, i) : buildSimplePersonCard(c, i))).join('')
+    : `<p class="empty-hint">No ${addLabel.toLowerCase()} yet.</p>`;
+  bindFlipPlayerCards(deck);
+  deck.querySelectorAll('.flip-edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fig = btn.closest('.poke-flip, .person-card-wrap');
+      const id = fig?.dataset?.cardId || fig?.querySelector('[data-flip-id]')?.dataset?.flipId;
+      if(id) openContentEditor('character', id, false);
+    });
+  });
+  header?.querySelector('[data-add-person]')?.addEventListener('click', () => {
+    window.__gaNewCharacterIsPet = isPet;
+    openContentEditor('character', null, true);
+  });
 }
 
 function buildSimplePersonCard(c, index){
@@ -5395,28 +5532,8 @@ function buildSimplePersonCard(c, index){
 }
 
 function renderCharacters(){
-  const deck = document.getElementById('charDeck');
-  if(!deck) return;
-  const people = getPeopleCards();
-  const header = document.getElementById('playerDeckMeta');
-  if(header){
-    header.innerHTML = isAdmin() ? `<button type="button" class="btn primary" id="addCharBtn">+ Person</button>` : '';
-  }
-  deck.innerHTML = people.length
-    ? people.map((c, i) => buildSimplePersonCard(c, i)).join('')
-    : `<p class="empty-hint">No people cards yet.</p>`;
-  bindFlipPlayerCards(deck);
-  deck.querySelectorAll('.flip-edit-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const card = btn.closest('.person-card-wrap');
-      const id = card?.querySelector('[data-flip-id]')?.dataset?.flipId;
-      if(id && typeof openContentEditor === 'function') openContentEditor('character', id, false);
-    });
-  });
-  document.getElementById('addCharBtn')?.addEventListener('click', () => {
-    if(typeof openContentEditor === 'function') openContentEditor('character', null, true);
-  });
+  renderPersonDeck('peopleDeck', 'peopleDeckMeta', getPeopleCards('person'), 'Person', false);
+  renderPersonDeck('petsDeck', 'petsDeckMeta', getPeopleCards('pet'), 'Pet', true);
 }
 
 function findCoderCardByName(name){
@@ -6447,8 +6564,8 @@ function renderGallery(){
     const frontImg = p.src
       ? `<img src="${esc(p.src)}" alt="" loading="lazy">`
       : `<div class="photo-placeholder">◈</div>`;
-    return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide ? ' layout-wide' : ''} size-${p.size}${photoHasStory(p) ? ' has-story' : ''}" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon}" data-gallery-id="${esc(id)}">
-      <div class="photo-flip-scene">
+    return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide ? ' layout-wide' : ''} size-${p.size}${photoHasStory(p) ? ' has-story' : ''}" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-gallery-id="${esc(id)}">
+      <div class="photo-flip-scene card-scene-border">
         <div class="photo-flip-inner">
           <div class="photo-flip-face photo-flip-front">
             <button type="button" class="card-edit-front flip-edit-btn edit-when-editing" aria-label="Edit photo">Edit</button>

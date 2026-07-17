@@ -480,6 +480,63 @@ function buildPlayerCardBack(item, unlocked, opts = {}){
   </div>`;
 }
 
+function buildPersonCardFront(item, opts = {}){
+  const pc = normalizePokeCard(item);
+  const accent = opts.accent || getPlayerAccent(item, opts);
+  const artSrc = item.image || item.avatar;
+  const name = esc(item.name);
+  const art = buildCardPhotoHtml(artSrc, true, item.name, { x: item.imageFocusX, y: item.imageFocusY });
+  const brief = item.cardDescription || item.selfDescription || pc.vibe || pc.subtitle || '';
+  const kind = item.isPet ? '🐾' : '👤';
+
+  return `<div class="pc-front plc-front" style="--pc-accent:${accent}">
+    ${adminCardEditBtn()}
+    <div class="pc-frame-glow"></div>
+    <div class="pc-head pc-head-simple">
+      <span class="pc-name">${name}</span>
+      <span class="pc-lv">${kind}</span>
+    </div>
+    <div class="pc-art">${art}</div>
+    ${brief ? `<p class="pc-blurb">${esc(brief.slice(0, 90))}${brief.length > 90 ? '…' : ''}</p>` : ''}
+    <span class="flip-hint-front">↻ details</span>
+  </div>`;
+}
+
+function buildPersonCardBack(item, opts = {}){
+  const pc = normalizePokeCard(item);
+  const accent = opts.accent || getPlayerAccent(item, opts);
+  const cardId = opts.cardId || item.id || '';
+  const row = (l, v) => v ? `<div class="pc-row"><span>${l}</span><span>${esc(String(v))}</span></div>` : '';
+  const desc = item.cardDescription || item.selfDescription || pc.vibe || '';
+
+  return `<div class="pc-back plc-back" style="--pc-accent:${accent}">
+    <div class="pc-back-title">${esc(item.name)}</div>
+    ${row('Age', displayCardAge(item, pc))}
+    ${row('MBTI', pc.mbti || item.mbti)}
+    ${row('Birthday', formatBirthdayDisplay(pc.birthday || item.birthday))}
+    ${desc ? `<div class="plc-desc"><p>${esc(desc)}</p></div>` : ''}
+    <div class="pc-admin-row edit-when-editing">
+      <button type="button" class="btn flip-edit-btn">Edit</button>
+      ${cardId ? `<button type="button" class="btn admin-delete flip-del-btn" data-del-type="character" data-del-id="${esc(cardId)}">Delete</button>` : ''}
+    </div>
+    <span class="flip-hint-back">flip back</span>
+  </div>`;
+}
+
+function buildFlipPersonCard(item, index){
+  const id = item.id || item.name;
+  const accent = stableNeon(id, index);
+  const tilt = ((index % 3) * 0.9 - 0.9).toFixed(1);
+  const petCls = item.isPet ? ' pet-flip' : '';
+
+  return `<figure class="poke-flip place-flip person-flip${petCls}" style="--pc-accent:${accent};--tilt:${tilt}deg" data-card-id="${esc(id)}" data-card-type="character">
+    <div class="poke-flip-scene"><div class="poke-flip-inner">
+      <div class="poke-flip-face poke-flip-front">${buildPersonCardFront(item, { accent })}</div>
+      <div class="poke-flip-face poke-flip-back">${buildPersonCardBack(item, { accent, cardId: id })}</div>
+    </div></div>
+  </figure>`;
+}
+
 function buildFlipPlayerCard(item, cardType, index, opts = {}){
   const isPlace = cardType === 'place';
   const unlocked = isPlace ? (item.unlocked || getUnlockedZones().includes(item.name)) : true;

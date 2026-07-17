@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260717a">
+<link rel="stylesheet" href="style.css?v=20260717b">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -38,13 +38,16 @@
   function earlyDismiss(){
     finishBoot();
     hideBootError();
-    try{ sessionStorage.setItem('ga-saw-intro', '1'); }catch(e){}
-    document.body.classList.add('login-screen-active');
-    document.body.classList.remove('site-unlocked');
+    try{
+      sessionStorage.setItem('ga-saw-intro', '1');
+      sessionStorage.setItem('ga-site-mode', 'watch');
+    }catch(e){}
+    document.body.classList.remove('login-screen-active');
+    document.body.classList.add('site-unlocked');
     var app = document.getElementById('app');
     var login = document.getElementById('loginPage');
-    if(app) app.classList.add('hidden');
-    if(login) login.classList.remove('hidden');
+    if(app) app.classList.remove('hidden');
+    if(login) login.classList.add('hidden');
   }
   window.__gaFinishBoot = finishBoot;
   window.__gaHideBootError = hideBootError;
@@ -74,7 +77,7 @@
 })();
 </script>
 </head>
-<body class="login-screen-active">
+<body>
 
 <div id="backdrop">
   <div class="glow a"></div>
@@ -99,8 +102,6 @@
   <div class="loading-brand" id="loadingBrand">
     <h1 class="loading-title">Gray Areas</h1>
     <p class="loading-sub">project shenzhen</p>
-    <p class="loading-url"><a href="https://grayziace.github.io/Gray-Areas/">grayziace.github.io/Gray-Areas</a></p>
-    <button class="btn primary intro-enter-btn" id="enterSiteBtn" type="button">Enter site →</button>
   </div>
   <button class="skip-btn" id="skipLoading" aria-label="Skip intro">×</button>
 </div>
@@ -146,7 +147,7 @@
       <button data-view="press" class="node-btn" style="--nc:#f472b6"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▥</span><span class="node-label">The Press</span></button>
       <button data-view="gallery" class="node-btn" style="--nc:#a78bfa"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">▣</span><span class="node-label">Photo Wall</span></button>
       <button data-view="vlog" class="node-btn" style="--nc:#f97316"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">◉</span><span class="node-label">Video Log</span></button>
-      <button data-view="quests" class="node-btn admin-only hidden" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
+      <button data-view="quests" class="node-btn" style="--nc:#4ade80"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">★</span><span class="node-label">Quests</span></button>
       <button data-view="mind" class="node-btn admin-only hidden" style="--nc:#f43f8e"><span class="node-dot"></span><span class="node-icon" aria-hidden="true">☠</span><span class="node-label">System Overload</span></button>
     </nav>
     <div class="admin-bar admin-only hidden" id="adminBar">
@@ -246,10 +247,13 @@
 
     <section class="view neon-section" id="view-characters" style="--sec-neon:#e94ff5">
       <h2 class="view-title sketch-title">People</h2>
-      <p class="gallery-hint">Ranked by XP — #1, #2, #3 glow on the deck. Higher XP = higher rank. Click to flip.</p>
-      <div id="playerDeckMeta" class="player-deck-meta"></div>
-      <div class="card-deck" id="charDeck"></div>
-      <button class="btn admin-only hidden" id="addCharBtn" style="margin-top:14px">+ Add player</button>
+      <p class="gallery-hint">Friends &amp; faces — same card style as places. Click to flip.</p>
+      <div id="peopleDeckMeta" class="player-deck-meta"></div>
+      <div class="card-deck" id="peopleDeck"></div>
+      <h2 class="view-subtitle sketch-title" style="margin-top:28px">Pets</h2>
+      <p class="gallery-hint">Animals met along the way.</p>
+      <div id="petsDeckMeta" class="player-deck-meta"></div>
+      <div class="card-deck" id="petsDeck"></div>
     </section>
 
     <section class="view neon-section" id="view-skills" style="--sec-neon:#7c4dff">
@@ -718,11 +722,11 @@
       <div class="field field-mood"><label>Current mood</label><div id="endMoodPicker"></div></div>
       <div class="field"><label>Steps</label><input type="number" id="endSteps" value="0"></div>
       <div class="field"><label>Work hours</label><input type="number" id="endWork" min="0" step="0.5" value="0"></div>
-      <div class="field"><label>Hobby</label><select id="endHobbySelect"><option value="">—</option></select></div>
-      <div class="field"><label>Hobby hours</label><input type="number" id="endHobbyHours" min="0" step="0.5" value="0"></div>
     </div>
-    <div class="field"><label>People met</label><input type="text" id="endPeople" placeholder="comma-separated"></div>
-    <div class="field"><label>Places discovered</label><input type="text" id="endPlaces" placeholder="comma-separated"></div>
+    <div class="field"><label>Hobbies today</label><p class="field-hint">Tick every hobby you worked on and log hours.</p><div id="endHobbyPicks" class="end-hobby-picks"></div></div>
+    <div class="field"><label>People met</label><div id="endPeoplePicks" class="end-card-picks"></div></div>
+    <div class="field"><label>Pets met</label><div id="endPetsPicks" class="end-card-picks"></div></div>
+    <div class="field"><label>Places discovered</label><div id="endPlacesPicks" class="end-card-picks"></div></div>
     <div class="field"><label>Diary entry</label><textarea id="endDiary" rows="5" placeholder="how the day actually felt — auto-filled from your pulses"></textarea></div>
     <div class="modal-actions">
       <button class="btn" id="cancelEndDay" type="button">Cancel</button>
@@ -889,7 +893,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260717a';
+    s.src = files[i++] + '?v=20260717b';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

@@ -72,7 +72,6 @@ const QUEST_TYPES = [
   { id: 'music', label: 'Song / playlist quest', icon: '♫', neon: '#f472b6' },
   { id: 'style', label: 'Outfit / style challenge', icon: '◇', neon: '#fcd34d' },
   { id: 'kindness', label: 'Random kindness', icon: '★', neon: '#f9a8d4' },
-  { id: 'chaos', label: 'Chaos / piss me off', icon: '☠', neon: '#f87171' },
   { id: 'book_rec', label: 'Book recommendation', icon: '📖', neon: '#a78bfa' },
   { id: 'film_rec', label: 'Film recommendation', icon: '🎞', neon: '#f43f8e' },
   { id: 'tv_rec', label: 'TV recommendation', icon: '📺', neon: '#818cf8' },
@@ -2265,27 +2264,29 @@ const ViewerWorld = {
   renderQuests(){
     const host = document.getElementById('questSpread');
     if(!host) return;
-    if(!isAdmin()){
-      host.innerHTML = `<p class="empty-hint">Personal quests — unlock player mode to set your own.</p>`;
-      return;
-    }
-    const typeOpts = QUEST_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+    const admin = isAdmin();
+    const typeOpts = QUEST_TYPES.filter(t => t.id !== 'chaos').map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
     const completed = (state.quests || []).filter(q => q.status === 'completed').slice().reverse();
     const open = (state.quests || []).filter(q => q.status !== 'completed' && q.status !== 'declined');
 
-    host.innerHTML = `<div class="quest-page-wrap quest-page-neon">
-      <section class="quest-compose sketch-card">
+    const compose = admin ? `<section class="quest-compose sketch-card">
         <h3 class="viewer-wizard-title">Set a quest</h3>
         <form id="selfQuestForm">
           <div class="field-row">
             <div class="field"><label>Type</label><select id="questType">${typeOpts}</select></div>
             <div class="field"><label>Title</label><input type="text" id="questTitle" required placeholder="Get matcha, finish edit…"></div>
           </div>
-          <div class="field"><label>Mission</label><textarea id="questBody" rows="3" required placeholder="What do you want to do?"></textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Mission</label><textarea id="questBody" rows="3" required placeholder="What do you want to do?"></textarea></div>
+            <div class="field"><label>XP reward</label><input type="number" id="questXp" min="1" step="1" value="25" placeholder="25"></div>
+          </div>
           <button type="submit" class="btn primary">Add quest</button>
         </form>
-      </section>
-      <section class="quest-open-section"><h3 class="viewer-wizard-title">Open</h3>
+      </section>` : `<p class="empty-hint">Quests Gray wants to do — unlock player mode to add your own.</p>`;
+
+    host.innerHTML = `<div class="quest-page-wrap quest-page-neon">
+      ${compose}
+      <section class="quest-open-section"><h3 class="viewer-wizard-title">${admin ? 'Open' : 'On the list'}</h3>
         ${open.length ? `<div class="quest-list">${open.map(q => this.selfQuestRowHtml(q)).join('')}</div>` : `<p class="empty-hint">No open quests.</p>`}
       </section>
       ${completed.length ? `<section><h3 class="viewer-wizard-title">Done</h3><div class="quest-list">${completed.map(q => this.selfQuestRowHtml(q, true)).join('')}</div></section>` : ''}
@@ -2298,11 +2299,12 @@ const ViewerWorld = {
 
   selfQuestRowHtml(q, done){
     const type = QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5];
+    const xp = q.xpReward || GRAY_XP_AWARDS?.quest?.xp || 25;
     return `<article class="quest-card" style="--qc-neon:${type.neon}">
-      <header class="quest-card-head"><span class="quest-type">${type.icon} ${type.label}</span></header>
+      <header class="quest-card-head"><span class="quest-type">${type.icon} ${type.label}</span>${xp ? `<span class="quest-xp-badge">+${xp} XP</span>` : ''}</header>
       <h4 class="quest-title">${esc(q.title)}</h4>
       <p class="quest-body">${esc(q.body)}</p>
-      ${!done ? `<div class="quest-actions">
+      ${!done && isAdmin() ? `<div class="quest-actions">
         <button type="button" class="btn primary" data-self-quest-done="${esc(q.id)}">Done</button>
         <button type="button" class="btn" data-self-quest-del="${esc(q.id)}">Remove</button>
       </div>` : ''}
@@ -2314,11 +2316,13 @@ const ViewerWorld = {
     const title = document.getElementById('questTitle')?.value?.trim();
     const body = document.getElementById('questBody')?.value?.trim();
     if(!title || !body) return;
+    const xpRaw = parseInt(document.getElementById('questXp')?.value, 10);
     const q = {
       id: uid('quest'),
       type: document.getElementById('questType')?.value || 'other',
       title,
       body,
+      xpReward: Number.isFinite(xpRaw) && xpRaw > 0 ? xpRaw : 25,
       fromName: 'Me',
       fromId: 'gray',
       status: 'accepted',
@@ -2328,6 +2332,8 @@ const ViewerWorld = {
     state.quests.unshift(q);
     saveState();
     document.getElementById('selfQuestForm')?.reset();
+    const xpEl = document.getElementById('questXp');
+    if(xpEl) xpEl.value = '25';
     this.renderQuests();
   },
 
@@ -2337,7 +2343,7 @@ const ViewerWorld = {
     q.status = 'completed';
     q.completedAt = new Date().toISOString();
     saveState();
-    awardGrayPoints(GRAY_XP_AWARDS?.quest?.xp || 25, 'quest');
+    awardGrayPoints(q.xpReward || GRAY_XP_AWARDS?.quest?.xp || 25, 'quest');
     this.renderQuests();
   },
 
