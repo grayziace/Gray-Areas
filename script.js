@@ -5140,9 +5140,9 @@ function buildEvidenceWall(wallItems, key){
     const frag = fragMap.get(item.id || String(i));
     return buildScrapbookWallItem(item, i, key, frag);
   }).join('');
-  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px">
+  return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
     <span class="evidence-board-label" aria-hidden="true">Evidence board · case file</span>
-    <div class="evidence-surface">
+    <div class="evidence-surface" style="--wall-w:${wallW}px;--wall-h:${wallHeight}px">
       ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
       ${html || '<p class="empty-hint evidence-empty">Post on Coming To You Live — fragments land here.</p>'}
     </div>
