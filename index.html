@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gray Areas">
 <meta name="theme-color" content="#9b5cff">
-<link rel="stylesheet" href="style.css?v=20260717b">
+<link rel="stylesheet" href="style.css?v=20260717c">
 <script>
 (function(){
   var bootWatchdog = null;
@@ -89,6 +89,13 @@
 </div>
 
 <div id="loading">
+  <div class="intro-sparkles" aria-hidden="true">
+    <span class="intro-spark is-1">✦</span>
+    <span class="intro-spark is-2">✧</span>
+    <span class="intro-spark is-3">·</span>
+    <span class="intro-spark is-4">✦</span>
+    <span class="intro-spark is-5">♡</span>
+  </div>
   <div class="intro-journey" id="introJourney">
     <div class="intro-places">
       <p class="intro-place intro-place-uk" id="introUk">United Kingdom</p>
@@ -96,6 +103,7 @@
     </div>
     <div class="intro-travel" id="introTravel" aria-hidden="true">
       <span class="intro-travel-track"></span>
+      <span class="intro-travel-plane" id="introPlane">✈</span>
       <span class="intro-travel-marker"></span>
     </div>
   </div>
@@ -114,7 +122,7 @@
   </div>
 </div>
 
-<div id="loginPage" class="login-page">
+<div id="loginPage" class="login-page hidden" hidden aria-hidden="true">
   <div class="login-page-glow" aria-hidden="true"></div>
   <div class="login-page-inner">
     <header class="login-page-brand">
@@ -893,7 +901,7 @@
       return;
     }
     var s = document.createElement('script');
-    s.src = files[i++] + '?v=20260717b';
+    s.src = files[i++] + '?v=20260717c';
     s.onload = loadNext;
     s.onerror = function(){
       console.error('Gray Areas: could not load', s.src);

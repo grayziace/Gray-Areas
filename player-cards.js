@@ -487,15 +487,18 @@ function buildPersonCardFront(item, opts = {}){
   const name = esc(item.name);
   const art = buildCardPhotoHtml(artSrc, true, item.name, { x: item.imageFocusX, y: item.imageFocusY });
   const brief = item.cardDescription || item.selfDescription || pc.vibe || pc.subtitle || '';
-  const kind = item.isPet ? '🐾' : '👤';
+  const age = displayCardAge(item, pc);
+  const bday = formatBirthdayDisplay(pc.birthday || item.birthday);
+  const metaBits = [age ? `Age ${age}` : '', bday ? `🎂 ${bday}` : ''].filter(Boolean);
+  const metaLine = metaBits.join(' · ');
 
   return `<div class="pc-front plc-front" style="--pc-accent:${accent}">
     ${adminCardEditBtn()}
     <div class="pc-frame-glow"></div>
     <div class="pc-head pc-head-simple">
       <span class="pc-name">${name}</span>
-      <span class="pc-lv">${kind}</span>
     </div>
+    ${metaLine ? `<p class="pc-person-meta">${esc(metaLine)}</p>` : ''}
     <div class="pc-art">${art}</div>
     ${brief ? `<p class="pc-blurb">${esc(brief.slice(0, 90))}${brief.length > 90 ? '…' : ''}</p>` : ''}
     <span class="flip-hint-front">↻ details</span>

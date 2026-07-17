@@ -2497,6 +2497,10 @@ function dismissLoading(){
     setTimeout(() => el.remove(), 700);
   }
   document.getElementById('bootError')?.classList.add('hidden');
+  document.getElementById('loginPage')?.classList.add('hidden');
+  document.getElementById('app')?.classList.remove('hidden');
+  document.body.classList.remove('login-screen-active');
+  document.body.classList.add('site-unlocked');
   if(typeof enterMainSite === 'function') enterMainSite();
   else if(typeof GameHub !== 'undefined') GameHub.enterWatchMode?.();
 }
@@ -2516,24 +2520,27 @@ function introSequence(){
   const sz = document.getElementById('introSz');
   const travel = document.getElementById('introTravel');
   const brand = document.getElementById('loadingBrand');
+  const loading = document.getElementById('loading');
 
   bindIntroSkip();
+  loading?.classList.add('intro-playing');
 
   setTimeout(() => {
     uk?.classList.add('out');
     travel?.classList.add('active');
-  }, 900);
+  }, 700);
 
   setTimeout(() => {
     sz?.classList.add('in');
-  }, 1300);
+  }, 2800);
 
   setTimeout(() => {
     journey?.classList.add('out');
+    loading?.classList.add('intro-title-phase');
     brand?.classList.add('in');
-  }, 2400);
+  }, 3600);
 
-  setTimeout(dismissLoading, 4200);
+  setTimeout(dismissLoading, 5800);
 }
 
 function wireNavigation(){
@@ -2606,8 +2613,7 @@ function bootApp(){
   if(typeof clearAuthSession === 'function') clearAuthSession();
   try{
     bindIntroSkip();
-    if(sessionStorage.getItem('ga-saw-intro') === '1') dismissLoading();
-    else introSequence();
+    introSequence();
     wireNavigation();
     initGlobalEditHandlers();
   }catch(err){
@@ -4333,7 +4339,7 @@ function buildScrapbookChrome(key, nav = {}){
   const adminEdit = isAdmin()
     ? `<button type="button" class="btn scrapbook-edit-day" data-scrap-edit-day="${key}">Edit this day</button>`
     : '';
-  return `<header class="scrapbook-chrome sketch-card">
+  return `<header class="scrapbook-chrome card-panel">
     <button type="button" class="btn" data-scrap-day="${prevKey}" aria-label="Previous day">←</button>
     <div class="scrapbook-date-head">
       <span class="scrapbook-weekday">${esc(weekday)}</span>
@@ -4583,7 +4589,7 @@ function buildDayScrapbookHTML(key, e, nav = {}){
 
   return `<div class="scrapbook-day" style="--db-mood:${moodColor(moodId)}">
     ${buildScrapbookChrome(key, nav)}
-    <div class="scrapbook-meta sketch-card">
+    <div class="scrapbook-meta card-panel">
       <span class="scrapbook-status${completed ? ' is-sealed' : ''}">${statusLabel}</span>
       ${moodId ? `<span class="scrapbook-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
       ${spanLine ? `<span class="scrapbook-span">${esc(spanLine)}</span>` : ''}
