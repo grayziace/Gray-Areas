@@ -3601,34 +3601,20 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
   transform:scale(1.18) skewY(10deg) rotate(8deg);
   box-shadow:0 0 16px var(--neon-pink),0 0 30px rgba(255,79,216,0.5);
 }
-.scrapbook-wall{margin:0;padding:12px 6px 28px;min-height:52vh;}
-.scrapbook-wall.photo-wall{
-  display:grid;grid-template-columns:repeat(12,1fr);
-  gap:0;row-gap:4px;padding:8px 4px 32px;align-items:start;
+.scrapbook-wall{margin:0;padding:12px 4px 24px;min-height:52vh;}
+.scrap-note-preview{
+  flex-direction:column;align-items:stretch;justify-content:flex-start;
+  padding:16px 14px 12px;min-height:100%;height:100%;
 }
-.scrapbook-wall .photo-flip{
-  grid-column:span 4;width:100%!important;
-  margin:0 0 -18px;z-index:var(--scrap-z,1);
+.scrap-note-type{
+  display:block;font-family:var(--font-data);font-size:9px;letter-spacing:0.14em;
+  text-transform:uppercase;color:var(--flip-neon,var(--neon-cyan));margin-bottom:10px;
 }
-.scrapbook-wall .photo-flip.layout-wide{grid-column:span 4;}
-.scrapbook-wall .photo-flip-front{overflow:visible;padding-bottom:18px;}
-.scrapbook-wall .photo-frame{position:relative;z-index:1;}
-.scrapbook-wall .scrap-sticker-caption,
-.scrapbook-wall .photo-caption{
-  position:absolute;left:8%;right:8%;bottom:-4px;margin:0;
-  padding:7px 11px;font-family:var(--font-sketch);font-size:13px;line-height:1.25;
-  text-align:center;color:var(--text-hi);
-  background:var(--card-face);
-  border:2px solid color-mix(in srgb,var(--flip-neon,var(--neon-cyan)) 55%,var(--border-glass));
-  border-radius:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,0.38),0 0 14px color-mix(in srgb,var(--flip-neon,var(--neon-cyan)) 18%,transparent);
-  transform:rotate(var(--cap-rot,-2deg));
-  z-index:4;
+.scrap-note-excerpt{
+  margin:0;font-family:var(--font-sketch);font-size:15px;line-height:1.35;color:var(--text-mid);
+  text-align:center;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;
 }
-@media(max-width:720px){
-  .scrapbook-wall.photo-wall{grid-template-columns:repeat(12,1fr);}
-  .scrapbook-wall .photo-flip,.scrapbook-wall .photo-flip.layout-wide{grid-column:span 4;}
-}
+.scrap-note-glyph{font-family:var(--font-sketch);font-size:28px;color:var(--flip-neon,var(--text-low));opacity:0.55;}
 .scrapbook-todos{
   margin:0 8px 10px;padding:10px 14px;
   background:var(--card-face);
@@ -3636,8 +3622,6 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
   border-radius:var(--radius-card);
   box-shadow:inset 0 0 28px color-mix(in srgb,#9b5cff 8%,transparent);
 }
-.scrap-item--writing .photo-flip-front{padding:14px;text-align:left;background:var(--card-face);}
-.scrap-item--writing .photo-flip-front .scrap-pulse-title{margin:6px 0 0;font-size:15px;}
 .scrapbook-date-head{text-align:center;flex:0 1 auto;min-width:140px;}
 .scrapbook-weekday{display:block;font-family:var(--font-display);font-size:clamp(18px,3vw,26px);color:var(--text-hi);letter-spacing:0.06em;text-transform:uppercase;}
 .scrapbook-month{display:block;font-family:var(--font-data);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9b5cff;margin-top:4px;}
@@ -3693,7 +3677,7 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
   border-radius:3px;cursor:pointer;
 }
 .live-node-edit:hover{color:var(--text-hi);border-color:var(--ln-neon);}
-.scrap-item--writing .photo-flip-scene{min-height:140px;}
+.scrap-item--writing .photo-flip-scene{min-height:unset;}
 .profile-deck-view .gallery-hint{margin-bottom:12px;}
 .profile-photo-wall{margin-top:4px;}
 .profile-site-main:has(.profile-site-panel--deck.is-active){
