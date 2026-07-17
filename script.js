@@ -4613,32 +4613,32 @@ function evidenceFragmentTier(shape, isHero){
 }
 
 function pinRotation(seed, tier){
-  if(tier === 'hero') return ((seed % 25) - 12) * 0.82;
-  if(tier === 'sticker') return ((seed % 33) - 16) * 1.05;
-  return ((seed % 19) - 9) * 0.55;
+  if(tier === 'hero') return ((seed % 29) - 14) * 1.15;
+  if(tier === 'sticker') return ((seed % 41) - 20) * 1.35;
+  return ((seed % 23) - 11) * 0.95;
 }
 
 function shrinkWrapFragmentSize(item, shape, seed, isHero){
   const text = getEvidenceText(item);
   const len = text.length;
-  const lines = Math.max(1, Math.ceil(len / 36));
+  const lines = Math.max(1, Math.ceil(len / 42));
 
   if(shape === 'photo' || shape === 'video'){
     const tier = isHero ? 'hero' : 'support';
-    const scale = isHero ? 1 : 0.72;
-    const w = Math.round((268 + (seed % 36)) * scale);
-    const h = Math.round((290 + ((seed >> 2) % 28)) * scale);
-    return { w, h, weight: (isHero ? EVIDENCE_TIERS.hero : EVIDENCE_TIERS.support) + (seed % 8), tier };
+    const scale = isHero ? 1 : 0.68;
+    const w = Math.round((280 + (seed % 40)) * scale);
+    const h = Math.round((300 + ((seed >> 2) % 32)) * scale);
+    return { w, h, weight: (isHero ? EVIDENCE_TIERS.hero : EVIDENCE_TIERS.support) + (seed % 8), tier, media: true };
   }
   if(shape === 'strip' || shape === 'tall'){
-    const w = Math.min(210, Math.max(92, 76 + len * 1.05));
-    const h = Math.max(38, 22 + lines * 17 + (shape === 'tall' ? 18 : 0));
-    return { w, h, weight: EVIDENCE_TIERS.sticker + Math.min(len, 40), tier: 'sticker' };
+    const w = Math.min(168, Math.max(72, 52 + len * 0.72));
+    const h = Math.max(28, 16 + lines * 13 + (shape === 'tall' ? 10 : 0));
+    return { w, h, weight: EVIDENCE_TIERS.sticker + Math.min(len, 30), tier: 'sticker', media: false };
   }
-  const w = Math.min(300, Math.max(128, 108 + len * 0.85));
-  const h = Math.max(48, 30 + lines * 18);
+  const w = Math.min(220, Math.max(96, 72 + len * 0.55));
+  const h = Math.max(36, 22 + lines * 14);
   const tier = evidenceFragmentTier(shape, isHero);
-  return { w, h, weight: tier === 'hero' ? EVIDENCE_TIERS.hero : EVIDENCE_TIERS.support + Math.min(len, 60), tier };
+  return { w, h, weight: EVIDENCE_TIERS.support + Math.min(len, 40), tier: tier === 'hero' ? 'hero' : 'support', media: false };
 }
 
 function evidenceFragmentShape(item){
@@ -4682,6 +4682,7 @@ function describeEvidenceFragment(item, index, isHero){
     linkKey: evidenceLinkKey(item),
     clipVariant: seed % 4,
     isHero: !!isHero,
+    media: !!sized.media,
   };
 }
 
@@ -4758,6 +4759,20 @@ function evidenceRectsCollide(a, b, gap = 18){
     && a.top + a.h + gap > b.top;
 }
 
+function evidenceClusterOffset(f, anchor, i){
+  const stack = [
+    { dx: anchor.w + 8, dy: 18 },
+    { dx: -f.w + 24, dy: 42 },
+    { dx: 22, dy: anchor.h + 6 },
+    { dx: anchor.w - 12, dy: -f.h + 28 },
+  ];
+  const s = stack[i % stack.length];
+  return {
+    left: anchor.left + s.dx + (f.seed % 10) - 4,
+    top: anchor.top + s.dy + ((f.seed >> 2) % 8),
+  };
+}
+
 function evidenceBoardQuadrants(wallW, wallH){
   const midX = Math.round(wallW * 0.5);
   const midY = Math.round(wallH * 0.46);
@@ -4784,25 +4799,30 @@ function evidenceTryPlace(f, quad, occupied, seed){
 }
 
 function evidenceOrbitSlot(f, hero, slotIdx, occupied, wallW){
+  const anchor = evidenceOccupiedRect(hero.layout.leftPx, hero.layout.topPx, hero.w, hero.h);
+  const clustered = evidenceClusterOffset(f, anchor, slotIdx);
+  const box = evidenceOccupiedRect(clustered.left, clustered.top, f.w, f.h);
+  if(clustered.left >= 6 && clustered.top >= 28 && clustered.left + f.w < wallW - 6
+    && !occupied.some(o => evidenceRectsCollide(box, o, slotIdx === 0 ? 6 : 10))){
+    return clustered;
+  }
   const hl = hero.layout.leftPx;
   const ht = hero.layout.topPx;
-  const gap = 22;
+  const gap = 10;
   const slots = [
-    { left: hl + hero.w + gap, top: ht + Math.round(hero.h * 0.12) },
-    { left: hl - f.w - gap, top: ht + Math.round(hero.h * 0.28) },
-    { left: hl + Math.round(hero.w * 0.08), top: ht + hero.h + gap },
-    { left: hl + hero.w - f.w + 6, top: ht - f.h - gap + 4 },
-    { left: hl + hero.w + gap, top: ht + hero.h - f.h - 6 },
-    { left: hl - f.w + 12, top: ht + hero.h + gap },
+    { left: hl + hero.w + gap, top: ht + Math.round(hero.h * 0.1) },
+    { left: hl - f.w - gap, top: ht + Math.round(hero.h * 0.22) },
+    { left: hl + 16, top: ht + hero.h + gap },
+    { left: hl + hero.w - f.w + 4, top: ht - f.h + 8 },
   ];
   for(let j = 0; j < slots.length; j++){
     const s = slots[(slotIdx + j) % slots.length];
-    const left = Math.max(8, Math.min(wallW - f.w - 8, s.left));
-    const top = Math.max(32, s.top);
-    const box = evidenceOccupiedRect(left, top, f.w, f.h);
-    if(!occupied.some(o => evidenceRectsCollide(box, o, 12))) return { left, top };
+    const left = Math.max(6, Math.min(wallW - f.w - 6, s.left));
+    const top = Math.max(28, s.top);
+    const tryBox = evidenceOccupiedRect(left, top, f.w, f.h);
+    if(!occupied.some(o => evidenceRectsCollide(tryBox, o, 8))) return { left, top };
   }
-  return null;
+  return clustered;
 }
 
 function layoutEvidenceFragments(fragments){
@@ -4902,24 +4922,37 @@ function getScrapbookDoodle(item, index){
 
 function evidenceFragmentMeta(item, index, frag){
   const seed = scrapbookSeedFromId(item.id || String(index));
-  const isHero = frag?.isHero;
+  const isMedia = frag?.media || frag?.shape === 'photo' || frag?.shape === 'video';
   const tier = frag?.tier || 'sticker';
   return {
-    doodle: isHero ? getScrapbookDoodle(item, index) : '',
+    doodle: isMedia && frag?.isHero ? getScrapbookDoodle(item, index) : '',
     doodleSide: seed % 2 ? 'left' : 'right',
     doodleRot: (seed % 21) - 10,
     doodleOff: 6 + (seed % 18),
-    showBrackets: !!isHero,
+    isMedia: !!isMedia,
     tier,
   };
 }
 
-function buildEvidenceBrackets(show){
-  if(!show) return '';
-  return `<span class="evidence-bracket evidence-bracket-tl" aria-hidden="true"></span>
-    <span class="evidence-bracket evidence-bracket-tr" aria-hidden="true"></span>
-    <span class="evidence-bracket evidence-bracket-bl" aria-hidden="true"></span>
-    <span class="evidence-bracket evidence-bracket-br" aria-hidden="true"></span>`;
+function buildPolaroidTape(neon, seed){
+  const rot = (seed % 2 ? -38 : 42) + ((seed % 9) - 4);
+  return `<span class="polaroid-tape" style="--tape-neon:${neon};--tape-rot:${rot}deg" aria-hidden="true"></span>`;
+}
+
+function buildEvidenceAmbientDecor(wallW, wallH, seed){
+  const pools = ['mood', 'music', 'task'];
+  const spots = [
+    { x: 0.06, y: 0.12 }, { x: 0.88, y: 0.08 }, { x: 0.04, y: 0.78 },
+    { x: 0.86, y: 0.72 }, { x: 0.72, y: 0.38 }, { x: 0.14, y: 0.44 },
+  ];
+  return spots.map((s, i) => {
+    const cat = pools[i % pools.length];
+    const assets = SCRAPBOOK_DOODLE_ASSETS[cat];
+    const src = assets[(seed + i * 3) % assets.length];
+    const rot = ((seed + i * 11) % 37) - 18;
+    return `<img class="evidence-ambient-doodle" src="${esc(src)}" alt="" aria-hidden="true" width="36" height="36"
+      style="left:${Math.round(wallW * s.x)}px;top:${Math.round(wallH * s.y)}px;--amb-rot:${rot}deg">`;
+  }).join('');
 }
 
 function buildEvidenceDoodle(meta, neon){
@@ -4927,7 +4960,17 @@ function buildEvidenceDoodle(meta, neon){
   const side = meta.doodleSide === 'left' ? 'is-left' : 'is-right';
   return `<div class="evidence-doodle-wrap ${side}" style="--doodle-rot:${meta.doodleRot}deg;--doodle-off:${meta.doodleOff}px;--doodle-neon:${neon}">
     <span class="evidence-doodle-tether" aria-hidden="true"></span>
-    <img class="evidence-doodle" src="${esc(meta.doodle)}" alt="" width="44" height="44" loading="lazy">
+    <img class="evidence-doodle" src="${esc(meta.doodle)}" alt="" width="40" height="40" loading="lazy">
+  </div>`;
+}
+
+function buildScrapbookScribbleBody(typeLabel, excerpt, tier = 'sticker'){
+  const text = (excerpt || '').trim();
+  const maxLen = tier === 'sticker' ? 64 : 96;
+  const clip = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+  return `<div class="scribble-body">
+    ${typeLabel ? `<span class="scribble-label">${esc(typeLabel)}</span>` : ''}
+    ${clip ? `<p class="scribble-text">${esc(clip)}</p>` : ''}
   </div>`;
 }
 
@@ -4937,29 +4980,48 @@ function buildScrapbookFlipCard(item, index, opts){
   const neon = opts.neon || stableNeon(item.id || String(index), index);
   const meta = opts.fragMeta || evidenceFragmentMeta(item, index, frag);
   const tier = meta.tier || frag?.tier || 'sticker';
+  const isMedia = meta.isMedia;
   const caption = opts.caption || 'Untitled';
   const stamp = opts.stamp || '';
   const hint = opts.hintFront || '↻ story';
   const w = frag?.w || 220;
-  const h = frag?.h || 180;
-  const hideCaption = tier === 'sticker' && opts.frameHtml?.includes('scrap-note-preview');
+  const seed = frag?.seed || scrapbookSeedFromId(item.id || String(index));
   const style = layout
-    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
-    : `--frag-neon:${neon};--frag-w:${w}px;--frag-h:${h}px`;
+    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-neon:${neon}`
+    : `--frag-neon:${neon};--frag-w:${w}px`;
   const heroCls = frag?.isHero ? ' is-hero' : '';
+  const kindCls = isMedia ? ' pin-polaroid' : ' pin-scribble';
   const tierCls = ` pin-${tier}`;
   const shapeCls = frag?.shape ? ` frag-${frag.shape}` : '';
-  const clipCls = frag && tier !== 'sticker' ? ` clip-v${frag.clipVariant}` : '';
-  return `<article class="evidence-fragment${heroCls}${tierCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
-    ${buildEvidenceBrackets(meta.showBrackets)}
+  const clipCls = isMedia && frag ? ` clip-v${frag.clipVariant}` : '';
+
+  if(!isMedia){
+    return `<article class="evidence-fragment${heroCls}${kindCls}${tierCls}${shapeCls}" style="${style}" data-scrap-id="${esc(item.id)}">
+      <figure class="photo-flip scribble-flip has-story" style="--flip-neon:${neon}">
+        <div class="photo-flip-scene">
+          <div class="photo-flip-inner">
+            <div class="photo-flip-face photo-flip-front scribble-front">
+              ${stamp ? `<time class="scribble-stamp">${esc(stamp)}</time>` : ''}
+              ${opts.frameHtml}
+              <span class="flip-hint-front">${hint}</span>
+            </div>
+            <div class="photo-flip-face photo-flip-back scribble-back"><div class="flip-back-inner">${opts.backHtml}</div></div>
+          </div>
+        </div>
+      </figure>
+    </article>`;
+  }
+
+  return `<article class="evidence-fragment${heroCls}${kindCls}${tierCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
+    ${buildPolaroidTape(neon, seed)}
     ${buildEvidenceDoodle(meta, neon)}
-    <figure class="photo-flip scrapbook-sticker has-story" style="--flip-neon:${neon}">
+    <figure class="photo-flip polaroid-flip has-story" style="--flip-neon:${neon}">
       <div class="photo-flip-scene">
         <div class="photo-flip-inner">
-          <div class="photo-flip-face photo-flip-front">
-            ${stamp ? `<time class="scrapbook-stamp">${esc(stamp)}</time>` : ''}
-            <div class="photo-frame evidence-frame">${opts.frameHtml}</div>
-            ${hideCaption ? '' : `<figcaption class="photo-caption">${esc(caption)}</figcaption>`}
+          <div class="photo-flip-face photo-flip-front polaroid-front">
+            ${stamp ? `<time class="polaroid-stamp">${esc(stamp)}</time>` : ''}
+            <div class="photo-frame evidence-frame polaroid-frame">${opts.frameHtml}</div>
+            ${caption ? `<figcaption class="polaroid-caption">${esc(caption)}</figcaption>` : ''}
             <span class="flip-hint-front">${hint}</span>
           </div>
           <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${opts.backHtml}</div></div>
@@ -4970,13 +5032,7 @@ function buildScrapbookFlipCard(item, index, opts){
 }
 
 function buildScrapbookNoteFrame(typeLabel, excerpt, tier = 'support'){
-  const text = (excerpt || '').trim();
-  const maxLen = tier === 'sticker' ? 72 : 110;
-  const clip = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
-  return `<div class="photo-placeholder scrap-note-preview scrap-note-${tier}">
-    ${typeLabel ? `<span class="scrap-note-type">${esc(typeLabel)}</span>` : ''}
-    ${clip ? `<p class="scrap-note-excerpt">${esc(clip)}</p>` : '<span class="scrap-note-glyph">◈</span>'}
-  </div>`;
+  return buildScrapbookScribbleBody(typeLabel, excerpt, tier);
 }
 
 function buildScrapbookPhotoPost(item, index, key, opts = {}){
@@ -5130,6 +5186,7 @@ function buildEvidenceWall(wallItems, key){
   fragments.forEach(f => {
     if((f.shape === 'photo' || f.shape === 'video') && !f.isHero){
       f.tier = 'support';
+      f.media = true;
       const sized = shrinkWrapFragmentSize(f.item, f.shape, f.seed, false);
       f.w = sized.w;
       f.h = sized.h;
@@ -5140,9 +5197,12 @@ function buildEvidenceWall(wallItems, key){
     const frag = fragMap.get(item.id || String(i));
     return buildScrapbookWallItem(item, i, key, frag);
   }).join('');
+  const ambSeed = scrapbookSeedFromId(wallItems.map(it => it.id).join(key));
   return `<div class="evidence-wall scrapbook-wall" style="--wall-h:${wallHeight}px;--wall-w:${wallW}px">
     <span class="evidence-board-label" aria-hidden="true">Evidence board · case file</span>
     <div class="evidence-surface" style="--wall-w:${wallW}px;--wall-h:${wallHeight}px">
+      <div class="evidence-grid-lines" aria-hidden="true"></div>
+      ${buildEvidenceAmbientDecor(wallW, wallHeight, ambSeed)}
       ${buildEvidenceTethersSvg(tethers, wallW, wallHeight)}
       ${html || '<p class="empty-hint evidence-empty">Post on Coming To You Live — fragments land here.</p>'}
     </div>
