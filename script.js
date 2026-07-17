@@ -2519,8 +2519,8 @@ function introSequence(){
   const sub = document.getElementById('introSub');
   bindIntroSkip();
   brand?.classList.add('in');
-  setTimeout(() => sub?.classList.add('in'), 3000);
-  setTimeout(dismissLoading, 5000);
+  setTimeout(() => sub?.classList.add('in'), 2000);
+  setTimeout(dismissLoading, 3800);
 }
 
 function wireNavigation(){
