@@ -1107,8 +1107,29 @@ function esc(s){
 }
 
 function todayKey(){
-  const n = new Date();
-  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  return formatLocalDateKey(new Date());
+}
+
+function formatLocalDateKey(dt){
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+function getActiveDayKey(){
+  let activeKey = null;
+  let latestStart = 0;
+  Object.entries(state.entries || {}).forEach(([key, raw]) => {
+    const stream = raw?.stream;
+    if(!stream?.startedAt || stream?.endedAt) return;
+    const t = new Date(stream.startedAt).getTime();
+    if(t >= latestStart){
+      latestStart = t;
+      activeKey = key;
+    }
+  });
+  return activeKey || todayKey();
 }
 
 function fmtDate(key){
@@ -1219,8 +1240,10 @@ const STREAM_NODE_META = {
   press: { label: 'The Press', neon: '#fca5a5', icon: '▤' },
   wake: { label: 'Wake', neon: '#6ee7a0', icon: '◉' },
   sleep: { label: 'Sleep', neon: '#71717a', icon: '◎' },
-  note: { label: 'Big update', neon: '#3ad6e0', icon: '◆' },
+  note: { label: 'Update', neon: '#3ad6e0', icon: '◆' },
+  story: { label: 'Story', neon: '#c084fc', icon: '📖' },
   photo: { label: 'Photo', neon: '#38bdf8', icon: '📷' },
+  video: { label: 'Video', neon: '#f97316', icon: '🎬' },
   mood: { label: 'Mood', neon: '#f472b6', icon: '◎' },
   food: { label: 'Food', neon: '#fb923c', icon: '🍜' },
   drink: { label: 'Drink', neon: '#fbbf24', icon: '☕' },
@@ -1351,13 +1374,24 @@ function ensurePlaceCard(name){
 
 const PULSE_TYPE_DEFS = {
   note: { fields: [
-    { id: 'title', label: 'Title — shows in transmission log', type: 'text', placeholder: 'Headline for this piece of writing', required: true },
-    { id: 'body', label: 'Full writing', type: 'textarea', rows: 12, required: true, placeholder: 'As long as you need — journal entry, rant, story, update…' },
+    { id: 'title', label: 'Title', type: 'text', placeholder: 'Headline', required: true },
+    { id: 'body', label: 'Pulse', type: 'textarea', rows: 8, required: true, placeholder: 'What happened…' },
+  ]},
+  story: { fields: [
+    { id: 'title', label: 'Title', type: 'text', placeholder: 'Story title', required: true },
+    { id: 'body', label: 'Story', type: 'textarea', rows: 12, required: true, placeholder: 'Tell the story…' },
   ]},
   photo: { fields: [
+    { id: 'title', label: 'Title', type: 'text', placeholder: 'Short title', required: true },
     { id: 'photo', label: 'Photo', type: 'photo', required: true },
-    { id: 'caption', label: 'Description', type: 'textarea', rows: 4, placeholder: 'What is this? Why does it matter?' },
-    { id: 'place', label: 'Where', type: 'text', placeholder: 'Location, venue, room…' },
+    { id: 'caption', label: 'Description', type: 'textarea', rows: 3, placeholder: 'What is this?' },
+    { id: 'place', label: 'Where', type: 'text', placeholder: 'Location…' },
+  ]},
+  video: { fields: [
+    { id: 'title', label: 'Title', type: 'text', placeholder: 'Short title', required: true },
+    { id: 'video', label: 'Video', type: 'video', required: true },
+    { id: 'body', label: 'Notes', type: 'textarea', rows: 3, placeholder: 'Context…' },
+    { id: 'place', label: 'Where', type: 'text', placeholder: 'Location…' },
   ]},
   mood: { fields: [
     { id: 'mood', label: 'Mood (1–10)', type: 'range', min: 1, max: 10, default: 7 },
@@ -1539,6 +1573,7 @@ function clockOffsetLabel(tz, refTz = 'Europe/London'){
 const GRAY_XP_AWARDS = {
   day_sealed: { label: 'Day sealed in log', xp: 25 },
   pulse: { label: 'Pulse dropped live', xp: 5 },
+  quest: { label: 'Quest completed', xp: 25 },
   vault_pulse: { label: 'Vault pulse (offline)', xp: 5 },
   quest_complete: { label: 'Quest completed for a coder', xp: 100 },
   todo_done: { label: 'To-do ticked off', xp: 5 },
@@ -2118,8 +2153,10 @@ function compressPulsePhoto(dataUrl, maxW = 900){
 function buildPulseSummary(type, data){
   const join = (...parts) => parts.filter(Boolean).join(' · ');
   switch(type){
-    case 'note': return data.title || (data.body || '').slice(0, 120);
-    case 'photo': return join(data.caption?.split('\n')[0], data.place);
+    case 'note':
+    case 'story': return data.title || (data.body || '').slice(0, 120);
+    case 'photo': return join(data.title, data.caption?.split('\n')[0], data.place);
+    case 'video': return join(data.title, data.place);
     case 'mood': return join(`Mood ${data.mood || '?'}/10`, (data.body || '').slice(0, 80));
     case 'food': return join(data.what, data.where, data.rating ? `${data.rating}/10` : '');
     case 'drink': return join(data.what, data.where);
@@ -2495,13 +2532,9 @@ function navigateToView(view){
     if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderInbox?.();
     closeInboxDrawer();
   }
-  if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin() && !isCoderLoggedIn()){
-    const gameViews = ['comm', 'chat', 'viewer-card', 'quests', 'inbox', 'xp-requests'];
-    if(gameViews.includes(view)){
-      if(typeof GameHub !== 'undefined') GameHub.showGameLogin();
-      if(typeof showEntryGate === 'function') showEntryGate({ force: true });
-      return;
-    }
+  if(typeof isWatchMode === 'function' && isWatchMode() && !isAdmin()){
+    const blockedViews = ['comm', 'chat', 'viewer-card', 'inbox', 'xp-requests', 'quests'];
+    if(blockedViews.includes(view)) return;
   }
   if(view === 'instructions' && typeof shouldShowInstructionsNav === 'function' && !shouldShowInstructionsNav()){
     view = typeof defaultViewForSession === 'function' ? defaultViewForSession() : 'sync';
@@ -2537,9 +2570,7 @@ function navigateToView(view){
   } else if(view !== 'mind'){
     document.body.classList.remove('mind-channel-open', 'mind-repair-active');
   }
-  if(view === 'viewer-card' || view === 'quests' || view === 'vlog' || view === 'instructions' || view === 'inbox'){
-    if(typeof ViewerWorld !== 'undefined') ViewerWorld.renderAll();
-  }
+  if(view === 'quests' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderQuests?.();
   if(view === 'sync' && typeof renderHomeCheckIn === 'function') renderHomeCheckIn();
   if(view === 'vlog' && typeof ViewerWorld !== 'undefined') ViewerWorld.renderVlog();
   if(view === 'ledger'){
@@ -3029,14 +3060,14 @@ function addDaysToKey(key, delta){
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
   dt.setDate(dt.getDate() + delta);
-  return dt.toISOString().slice(0, 10);
+  return formatLocalDateKey(dt);
 }
 
 function weekStartKey(key){
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
   dt.setDate(dt.getDate() - dt.getDay());
-  return dt.toISOString().slice(0, 10);
+  return formatLocalDateKey(dt);
 }
 
 function weekKeysFrom(key){
@@ -3050,6 +3081,7 @@ const HomeCheckIn = {
   inited: false,
   pulseType: 'note',
   pulsePhotoData: '',
+  pulseVideoData: '',
   editingNodeId: null,
   editingStreamKey: null,
 
@@ -3104,13 +3136,13 @@ const HomeCheckIn = {
   },
 
   requireActiveDay(){
-    const stream = getDayStream(todayKey());
+    const stream = getDayStream(getActiveDayKey());
     if(!stream.startedAt){
       alert('Tap Start day first.');
       return false;
     }
     if(stream.endedAt){
-      alert('Day already ended. Start a new day tomorrow.');
+      alert('Day already ended. Start a new day when you wake up.');
       return false;
     }
     return true;
@@ -3123,7 +3155,8 @@ const HomeCheckIn = {
     this.editingStreamKey = null;
     this.pulseType = type && PULSE_TYPE_DEFS[type] ? type : (type || this.pulseType || 'note');
     this.pulsePhotoData = '';
-    document.getElementById('pulseDate').value = todayKey();
+    this.pulseVideoData = '';
+    document.getElementById('pulseDate').value = getActiveDayKey();
     document.getElementById('pulseTime').value = nowTimeInputValue();
     this.renderPulseTypeGrid();
     this.renderPulseFields();
@@ -3141,10 +3174,11 @@ const HomeCheckIn = {
     this.editingStreamKey = streamKey || key;
     this.pulseType = PULSE_TYPE_DEFS[node.type] ? node.type : 'note';
     this.pulsePhotoData = node.photo || node.data?.photo || '';
+    this.pulseVideoData = node.video || node.data?.video || '';
     if(node.at){
       const d = new Date(node.at);
       if(!Number.isNaN(d.getTime())){
-        document.getElementById('pulseDate').value = d.toISOString().slice(0, 10);
+        document.getElementById('pulseDate').value = formatLocalDateKey(d);
         document.getElementById('pulseTime').value = d.toTimeString().slice(0, 8);
       }
     }
@@ -3164,6 +3198,13 @@ const HomeCheckIn = {
         if(this.pulsePhotoData){
           const prev = document.getElementById(`pulseField_${field.id}_preview`);
           if(prev) prev.innerHTML = `<img src="${this.pulsePhotoData}" alt="">`;
+        }
+        return;
+      }
+      if(field.type === 'video'){
+        if(this.pulseVideoData){
+          const prev = document.getElementById(`pulseField_${field.id}_preview`);
+          if(prev) prev.innerHTML = `<video src="${this.pulseVideoData}" controls playsinline></video>`;
         }
         return;
       }
@@ -3200,6 +3241,7 @@ const HomeCheckIn = {
   closePulseComposer(){
     document.getElementById('pulseComposerBack')?.classList.add('hidden');
     this.pulsePhotoData = '';
+    this.pulseVideoData = '';
     this.editingNodeId = null;
     this.editingStreamKey = null;
     this.updatePulseComposerChrome();
@@ -3245,8 +3287,19 @@ const HomeCheckIn = {
       }
       if(field.type === 'photo'){
         return `<div class="field"><label>${field.label}</label>
-          <input type="file" id="${id}" accept="image/*">
+          <div class="pulse-media-actions">
+            <button type="button" class="btn pulse-capture-btn" data-pulse-capture="photo">📷 Take now</button>
+            <label class="btn pulse-upload-btn">Upload<input type="file" id="${id}" accept="image/*" class="hidden"></label>
+          </div>
           <div class="pulse-photo-preview" id="${id}_preview"></div></div>`;
+      }
+      if(field.type === 'video'){
+        return `<div class="field"><label>${field.label}</label>
+          <div class="pulse-media-actions">
+            <button type="button" class="btn pulse-capture-btn" data-pulse-capture="video">🎬 Record now</button>
+            <label class="btn pulse-upload-btn">Upload<input type="file" id="${id}" accept="video/*" class="hidden"></label>
+          </div>
+          <div class="pulse-video-preview" id="${id}_preview"></div></div>`;
       }
       const inputType = field.type === 'number' ? 'number' : 'text';
       const extra = field.type === 'number'
@@ -3288,6 +3341,40 @@ const HomeCheckIn = {
           reader.readAsDataURL(file);
         });
       }
+      if(field.type === 'video'){
+        el.addEventListener('change', e => {
+          const file = e.target.files?.[0];
+          if(!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.pulseVideoData = reader.result;
+            const prev = document.getElementById(`pulseField_${field.id}_preview`);
+            if(prev) prev.innerHTML = `<video src="${this.pulseVideoData}" controls playsinline></video>`;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+
+    root.querySelectorAll('[data-pulse-capture]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.pulseCapture;
+        if(typeof MediaCapture === 'undefined'){ alert('Camera not available.'); return; }
+        MediaCapture.open({
+          mode,
+          onResult: async (res) => {
+            if(res.type === 'photo'){
+              this.pulsePhotoData = await compressPulsePhoto(res.dataUrl);
+              const prev = document.getElementById('pulseField_photo_preview');
+              if(prev) prev.innerHTML = `<img src="${this.pulsePhotoData}" alt="">`;
+            } else if(res.type === 'video'){
+              this.pulseVideoData = res.dataUrl;
+              const prev = document.getElementById('pulseField_video_preview');
+              if(prev) prev.innerHTML = `<video src="${this.pulseVideoData}" controls playsinline></video>`;
+            }
+          },
+        });
+      });
     });
   },
 
@@ -3297,6 +3384,7 @@ const HomeCheckIn = {
     if(!def) return data;
     def.fields.forEach(field => {
       if(field.type === 'photo') data.photo = this.pulsePhotoData;
+      else if(field.type === 'video') data.video = this.pulseVideoData;
       else if(field.type === 'card_pick') data[field.id] = readCardPickValue(field.id);
       else {
         const el = document.getElementById(`pulseField_${field.id}`);
@@ -3318,6 +3406,14 @@ const HomeCheckIn = {
           if(found?.node?.photo) data.photo = found.node.photo;
         }
         if(!data.photo) return `Add a ${field.label.toLowerCase()}.`;
+        continue;
+      }
+      if(field.type === 'video'){
+        if(!data.video && this.editingNodeId){
+          const found = findPulseNode(this.editingNodeId);
+          if(found?.node?.video) data.video = found.node.video;
+        }
+        if(!data.video) return `Add a ${field.label.toLowerCase()}.`;
         continue;
       }
       if(field.type === 'card_pick'){
@@ -3352,6 +3448,7 @@ const HomeCheckIn = {
       data: { ...data },
     };
     if(data.photo) nodePatch.photo = data.photo;
+    if(data.video) nodePatch.video = data.video;
     if(data.mood) nodePatch.mood = Number(data.mood);
     if(data.intensity) nodePatch.intensity = Number(data.intensity);
     if(data.rating) nodePatch.rating = Number(data.rating);
@@ -3372,7 +3469,9 @@ const HomeCheckIn = {
         id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
         ...nodePatch,
       };
-      const streamKey = ensureTodayStream();
+      const streamKey = getActiveDayKey();
+      if(!state.entries[streamKey]) state.entries[streamKey] = { stream: { nodes: [] } };
+      if(!state.entries[streamKey].stream) state.entries[streamKey].stream = { nodes: [] };
       const stream = getDayStream(streamKey);
       stream.nodes.push(node);
       state.entries[streamKey].stream = stream;
@@ -3434,12 +3533,17 @@ const HomeCheckIn = {
 
   startDay(){
     if(!isAdmin()) return;
-    const key = ensureTodayStream();
-    const stream = getDayStream(key);
-    if(stream.startedAt && !stream.endedAt){
-      alert('Day already in progress.');
-      return;
+    for(const [k, raw] of Object.entries(state.entries || {})){
+      const s = raw?.stream;
+      if(s?.startedAt && !s?.endedAt){
+        alert(`Day already in progress (${fmtDateLong(k)}). End it when you go to sleep.`);
+        return;
+      }
     }
+    const key = todayKey();
+    if(!state.entries[key]) state.entries[key] = {};
+    if(!state.entries[key].stream) state.entries[key].stream = { nodes: [] };
+    const stream = getDayStream(key);
     if(stream.endedAt && stream.startedAt){
       if(!confirm('Start a fresh day session? This clears today\'s ended status.')) return;
       stream.nodes = stream.nodes.filter(n => n.type !== 'wake' && n.type !== 'sleep');
@@ -3458,14 +3562,14 @@ const HomeCheckIn = {
 
   openEndDay(){
     if(!isAdmin()) return;
-    const key = todayKey();
+    const key = getActiveDayKey();
     const stream = getDayStream(key);
     if(!stream.startedAt){
       alert('Start your day first.');
       return;
     }
     if(stream.endedAt){
-      alert('Day already closed. Check the Daily Log calendar.');
+      alert('Day already closed.');
       return;
     }
     const n = normalizeEntry(state.entries[key]);
@@ -3494,7 +3598,7 @@ const HomeCheckIn = {
 
   saveEndDay(){
     if(!isAdmin()) return;
-    const key = todayKey();
+    const key = getActiveDayKey();
     const stream = getDayStream(key);
     const favoriteThing = document.getElementById('endFavoriteThing')?.value?.trim() || '';
     if(!favoriteThing){
@@ -3568,7 +3672,7 @@ const HomeCheckIn = {
     if(!sorted.length){
       return `<div class="live-rail-empty">
         <div class="live-rail-spine"></div>
-        <p>${admin ? 'Awaiting transmission. Hit ▶ Start day, add timed to-dos, then drop pulses.' : 'Awaiting transmission. Start day, then pulse updates.'}</p>
+        <p>${admin ? 'Start your day, then drop pulses.' : 'Nothing yet today.'}</p>
       </div>`;
     }
     return `<div class="live-rail-track">
@@ -3585,9 +3689,10 @@ const HomeCheckIn = {
           }
           const moodBadge = node.mood ? `<span class="live-node-mood">${node.mood}/10</span>` : (node.intensity ? `<span class="live-node-mood">${node.intensity}/10</span>` : (node.rating ? `<span class="live-node-mood">${node.rating}/10</span>` : ''));
           const photoHtml = node.photo ? `<div class="live-node-photo"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>` : '';
+          const videoHtml = node.video ? `<div class="live-node-video"><video src="${esc(node.video)}" controls playsinline></video></div>` : '';
           const headline = getPulseNodeTitle(node) || node.text || '';
-          const body = node.body && node.body !== headline ? node.body : (node.data?.body && node.data.body !== headline ? node.data.body : '');
-          const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 280 ? body.slice(0, 280) + '…' : body)}</p>` : '';
+          const body = node.body && node.body !== headline ? node.body : (node.data?.body && node.data.body !== headline ? node.data.body : (node.data?.caption && node.data.caption !== headline ? node.data.caption : ''));
+          const bodyHtml = body ? `<p class="live-node-body">${esc(body.length > 400 ? body.slice(0, 400) + '…' : body)}</p>` : '';
           const canDel = admin && node.type !== 'wake' && node.type !== 'sleep' && !node.isPlanned;
           const canEdit = canDel;
           const delBtn = canDel ? `<button type="button" class="live-node-del" data-live-node-del="${esc(node.id)}" title="Remove pulse">×</button>` : '';
@@ -3608,9 +3713,10 @@ const HomeCheckIn = {
                 ${editBtn}
                 ${delBtn}
               </div>
-              <p class="live-node-text">${esc(headline)}</p>
+              <h3 class="live-node-title">${esc(headline)}</h3>
               ${bodyHtml}
               ${photoHtml}
+              ${videoHtml}
             </div>
           </article>`;
         }).join('')}
@@ -3970,7 +4076,7 @@ function renderHomeCheckIn(){
   const spread = document.getElementById('homeSpread');
   if(!spread) return;
 
-  const key = todayKey();
+  const key = getActiveDayKey();
   const stream = getDayStream(key);
   const admin = isAdmin();
   const nodeCount = getMergedTimelineNodes(stream, key).length;
@@ -3980,72 +4086,46 @@ function renderHomeCheckIn(){
   spread.className = admin ? 'live-broadcast live-broadcast--edit' : 'live-broadcast';
   if(sealed) spread.classList.add('is-sealed');
 
+  const pulseQuickTypes = ['note','story','photo','video','mood','food','person','place','work','health','travel','song','book','film','win','idea','event'];
+
   spread.innerHTML = `
-    <aside class="live-rail-col${sealed ? ' is-sealed' : ''}">
+    <aside class="live-rail-col live-rail-col--wide${sealed ? ' is-sealed' : ''}">
       <div class="live-rail-head">
-        <span class="live-rail-label">${sealed ? 'Transmission log · sealed' : 'Transmission log'}</span>
-        <span class="live-rail-count">${nodeCount} node${nodeCount === 1 ? '' : 's'}${admin ? ' · edit' : ''}</span>
+        <span class="live-rail-label">${sealed ? 'Log · sealed' : 'Transmission log'}</span>
+        ${admin ? `<span class="live-rail-count">${nodeCount} pulses</span>` : ''}
       </div>
       <div class="live-rail-scroll">${HomeCheckIn.renderTimeline(stream, key)}</div>
     </aside>
 
     <main class="live-stage-col">
-      ${admin ? `<div class="live-edit-banner sketch-card">
-        <span class="live-edit-dot" aria-hidden="true"></span>
-        <div>
-          <p class="live-edit-kicker">Player Gray · edit mode</p>
-          <p class="live-edit-text">Start your day, schedule timed to-dos, drop pulses. Everything slots into the transmission log in order — tick tasks when done.</p>
+      <div class="live-stage-top">
+        <div class="live-on-air ${onAir ? 'is-live' : ''}${sealed ? ' is-sealed' : ''}">
+          <span class="live-on-air-dot"></span>
+          <span class="live-on-air-text">${sealed ? 'Off air' : onAir ? 'On air' : 'Off air'}</span>
+          <span class="live-on-air-date">${fmtDateLong(key)}</span>
         </div>
-      </div>` : ''}
-
-      <div class="live-on-air ${onAir ? 'is-live' : ''}${sealed ? ' is-sealed' : ''}">
-        <span class="live-on-air-dot"></span>
-        <span class="live-on-air-text">${sealed ? 'TRANSMISSION ENDED' : onAir ? 'ON AIR' : 'OFF AIR'} · Coming To You Live</span>
-        <span class="live-on-air-date">${fmtDateLong(key)}</span>
+        <div class="live-clocks-mini">
+          <span class="live-clock-mini" id="clockShenzhen">--:--</span>
+          <span class="live-clock-mini-sep">·</span>
+          <span class="live-clock-mini" id="clockUk">--:--</span>
+        </div>
       </div>
 
       ${admin ? `<div class="live-controls live-controls--edit">
-        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>▶ Start day</button>
-        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>■ End day</button>
+        <button type="button" class="btn primary" id="homeStartDay" ${stream.startedAt && !stream.endedAt ? 'disabled' : ''}>Start day</button>
+        <button type="button" class="btn" id="homeEndDay" ${!stream.startedAt || stream.endedAt ? 'disabled' : ''}>End day</button>
+        <button type="button" class="btn" id="homeOpenPulse">+ Pulse</button>
       </div>` : ''}
 
-      <div class="live-clocks-row">
-        <div class="live-clock-card">
-          <span class="live-clock-city">Shenzhen</span>
-          <span class="live-clock-date" id="clockShenzhenDate">—</span>
-          <span class="live-clock-val" id="clockShenzhen">--:--:--</span>
-          <span class="live-clock-offset" id="clockShenzhenOffset"></span>
-          <span class="live-clock-tz">Asia/Shanghai</span>
-        </div>
-        <div class="live-clock-card">
-          <span class="live-clock-city">United Kingdom</span>
-          <span class="live-clock-date" id="clockUkDate">—</span>
-          <span class="live-clock-val" id="clockUk">--:--:--</span>
-          <span class="live-clock-offset" id="clockUkOffset"></span>
-          <span class="live-clock-tz">Europe/London</span>
-        </div>
-      </div>
-
-      <div class="live-status-bar">
+      ${stream.startedAt ? `<div class="live-status-bar live-status-bar--soft">
         <span>${esc(HomeCheckIn.dayStatus(stream))}</span>
-        ${stream.startedAt ? `<span>Wake ${fmtNodeStamp(stream.startedAt, key)}</span>` : ''}
-        ${stream.endedAt ? `<span>Sleep ${fmtNodeStamp(stream.endedAt, key)}</span>` : ''}
-      </div>
+      </div>` : ''}
 
-      ${HomeCheckIn.renderLiveTodos(admin)}
+      ${admin ? HomeCheckIn.renderLiveTodos(admin) : ''}
 
-      ${renderLiveQuoteBoard(admin)}
-
-      ${admin ? `<section class="live-pulse-board live-pulse-board--edit">
-        <div class="live-pulse-head">
-          <div>
-            <h3 class="live-pulse-title">Drop a pulse</h3>
-            <p class="live-pulse-hint">Use <strong>Big update</strong> for long writing — title becomes the headline in the transmission log. Photos stick on the daily scrapbook.</p>
-          </div>
-          <button type="button" class="btn primary" id="homeOpenPulse">+ Compose pulse</button>
-        </div>
+      ${admin ? `<section class="live-pulse-board live-pulse-board--edit live-pulse-board--soft">
         <div class="live-pulse-quick">
-          ${['note','photo','mood','food','drink','quote','quest','person','place','message','song','vibe','win','travel','health','book','film','workout','idea','call','anxiety','hobby','event','gratitude'].map(id => {
+          ${pulseQuickTypes.map(id => {
             const meta = STREAM_NODE_META[id];
             if(!meta || !PULSE_TYPE_DEFS[id]) return '';
             return `<button type="button" class="pulse-quick-btn" data-pulse-quick="${id}" style="--pq-neon:${meta.neon}" title="${meta.label}"><span>${meta.icon}</span> ${meta.label}</button>`;
@@ -4193,7 +4273,7 @@ function renderPlannedTodosReadOnly(dayKey){
 function getPulseNodeTitle(node){
   if(!node) return '';
   if(node.data?.title) return node.data.title;
-  if(node.type === 'note' && node.text) return node.text;
+  if(['note', 'story', 'photo', 'video'].includes(node.type) && node.text) return node.text.split(' · ')[0];
   return node.text || '';
 }
 
@@ -4331,11 +4411,40 @@ function buildScrapbookWallItem(item, index, key){
   const title = getPulseNodeTitle(node);
   const body = node.body || node.data?.body || '';
   const text = body || (node.text && node.text !== title ? node.text : '');
-  const isWriting = ['note', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (text && text.length > 80);
+  const isWriting = ['note', 'story', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (text && text.length > 80);
   const writeWide = isWriting ? ' layout-wide' : wideClass;
   const adminEdit = isAdmin()
     ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
     : '';
+
+  if(node.type === 'photo' && node.photo){
+    const photoDetails = getPulsePhotoDetails(node);
+    return buildScrapbookPhotoPost({
+      id: item.id,
+      src: node.photo,
+      caption: photoDetails.caption || getPulseNodeTitle(node),
+      place: photoDetails.place,
+      at: node.at,
+    }, index, key, { nodeId: node.id });
+  }
+
+  if(node.type === 'video' && node.video){
+    const when = fmtNodeStamp(node.at, key);
+    const title = getPulseNodeTitle(node);
+    const body = node.body || node.data?.body || '';
+    const adminEdit = isAdmin()
+      ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
+      : '';
+    return `<figure class="scrap-photo-post scrap-item layout-wide" data-scrap-id="${esc(item.id)}">
+      <div class="scrap-photo-frame"><video src="${esc(node.video)}" controls playsinline></video></div>
+      <figcaption class="scrap-photo-meta">
+        ${when ? `<time class="scrap-photo-time">${esc(when)}</time>` : ''}
+        ${title ? `<p class="scrap-photo-desc">${esc(title)}</p>` : ''}
+        ${body ? `<p class="scrap-photo-desc scrap-photo-desc--sub">${esc(body)}</p>` : ''}
+        ${adminEdit}
+      </figcaption>
+    </figure>`;
+  }
 
   if(node.type === 'photo' && node.photo){
     const photoDetails = getPulsePhotoDetails(node);
@@ -4432,16 +4541,13 @@ function buildDayScrapbookHTML(key, e, nav = {}){
   </div>`;
 }
 
-function bindScrapbookNav(host){
+function   bindScrapbookNav(host){
   if(!host) return;
   host.querySelectorAll('[data-scrap-day]').forEach(btn => {
-    if(btn.dataset.bound) return;
-    btn.dataset.bound = '1';
     btn.addEventListener('click', () => {
       const k = btn.dataset.scrapDay;
       setLogFocusKey(k);
-      if(isAdmin() && typeof DailyLog !== 'undefined') DailyLog.selectDay(k);
-      else renderLedger();
+      renderLedger();
     });
   });
   host.querySelectorAll('[data-scrap-edit-day]').forEach(btn => {
@@ -5252,70 +5358,64 @@ function openCoderProfileModal(coderId){
   });
 }
 
+function getPeopleCards(){
+  return (typeof getCharacters === 'function' ? getCharacters() : [])
+    .filter(c => !c.isCoderCard && !(typeof isCoderDeckCard === 'function' && isCoderDeckCard(c)));
+}
+
+function buildSimplePersonCard(c, index){
+  const accent = c.cardColor || c.pokeCard?.cardColor || stableNeon(c.id || c.name, index);
+  const img = c.image || c.avatar;
+  const pc = typeof normalizePokeCard === 'function' ? normalizePokeCard(c) : (c.pokeCard || {});
+  const desc = c.cardDescription || c.selfDescription || pc.vibe || '';
+  const age = c.age || pc.age || '';
+  const mbti = c.mbti || pc.mbti || '';
+  const birthday = typeof formatBirthdayDisplay === 'function' ? formatBirthdayDisplay(c.birthday || pc.birthday) : (c.birthday || '');
+  const tilt = ((index % 5) * 1.2 - 2.4).toFixed(1);
+  return `<div class="person-card-wrap" style="--pc-accent:${accent};--pc-tilt:${tilt}deg">
+    <article class="person-card photo-flip" data-flip-id="${esc(c.id)}">
+      <div class="photo-flip-inner">
+        <div class="photo-flip-face person-card-front">
+          ${isAdmin() ? `<button type="button" class="btn person-card-edit flip-edit-btn">Edit</button>` : ''}
+          <div class="person-card-photo">${img ? `<img src="${esc(img)}" alt="">` : `<span class="person-card-placeholder">${esc((c.name || '?')[0])}</span>`}</div>
+          <h3 class="person-card-name">${esc(c.name)}</h3>
+        </div>
+        <div class="photo-flip-face person-card-back">
+          <h3 class="person-card-name">${esc(c.name)}</h3>
+          ${age ? `<p class="person-card-stat"><span>Age</span> ${esc(age)}</p>` : ''}
+          ${mbti ? `<p class="person-card-stat"><span>MBTI</span> ${esc(mbti)}</p>` : ''}
+          ${birthday ? `<p class="person-card-stat"><span>Birthday</span> ${esc(birthday)}</p>` : ''}
+          ${desc ? `<p class="person-card-desc">${esc(desc)}</p>` : ''}
+          ${isAdmin() ? `<button type="button" class="btn flip-edit-btn">Edit</button>` : ''}
+          <span class="flip-hint-back">tap to flip back</span>
+        </div>
+      </div>
+    </article>
+  </div>`;
+}
+
 function renderCharacters(){
   const deck = document.getElementById('charDeck');
   if(!deck) return;
-  const rankMap = getCoderXpRankMap();
-  const chars = getRankedCoderCards();
-  const onlineIds = typeof getOnlineCoderIds === 'function' ? getOnlineCoderIds() : new Set();
-  const onlineCount = onlineIds.size;
+  const people = getPeopleCards();
   const header = document.getElementById('playerDeckMeta');
   if(header){
-    header.innerHTML = `${onlineCount
-      ? `<span class="player-online-count"><span class="player-online-pulse"></span>${onlineCount} player${onlineCount === 1 ? '' : 's'} online</span>`
-      : ''}${isAdmin() && typeof GameHub !== 'undefined' ? GameHub.renderCardRepairTool() : ''}`;
-    if(isAdmin() && typeof GameHub !== 'undefined') GameHub.bindCardRepair(header);
+    header.innerHTML = isAdmin() ? `<button type="button" class="btn primary" id="addCharBtn">+ Person</button>` : '';
   }
-  deck.innerHTML = chars.map((c, i) => {
-    const card = buildFlipPlayerCard(c, 'character', i, {
-      xpRank: rankMap.get(c.id),
-      rankNeon: getCoderRankNeon(rankMap.get(c.id)),
-      isOnline: onlineIds.has(c.id),
-    });
-    const quoteLog = isAdmin() && isCoderDeckCard(c) ? renderCoderQuoteLog(c) : '';
-    const profileBtn = isCoderDeckCard(c)
-      ? `<button type="button" class="btn coder-profile-btn" data-coder-board="${esc(c.id)}">View profile</button>`
-      : '';
-    const myId = typeof getMyCoderCard === 'function' ? getMyCoderCard()?.id : null;
-    const canFriend = typeof isCoderLoggedIn === 'function' && isCoderLoggedIn() && myId && myId !== c.id && isCoderDeckCard(c);
-    let friendBtn = '';
-    if(canFriend && typeof GameHub !== 'undefined'){
-      const rel = GameHub.getFriendRelation(myId, c.id);
-      if(rel === 'friends') friendBtn = `<button type="button" class="btn coder-friend-btn" disabled>Friends ✓</button>`;
-      else if(rel === 'sent') friendBtn = `<button type="button" class="btn coder-friend-btn" disabled>Requested…</button>`;
-      else if(rel === 'received') friendBtn = `<button type="button" class="btn coder-friend-btn" data-fr-accept-deck="${esc(c.id)}">Accept friend</button>`;
-      else friendBtn = `<button type="button" class="btn coder-friend-btn" data-coder-friend="${esc(c.id)}">+ Friend</button>`;
-    }
-    return `<div class="char-deck-item">${card}${profileBtn}${friendBtn}${quoteLog}</div>`;
-  }).join('');
+  deck.innerHTML = people.length
+    ? people.map((c, i) => buildSimplePersonCard(c, i)).join('')
+    : `<p class="empty-hint">No people cards yet.</p>`;
   bindFlipPlayerCards(deck);
-  bindCoderQuoteLogs(deck);
-  deck.querySelectorAll('[data-coder-board]').forEach(btn => {
-    btn.addEventListener('click', e => { e.stopPropagation(); navigateToCoderBoard(btn.dataset.coderBoard); });
-  });
-  deck.querySelectorAll('[data-coder-friend]').forEach(btn => {
+  deck.querySelectorAll('.flip-edit-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const fid = btn.dataset.coderFriend;
-      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
-      if(!mine?.id || !fid || typeof GameHub === 'undefined') return;
-      GameHub.sendFriendRequest(mine.id, fid).then(ok => {
-        if(ok){ btn.textContent = 'Requested…'; btn.disabled = true; }
-      });
+      const card = btn.closest('.person-card-wrap');
+      const id = card?.querySelector('[data-flip-id]')?.dataset?.flipId;
+      if(id && typeof openContentEditor === 'function') openContentEditor('character', id, false);
     });
   });
-  deck.querySelectorAll('[data-fr-accept-deck]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const fromId = btn.dataset.frAcceptDeck;
-      const mine = typeof getMyCoderCard === 'function' ? getMyCoderCard() : null;
-      if(!mine?.id || !fromId || typeof GameHub === 'undefined') return;
-      const req = (state.friendRequests || []).find(r => r.status === 'pending' && r.fromId === fromId && r.toId === mine.id);
-      if(req) GameHub.respondFriendRequest(req.id, true);
-    });
-  });
-  deck.querySelectorAll('[data-coder-profile]').forEach(btn => {
-    btn.addEventListener('click', e => { e.stopPropagation(); openCoderProfileModal(btn.dataset.coderProfile); });
+  document.getElementById('addCharBtn')?.addEventListener('click', () => {
+    if(typeof openContentEditor === 'function') openContentEditor('character', null, true);
   });
 }
 

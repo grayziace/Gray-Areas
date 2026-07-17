@@ -2265,78 +2265,86 @@ const ViewerWorld = {
   renderQuests(){
     const host = document.getElementById('questSpread');
     if(!host) return;
-    const mine = getMyCoderCard();
+    if(!isAdmin()){
+      host.innerHTML = `<p class="empty-hint">Personal quests — unlock player mode to set your own.</p>`;
+      return;
+    }
     const typeOpts = QUEST_TYPES.map(t => `<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
     const completed = (state.quests || []).filter(q => q.status === 'completed').slice().reverse();
     const open = (state.quests || []).filter(q => q.status !== 'completed' && q.status !== 'declined');
 
-    let html = '';
-
-    if(isAdmin()){
-      const pending = open.filter(q => q.status === 'submitted' || q.status === 'accepted' || q.status === 'in_progress');
-      const pendingXp = getPendingXpRequests().length;
-      html += `<div class="quest-inbox sketch-card">
-        <h3 class="viewer-wizard-title">Quest inbox</h3>
-        <p class="field-hint">${pending.length} mission${pending.length === 1 ? '' : 's'} to handle · ${open.filter(q => q.status === 'submitted').length} awaiting accept${pendingXp ? ` · <strong>${pendingXp} XP request${pendingXp === 1 ? '' : 's'}</strong> in Inbox` : ''}</p>
-      </div>`;
-      html += pending.length
-        ? `<section><h3 class="viewer-wizard-title">Incoming missions</h3><div class="quest-list">${pending.map(q => this.questRowHtml(q, false)).join('')}</div></section>`
-        : `<p class="empty-hint">No pending quests right now.</p>`;
-      if(completed.length){
-        html += `<section class="quest-completed-section"><h3 class="viewer-wizard-title">Completed</h3><div class="quest-list">${completed.map(q => this.questRowHtml(q, true)).join('')}</div></section>`;
-      }
-      const coders = getAwardableCoders();
-      if(coders.length){
-        html += `<section class="coder-admin-panel sketch-card"><h3 class="viewer-wizard-title">Award coder XP</h3>
-          <p class="field-hint">Deck cards and visitor cards — XP shows on Coder Cards.</p>
-          <div class="coder-admin-list">${coders.map(c => this.coderAdminRow(c)).join('')}</div></section>`;
-      }
-      host.innerHTML = html;
-      host.querySelectorAll('[data-quest-action]').forEach(btn => btn.addEventListener('click', () => this.handleQuestAction(btn.dataset.questId, btn.dataset.questAction)));
-      host.querySelectorAll('[data-award-go]').forEach(btn => btn.addEventListener('click', () => {
-        const sel = btn.closest('.coder-admin-row')?.querySelector('.coder-award-select');
-        this.adminAwardPoints(btn.dataset.awardGo, sel?.value);
-      }));
-      host.querySelectorAll('[data-coder-edit]').forEach(btn => btn.addEventListener('click', () => this.openPlayerCoderEdit(btn.dataset.coderEdit)));
-      return;
-    }
-
-    if(completed.length){
-      html += `<section class="quest-completed-section"><h3 class="viewer-wizard-title">Completed quests</h3><div class="quest-list">${completed.map(q => this.questRowHtml(q, true)).join('')}</div></section>`;
-    }
-
-    if(isCoderLoggedIn()){
-      html += `<div class="quest-compose sketch-card quest-page-studio">
-        <div class="quest-studio-glow" aria-hidden="true"></div>
-        <h3 class="viewer-wizard-title">Transmit a quest</h3>
-        <p class="field-hint">From <strong>${esc(mine.name)}</strong> — send me somewhere, feed me, comfort me, or <strong>ask me to code something new into the website</strong>.</p>
-        <form id="questForm" class="quest-transmit-form">
+    host.innerHTML = `<div class="quest-page-wrap quest-page-neon">
+      <section class="quest-compose sketch-card">
+        <h3 class="viewer-wizard-title">Set a quest</h3>
+        <form id="selfQuestForm">
           <div class="field-row">
             <div class="field"><label>Type</label><select id="questType">${typeOpts}</select></div>
-            <div class="field"><label>Title</label><input type="text" id="questTitle" required placeholder="short mission name"></div>
+            <div class="field"><label>Title</label><input type="text" id="questTitle" required placeholder="Get matcha, finish edit…"></div>
           </div>
-          <div class="field"><label>Mission</label><textarea id="questBody" rows="4" required placeholder="what should I do?"></textarea></div>
-          <div class="field-row">
-            <div class="field"><label>Place</label><input type="text" id="questPlace" placeholder="optional"></div>
-            <div class="field"><label>Food / item</label><input type="text" id="questFood" placeholder="optional"></div>
-          </div>
-          <button type="submit" class="btn primary quest-send-btn">✦ Send quest (+25 XP)</button>
+          <div class="field"><label>Mission</label><textarea id="questBody" rows="3" required placeholder="What do you want to do?"></textarea></div>
+          <button type="submit" class="btn primary">Add quest</button>
         </form>
-      </div>`;
-    } else if(isGuest()){
-      html += `<p class="empty-hint">Log in to send quests.</p>`;
-    } else {
-      html += `<p class="empty-hint">Log in with your name and console key to send quests.</p>`;
-    }
+      </section>
+      <section class="quest-open-section"><h3 class="viewer-wizard-title">Open</h3>
+        ${open.length ? `<div class="quest-list">${open.map(q => this.selfQuestRowHtml(q)).join('')}</div>` : `<p class="empty-hint">No open quests.</p>`}
+      </section>
+      ${completed.length ? `<section><h3 class="viewer-wizard-title">Done</h3><div class="quest-list">${completed.map(q => this.selfQuestRowHtml(q, true)).join('')}</div></section>` : ''}
+    </div>`;
 
-    html += `<section class="quest-open-section"><h3 class="viewer-wizard-title quest-section-title">Open quests</h3>`;
-    html += open.length ? `<div class="quest-list quest-page-list quest-neon-list">${open.map(q => this.questRowHtml(q)).join('')}</div>` : `<p class="empty-hint">No open quests.</p></section>`;
-    host.innerHTML = `<div class="quest-page-wrap quest-page-neon">${html}</div>`;
+    document.getElementById('selfQuestForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitSelfQuest(); });
+    host.querySelectorAll('[data-self-quest-done]').forEach(btn => btn.addEventListener('click', () => this.completeSelfQuest(btn.dataset.selfQuestDone)));
+    host.querySelectorAll('[data-self-quest-del]').forEach(btn => btn.addEventListener('click', () => this.deleteSelfQuest(btn.dataset.selfQuestDel)));
+  },
 
-    document.getElementById('questForm')?.addEventListener('submit', e => { e.preventDefault(); this.submitQuest(); });
-    host.querySelectorAll('[data-quest-action]').forEach(btn => btn.addEventListener('click', () => this.handleQuestAction(btn.dataset.questId, btn.dataset.questAction)));
-    host.querySelectorAll('[data-quest-vote]').forEach(btn => btn.addEventListener('click', () => this.voteQuest(btn.dataset.questId)));
-    host.querySelectorAll('[data-quest-comment]').forEach(btn => btn.addEventListener('click', () => this.commentQuest(btn.dataset.questId)));
+  selfQuestRowHtml(q, done){
+    const type = QUEST_TYPES.find(t => t.id === q.type) || QUEST_TYPES[5];
+    return `<article class="quest-card" style="--qc-neon:${type.neon}">
+      <header class="quest-card-head"><span class="quest-type">${type.icon} ${type.label}</span></header>
+      <h4 class="quest-title">${esc(q.title)}</h4>
+      <p class="quest-body">${esc(q.body)}</p>
+      ${!done ? `<div class="quest-actions">
+        <button type="button" class="btn primary" data-self-quest-done="${esc(q.id)}">Done</button>
+        <button type="button" class="btn" data-self-quest-del="${esc(q.id)}">Remove</button>
+      </div>` : ''}
+    </article>`;
+  },
+
+  submitSelfQuest(){
+    if(!isAdmin()) return;
+    const title = document.getElementById('questTitle')?.value?.trim();
+    const body = document.getElementById('questBody')?.value?.trim();
+    if(!title || !body) return;
+    const q = {
+      id: uid('quest'),
+      type: document.getElementById('questType')?.value || 'other',
+      title,
+      body,
+      fromName: 'Me',
+      fromId: 'gray',
+      status: 'accepted',
+      at: new Date().toISOString(),
+    };
+    if(!state.quests) state.quests = [];
+    state.quests.unshift(q);
+    saveState();
+    document.getElementById('selfQuestForm')?.reset();
+    this.renderQuests();
+  },
+
+  completeSelfQuest(questId){
+    const q = (state.quests || []).find(x => x.id === questId);
+    if(!q) return;
+    q.status = 'completed';
+    q.completedAt = new Date().toISOString();
+    saveState();
+    awardGrayPoints(GRAY_XP_AWARDS?.quest?.xp || 25, 'quest');
+    this.renderQuests();
+  },
+
+  deleteSelfQuest(questId){
+    state.quests = (state.quests || []).filter(q => q.id !== questId);
+    saveState();
+    this.renderQuests();
   },
 
   questRowHtml(q, showComments){
