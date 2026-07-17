@@ -4595,30 +4595,94 @@ function scrapbookSeedFromId(id){
   return Math.abs(h);
 }
 
-const EVIDENCE_SHAPES = {
-  photo: { w: 248, h: 272, weight: 100 },
-  video: { w: 248, h: 272, weight: 98 },
-  wide: { w: 292, h: 168, weight: 68 },
-  tall: { w: 128, h: 224, weight: 58 },
-  strip: { w: 228, h: 82, weight: 30 },
-  block: { w: 208, h: 196, weight: 48 },
-};
+const EVIDENCE_TIERS = { hero: 100, support: 52, sticker: 16 };
+
+function getEvidenceText(item){
+  if(item.kind === 'meta') return item.moodId ? moodLabel(item.moodId) : '';
+  if(item.kind === 'diary') return item.text || '';
+  if(item.kind === 'photo') return item.caption || '';
+  const node = item.node;
+  if(!node) return '';
+  return String(node.body || node.data?.body || node.text || node.data?.title || '');
+}
+
+function evidenceFragmentTier(shape, isHero){
+  if(isHero || shape === 'photo' || shape === 'video') return 'hero';
+  if(['strip', 'tall'].includes(shape)) return 'sticker';
+  return 'support';
+}
+
+function pinRotation(seed, tier){
+  if(tier === 'hero') return ((seed % 25) - 12) * 0.82;
+  if(tier === 'sticker') return ((seed % 33) - 16) * 1.05;
+  return ((seed % 19) - 9) * 0.55;
+}
+
+function shrinkWrapFragmentSize(item, shape, seed, isHero){
+  const text = getEvidenceText(item);
+  const len = text.length;
+  const lines = Math.max(1, Math.ceil(len / 36));
+
+  if(shape === 'photo' || shape === 'video'){
+    const tier = isHero ? 'hero' : 'support';
+    const scale = isHero ? 1 : 0.72;
+    const w = Math.round((268 + (seed % 36)) * scale);
+    const h = Math.round((290 + ((seed >> 2) % 28)) * scale);
+    return { w, h, weight: (isHero ? EVIDENCE_TIERS.hero : EVIDENCE_TIERS.support) + (seed % 8), tier };
+  }
+  if(shape === 'strip' || shape === 'tall'){
+    const w = Math.min(210, Math.max(92, 76 + len * 1.05));
+    const h = Math.max(38, 22 + lines * 17 + (shape === 'tall' ? 18 : 0));
+    return { w, h, weight: EVIDENCE_TIERS.sticker + Math.min(len, 40), tier: 'sticker' };
+  }
+  const w = Math.min(300, Math.max(128, 108 + len * 0.85));
+  const h = Math.max(48, 30 + lines * 18);
+  const tier = evidenceFragmentTier(shape, isHero);
+  return { w, h, weight: tier === 'hero' ? EVIDENCE_TIERS.hero : EVIDENCE_TIERS.support + Math.min(len, 60), tier };
+}
 
 function evidenceFragmentShape(item){
   if(item.kind === 'meta' && item.metaType === 'mood') return 'strip';
   if(item.kind === 'photo') return 'photo';
-  if(item.kind === 'diary') return 'wide';
+  if(item.kind === 'diary'){
+    const len = (item.text || '').length;
+    if(len < 90) return 'strip';
+    if(len < 220) return 'wide';
+    return 'block';
+  }
   const node = item.node;
   if(!node) return 'strip';
   if(node.video || node.type === 'video') return 'video';
   if(node.photo || node.type === 'photo') return 'photo';
   if(['song', 'book', 'film'].includes(node.type)) return 'tall';
   if(['mood', 'win', 'health', 'food', 'weather', 'anxiety', 'dream'].includes(node.type)) return 'strip';
-  if(['story', 'hangout', 'event', 'travel', 'work', 'glitch'].includes(node.type)) return 'wide';
   const text = String(node.body || node.data?.body || node.text || '');
-  if(text.length < 55) return 'strip';
-  if(text.length < 170) return 'wide';
-  return 'block';
+  if(text.length < 50) return 'strip';
+  if(text.length < 140) return 'wide';
+  if(text.length < 280) return 'block';
+  return 'wide';
+}
+
+function describeEvidenceFragment(item, index, isHero){
+  const shape = evidenceFragmentShape(item);
+  const seed = scrapbookSeedFromId(item.id || String(index));
+  const sized = shrinkWrapFragmentSize(item, shape, seed, isHero);
+  return {
+    item,
+    index,
+    id: item.id || String(index),
+    shape,
+    tier: sized.tier || evidenceFragmentTier(shape, isHero),
+    weight: sized.weight,
+    w: sized.w,
+    h: sized.h,
+    seed,
+    at: item.at || item.node?.at || '',
+    pulseType: evidencePulseType(item),
+    linkKey: evidenceLinkKey(item),
+    clipVariant: seed % 4,
+    isHero: !!isHero,
+  };
 }
 
 function evidenceLinkKey(item){
@@ -4635,28 +4699,6 @@ function evidencePulseType(item){
   if(item.kind === 'photo') return 'photo';
   if(item.kind === 'diary') return 'diary';
   return item.node?.type || 'note';
-}
-
-function describeEvidenceFragment(item, index){
-  const shape = evidenceFragmentShape(item);
-  const seed = scrapbookSeedFromId(item.id || String(index));
-  const base = EVIDENCE_SHAPES[shape] || EVIDENCE_SHAPES.block;
-  const wJitter = (seed % 28) - 14;
-  const hJitter = ((seed >> 3) % 24) - 12;
-  return {
-    item,
-    index,
-    id: item.id || String(index),
-    shape,
-    weight: base.weight + (shape === 'photo' ? seed % 5 : 0),
-    w: Math.max(108, base.w + wJitter),
-    h: Math.max(72, base.h + hJitter),
-    seed,
-    at: item.at || item.node?.at || '',
-    pulseType: evidencePulseType(item),
-    linkKey: evidenceLinkKey(item),
-    clipVariant: seed % 4,
-  };
 }
 
 function areEvidenceRelated(a, b){
@@ -4708,12 +4750,14 @@ function groupEvidenceClusters(fragments){
 function layoutEvidenceFragments(fragments){
   if(!fragments.length) return { fragments: [], wallHeight: 420, tethers: [] };
   const sorted = [...fragments].sort((a, b) => b.weight - a.weight);
-  const hero = sorted[0];
-  hero.isHero = true;
+  const heroCand = sorted.find(f => f.tier === 'hero' && (f.shape === 'photo' || f.shape === 'video')) || sorted[0];
+  heroCand.isHero = true;
+  heroCand.tier = 'hero';
   const clusters = groupEvidenceClusters(fragments);
-  const heroCluster = clusters.find(c => c.some(f => f.id === hero.id)) || [hero];
+  const heroCluster = clusters.find(c => c.some(f => f.id === heroCand.id)) || [heroCand];
   const placed = new Set();
   const wallW = 920;
+  const groupGap = 110;
 
   const applyLayout = (f, leftPx, topPx, z, rot) => {
     f.layout = { leftPx, topPx, z, rot };
@@ -4721,84 +4765,109 @@ function layoutEvidenceFragments(fragments){
   };
 
   const hSeed = scrapbookSeedFromId(fragments.map(f => f.id).join(''));
-  const heroLeft = Math.round(wallW * (0.30 + (hSeed % 12) / 100));
-  const heroTop = Math.round(24 + (hSeed % 28));
-  applyLayout(hero, heroLeft, heroTop, 14, ((hSeed % 15) - 7) / 10);
+  const heroLeft = Math.round(wallW * (0.24 + (hSeed % 14) / 100));
+  const heroTop = Math.round(32 + (hSeed % 22));
+  applyLayout(heroCand, heroLeft, heroTop, 18, pinRotation(heroCand.seed, 'hero'));
 
-  heroCluster.filter(f => f.id !== hero.id).forEach((f, i) => {
+  const pinSpots = [
+    { dx: 0.68, dy: 0.72, z: 20 },
+    { dx: -0.28, dy: 0.12, z: 17 },
+    { dx: 0.08, dy: 1.02, z: 16 },
+    { dx: 0.82, dy: -0.06, z: 19 },
+  ];
+  heroCluster.filter(f => f.id !== heroCand.id).forEach((f, i) => {
+    const spot = pinSpots[i % pinSpots.length];
+    const tier = f.tier || 'sticker';
     applyLayout(
       f,
-      heroLeft + 36 + i * 22 + (f.seed % 14),
-      heroTop + 48 + i * 26 + (f.seed % 10),
-      11 + i,
-      ((f.seed % 19) - 9) / 10,
+      Math.round(heroLeft + heroCand.w * spot.dx + (f.seed % 18) - 8),
+      Math.round(heroTop + heroCand.h * spot.dy + (f.seed % 14) - 6),
+      spot.z + (tier === 'sticker' ? 1 : 0),
+      pinRotation(f.seed, tier),
     );
   });
 
-  const slots = [
-    { x: 0.03, y: 0.04, z: 4 },
-    { x: 0.68, y: 0.02, z: 5 },
-    { x: 0.74, y: 0.38, z: 6 },
-    { x: 0.04, y: 0.42, z: 7 },
-    { x: 0.52, y: 0.52, z: 5 },
-    { x: 0.34, y: 0.68, z: 4 },
-    { x: 0.78, y: 0.62, z: 3 },
-    { x: 0.12, y: 0.72, z: 6 },
+  const zones = [
+    { x: 0.58, y: 0.06 },
+    { x: 0.02, y: 0.38 },
+    { x: 0.55, y: 0.52 },
+    { x: 0.08, y: 0.68 },
+    { x: 0.62, y: 0.72 },
   ];
+  let zoneIdx = 0;
 
-  let slotIdx = 0;
   clusters.forEach(cluster => {
     if(cluster.every(f => placed.has(f.id))) return;
-    const slot = slots[slotIdx++ % slots.length];
-    const baseLeft = Math.round(wallW * slot.x + (hSeed % 20));
-    const baseTop = Math.round(40 + slot.y * 420 + (slotIdx * 7) % 18);
-    cluster.filter(f => !placed.has(f.id)).forEach((f, i) => {
+    const zone = zones[zoneIdx++ % zones.length];
+    const anchorLeft = Math.round(wallW * zone.x + (hSeed % 16));
+    const anchorTop = Math.round(48 + zone.y * 380 + zoneIdx * groupGap * 0.12);
+    const unplaced = cluster.filter(f => !placed.has(f.id));
+    if(!unplaced.length) return;
+    const clusterHero = unplaced.find(f => f.tier === 'hero') || unplaced.reduce((a, b) => (a.weight >= b.weight ? a : b));
+    applyLayout(clusterHero, anchorLeft, anchorTop, 12, pinRotation(clusterHero.seed, clusterHero.tier || 'support'));
+    unplaced.filter(f => f.id !== clusterHero.id).forEach((f, i) => {
+      const tier = f.tier || 'sticker';
+      const refW = clusterHero.w || 200;
+      const refH = clusterHero.h || 160;
+      const offsets = [
+        { dx: refW * 0.75, dy: refH * 0.68 },
+        { dx: -f.w * 0.22, dy: refH * 0.08 },
+        { dx: refW * 0.04, dy: refH + 14 },
+        { dx: refW + 10, dy: refH * 0.2 },
+      ];
+      const off = offsets[i % offsets.length];
       applyLayout(
         f,
-        baseLeft + i * 18 + (f.seed % 12),
-        baseTop + i * 24 + ((f.seed >> 2) % 16),
-        slot.z + i,
-        ((f.seed % 23) - 11) / 10,
+        Math.round(clusterHero.layout.leftPx + off.dx + (f.seed % 10)),
+        Math.round(clusterHero.layout.topPx + off.dy + ((f.seed >> 2) % 12)),
+        10 + i + (tier === 'sticker' ? 2 : 0),
+        pinRotation(f.seed, tier),
       );
     });
   });
 
   fragments.filter(f => !placed.has(f.id)).forEach((f, i) => {
+    const tier = f.tier || 'sticker';
     applyLayout(
       f,
-      Math.round(wallW * (0.08 + (i * 0.13) % 0.72)),
-      Math.round(60 + i * 88 + (f.seed % 24)),
-      3 + (i % 5),
-      ((f.seed % 17) - 8) / 10,
+      Math.round(wallW * (0.06 + ((i * 17 + f.seed) % 62) / 100)),
+      Math.round(80 + i * 96 + groupGap * 0.4 + (f.seed % 20)),
+      6 + (i % 4),
+      pinRotation(f.seed, tier),
     );
   });
 
-  let maxBottom = 320;
+  let maxBottom = 360;
   fragments.forEach(f => {
     if(!f.layout) return;
-    maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 48);
+    maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 64);
   });
 
   fragments.forEach(f => {
     if(!f.layout) return;
-    f.layout.leftPct = Math.max(1, Math.min(74, (f.layout.leftPx / wallW) * 100));
+    f.layout.leftPct = Math.max(1, Math.min(72, (f.layout.leftPx / wallW) * 100));
     f.layout.topPct = Math.max(2, (f.layout.topPx / maxBottom) * 100);
+  });
+
+  fragments.forEach(f => {
+    if((f.shape === 'photo' || f.shape === 'video') && !f.isHero) f.tier = 'support';
   });
 
   const tethers = [];
   clusters.forEach(cluster => {
     if(cluster.length < 2) return;
-    const pts = cluster.filter(f => f.layout).map(f => ({
-      id: f.id,
-      x: f.layout.leftPx + f.w * 0.5,
-      y: f.layout.topPx + f.h * 0.35,
-      neon: stableNeon(f.id, 1),
-    }));
-    if(pts.length < 2) return;
-    const hub = pts[0];
-    for(let i = 1; i < pts.length; i++){
-      tethers.push({ x1: hub.x, y1: hub.y, x2: pts[i].x, y2: pts[i].y, neon: hub.neon });
-    }
+    const hub = cluster.find(f => f.isHero || f.tier === 'hero') || cluster[0];
+    if(!hub?.layout) return;
+    const hx = hub.layout.leftPx + hub.w * 0.5;
+    const hy = hub.layout.topPx + hub.h * 0.42;
+    cluster.filter(f => f.id !== hub.id && f.layout).forEach(f => {
+      tethers.push({
+        x1: hx, y1: hy,
+        x2: f.layout.leftPx + f.w * 0.4,
+        y2: f.layout.topPx + f.h * 0.35,
+        neon: stableNeon(hub.id, 1),
+      });
+    });
   });
 
   return { fragments, wallHeight: maxBottom, wallW, tethers };
@@ -4818,18 +4887,22 @@ function getScrapbookDoodle(item, index){
   return assets[seed % assets.length];
 }
 
-function evidenceFragmentMeta(item, index){
+function evidenceFragmentMeta(item, index, frag){
   const seed = scrapbookSeedFromId(item.id || String(index));
-  const side = seed % 2 ? 'left' : 'right';
+  const isHero = frag?.isHero;
+  const tier = frag?.tier || 'sticker';
   return {
-    doodle: getScrapbookDoodle(item, index),
-    doodleSide: side,
+    doodle: isHero ? getScrapbookDoodle(item, index) : '',
+    doodleSide: seed % 2 ? 'left' : 'right',
     doodleRot: (seed % 21) - 10,
     doodleOff: 6 + (seed % 18),
+    showBrackets: !!isHero,
+    tier,
   };
 }
 
-function buildEvidenceBrackets(){
+function buildEvidenceBrackets(show){
+  if(!show) return '';
   return `<span class="evidence-bracket evidence-bracket-tl" aria-hidden="true"></span>
     <span class="evidence-bracket evidence-bracket-tr" aria-hidden="true"></span>
     <span class="evidence-bracket evidence-bracket-bl" aria-hidden="true"></span>
@@ -4849,20 +4922,23 @@ function buildScrapbookFlipCard(item, index, opts){
   const frag = opts.frag;
   const layout = frag?.layout;
   const neon = opts.neon || stableNeon(item.id || String(index), index);
-  const meta = opts.fragMeta || evidenceFragmentMeta(item, index);
+  const meta = opts.fragMeta || evidenceFragmentMeta(item, index, frag);
+  const tier = meta.tier || frag?.tier || 'sticker';
   const caption = opts.caption || 'Untitled';
   const stamp = opts.stamp || '';
   const hint = opts.hintFront || '↻ story';
   const w = frag?.w || 220;
   const h = frag?.h || 180;
+  const hideCaption = tier === 'sticker' && opts.frameHtml?.includes('scrap-note-preview');
   const style = layout
     ? `--frag-left-pct:${layout.leftPct};--frag-top-pct:${layout.topPct};--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
     : `--frag-neon:${neon};--frag-w:${w}px;--frag-h:${h}px`;
   const heroCls = frag?.isHero ? ' is-hero' : '';
+  const tierCls = ` pin-${tier}`;
   const shapeCls = frag?.shape ? ` frag-${frag.shape}` : '';
-  const clipCls = frag ? ` clip-v${frag.clipVariant}` : '';
-  return `<article class="evidence-fragment${heroCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
-    ${buildEvidenceBrackets()}
+  const clipCls = frag && tier !== 'sticker' ? ` clip-v${frag.clipVariant}` : '';
+  return `<article class="evidence-fragment${heroCls}${tierCls}${shapeCls}${clipCls}" style="${style}" data-scrap-id="${esc(item.id)}">
+    ${buildEvidenceBrackets(meta.showBrackets)}
     ${buildEvidenceDoodle(meta, neon)}
     <figure class="photo-flip scrapbook-sticker has-story" style="--flip-neon:${neon}">
       <div class="photo-flip-scene">
@@ -4870,7 +4946,7 @@ function buildScrapbookFlipCard(item, index, opts){
           <div class="photo-flip-face photo-flip-front">
             ${stamp ? `<time class="scrapbook-stamp">${esc(stamp)}</time>` : ''}
             <div class="photo-frame evidence-frame">${opts.frameHtml}</div>
-            <figcaption class="photo-caption">${esc(caption)}</figcaption>
+            ${hideCaption ? '' : `<figcaption class="photo-caption">${esc(caption)}</figcaption>`}
             <span class="flip-hint-front">${hint}</span>
           </div>
           <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${opts.backHtml}</div></div>
@@ -4880,10 +4956,11 @@ function buildScrapbookFlipCard(item, index, opts){
   </article>`;
 }
 
-function buildScrapbookNoteFrame(typeLabel, excerpt){
+function buildScrapbookNoteFrame(typeLabel, excerpt, tier = 'support'){
   const text = (excerpt || '').trim();
-  const clip = text.length > 110 ? text.slice(0, 110) + '…' : text;
-  return `<div class="photo-placeholder scrap-note-preview">
+  const maxLen = tier === 'sticker' ? 72 : 110;
+  const clip = text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+  return `<div class="photo-placeholder scrap-note-preview scrap-note-${tier}">
     ${typeLabel ? `<span class="scrap-note-type">${esc(typeLabel)}</span>` : ''}
     ${clip ? `<p class="scrap-note-excerpt">${esc(clip)}</p>` : '<span class="scrap-note-glyph">◈</span>'}
   </div>`;
@@ -4925,7 +5002,7 @@ function buildScrapbookWritingFlip(item, index, key, opts){
     neon,
     caption,
     stamp: when,
-    frameHtml: buildScrapbookNoteFrame(typeLabel, body || title),
+    frameHtml: buildScrapbookNoteFrame(typeLabel, body || title, opts.frag?.tier || 'support'),
     backHtml,
     hintFront: '↻ read',
     frag: opts.frag,
@@ -4934,7 +5011,7 @@ function buildScrapbookWritingFlip(item, index, key, opts){
 }
 
 function buildScrapbookWallItem(item, index, key, frag){
-  const pass = { frag, fragMeta: evidenceFragmentMeta(item, index) };
+  const pass = { frag, fragMeta: evidenceFragmentMeta(item, index, frag) };
   if(item.kind === 'meta' && item.metaType === 'mood'){
     return buildScrapbookWritingFlip(item, index, key, {
       neon: moodColor(item.moodId),
@@ -5035,8 +5112,16 @@ function buildEvidenceTethersSvg(tethers, wallW, wallH){
 }
 
 function buildEvidenceWall(wallItems, key){
-  const fragments = wallItems.map((item, i) => describeEvidenceFragment(item, i));
+  const fragments = wallItems.map((item, i) => describeEvidenceFragment(item, i, false));
   const { wallHeight, wallW, tethers } = layoutEvidenceFragments(fragments);
+  fragments.forEach(f => {
+    if((f.shape === 'photo' || f.shape === 'video') && !f.isHero){
+      f.tier = 'support';
+      const sized = shrinkWrapFragmentSize(f.item, f.shape, f.seed, false);
+      f.w = sized.w;
+      f.h = sized.h;
+    }
+  });
   const fragMap = new Map(fragments.map(f => [f.id, f]));
   const html = wallItems.map((item, i) => {
     const frag = fragMap.get(item.id || String(i));
