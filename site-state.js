@@ -215,7 +215,7 @@ const SITE_STATE = {
     "2026-07-17": {
       "plannedTodos": [],
       "stream": {
-        "startedAt": null,
+        "startedAt": "2026-07-17T12:46:56.293Z",
         "endedAt": null,
         "nodes": [
           {
@@ -225,8 +225,27 @@ const SITE_STATE = {
             "source": "mood",
             "text": "Mood → Neutral",
             "auto": true
+          },
+          {
+            "id": "n-wake-1784292416293",
+            "at": "2026-07-17T12:46:56.293Z",
+            "type": "wake",
+            "text": "Day started"
           }
         ]
+      },
+      "dayStartSnapshot": {
+        "at": "2026-07-17T12:46:56.293Z",
+        "steps": 0,
+        "workHours": 0,
+        "hobbyHours": 0,
+        "skillHours": {
+          "mandarin": 0,
+          "skateboarding": 0,
+          "writing": 0,
+          "creatives": 0,
+          "running": 0
+        }
       }
     },
     "2026-07-18": {
