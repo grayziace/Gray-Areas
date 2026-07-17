@@ -75,12 +75,19 @@ function placeOverallRank(pc){
   return Math.round(ranks.reduce((a, b) => a + b, 0) / ranks.length);
 }
 
+function getPlaceLocationLabel(item){
+  const parts = [item?.address, item?.city, item?.town, item?.region, item?.country].map(s => (s || '').trim()).filter(Boolean);
+  if(parts.length) return [...new Set(parts)].join(' · ');
+  return (item?.address || '').trim();
+}
+
 function buildPlaceCardFront(item, unlocked, opts = {}){
   const pc = normalizePlaceCard(item);
   const level = unlocked ? getPlaceLevel(item) : '??';
   const accent = opts.accent || stableNeon(item.id || item.name, 0);
   const artSrc = item.image;
   const name = unlocked ? esc(item.name) : '???';
+  const location = unlocked ? getPlaceLocationLabel(item) : '';
   const art = buildCardPhotoHtml(artSrc, unlocked, item.name, { x: item.imageFocusX, y: item.imageFocusY });
   const overall = placeOverallRank(pc);
 
@@ -91,6 +98,7 @@ function buildPlaceCardFront(item, unlocked, opts = {}){
       <span class="pc-name">${name}</span>
       <span class="pc-lv" title="Times visited">×${level}</span>
     </div>
+    ${location ? `<p class="plc-location">${esc(location)}</p>` : ''}
     <div class="pc-art">${art}</div>
     ${unlocked && overall ? `<div class="plc-ranks plc-overall">${placeRankRow('Score', overall, accent)}</div>` : ''}
     <span class="flip-hint-front">↻ details</span>
@@ -105,8 +113,10 @@ function buildPlaceCardBack(item, unlocked, opts = {}){
     return `<div class="pc-back locked-back" style="--pc-accent:${accent}"><p class="pc-locked">Locked — visit to unlock</p><span class="flip-hint-back">flip back</span></div>`;
   }
   const level = getPlaceLevel(item);
+  const location = getPlaceLocationLabel(item);
   return `<div class="pc-back plc-back" style="--pc-accent:${accent}">
     <div class="pc-back-title">${esc(item.name)}</div>
+    ${location ? `<div class="pc-row"><span>Location</span><span>${esc(location)}</span></div>` : ''}
     <div class="pc-row"><span>Visits</span><span>×${level}</span></div>
     ${placeRankRow('Vibe', pc.vibeRank, accent)}
     ${placeRankRow('Experience', pc.experienceRank, accent)}
@@ -158,6 +168,7 @@ function placeCardEditorHtml(item){
         imageFocusX: item?.imageFocusX,
         imageFocusY: item?.imageFocusY,
       })}
+      <div class="field"><label>Location</label><input type="text" id="ce_place_address" value="${esc(item?.address || '')}" placeholder="Country · city · district · address"></div>
     </div>`;
 }
 
@@ -188,5 +199,6 @@ function readPlaceCardForm(){
     placeCard,
     placeBlob: blob,
     photoPrompt: document.getElementById('ce_place_photo_desc')?.value?.trim() || '',
+    address: document.getElementById('ce_place_address')?.value?.trim() || '',
   };
 }

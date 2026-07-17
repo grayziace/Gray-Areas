@@ -667,7 +667,7 @@ function cardFormData(type, image){
     ? ImageTools.readFocus(type === 'place' ? 'ce_place_photo' : 'ce_portrait')
     : {};
   if(type === 'place'){
-    const { parsed, placeCard, placeBlob, photoPrompt } = readPlaceCardForm();
+    const { parsed, placeCard, placeBlob, photoPrompt, address } = readPlaceCardForm();
     return {
       name: parsed?.name || '',
       placeCard,
@@ -676,6 +676,7 @@ function cardFormData(type, image){
       type: 'Place',
       unlocked: document.getElementById('ce_unlocked')?.checked,
       image: image || '',
+      address: address || '',
       ...focus,
     };
   }
@@ -2515,32 +2516,12 @@ function bindIntroSkip(){
 }
 
 function introSequence(){
-  const journey = document.getElementById('introJourney');
-  const uk = document.getElementById('introUk');
-  const sz = document.getElementById('introSz');
-  const travel = document.getElementById('introTravel');
   const brand = document.getElementById('loadingBrand');
-  const loading = document.getElementById('loading');
-
+  const sub = document.getElementById('introSub');
   bindIntroSkip();
-  loading?.classList.add('intro-playing');
-
-  setTimeout(() => {
-    uk?.classList.add('out');
-    travel?.classList.add('active');
-  }, 700);
-
-  setTimeout(() => {
-    sz?.classList.add('in');
-  }, 2800);
-
-  setTimeout(() => {
-    journey?.classList.add('out');
-    loading?.classList.add('intro-title-phase');
-    brand?.classList.add('in');
-  }, 3600);
-
-  setTimeout(dismissLoading, 5800);
+  brand?.classList.add('in');
+  setTimeout(() => sub?.classList.add('in'), 3000);
+  setTimeout(dismissLoading, 5000);
 }
 
 function wireNavigation(){
@@ -4137,10 +4118,23 @@ function renderHomeCheckIn(){
             ${key !== todayKey() ? `<span class="live-on-air-span">Day in progress · calendar ${fmtDateLong(todayKey())}</span>` : ''}
           </div>
         </div>
-        <div class="live-clocks-mini">
-          <span class="live-clock-mini" id="clockShenzhen">--:--</span>
-          <span class="live-clock-mini-sep">·</span>
-          <span class="live-clock-mini" id="clockUk">--:--</span>
+        <div class="live-zone-clocks">
+          <div class="live-on-air live-zone-clock">
+            <span class="live-on-air-dot live-zone-dot"></span>
+            <span class="live-on-air-text">Shenzhen</span>
+            <div class="live-on-air-dates">
+              <span class="live-on-air-date" id="clockShenzhen">--:--:--</span>
+              <span class="live-on-air-span" id="clockShenzhenDate">—</span>
+            </div>
+          </div>
+          <div class="live-on-air live-zone-clock">
+            <span class="live-on-air-dot live-zone-dot live-zone-dot-uk"></span>
+            <span class="live-on-air-text">UK</span>
+            <div class="live-on-air-dates">
+              <span class="live-on-air-date" id="clockUk">--:--:--</span>
+              <span class="live-on-air-span" id="clockUkDate">—</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4339,7 +4333,7 @@ function buildScrapbookChrome(key, nav = {}){
   const adminEdit = isAdmin()
     ? `<button type="button" class="btn scrapbook-edit-day" data-scrap-edit-day="${key}">Edit this day</button>`
     : '';
-  return `<header class="scrapbook-chrome card-panel">
+  return `<header class="scrapbook-chrome">
     <button type="button" class="btn" data-scrap-day="${prevKey}" aria-label="Previous day">←</button>
     <div class="scrapbook-date-head">
       <span class="scrapbook-weekday">${esc(weekday)}</span>
@@ -4392,72 +4386,91 @@ function getScrapbookWallItems(key, e, stream){
   return items;
 }
 
+function scrapbookWallLayout(item, index){
+  return resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
+}
+
 function buildScrapbookPhotoPost(item, index, key, opts = {}){
-  const layout = resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
-  const wideClass = layout.gridWide ? ' layout-wide' : '';
-  const sizeClass = ` size-${layout.size}`;
-  const neon = stableNeon(item.id, index);
-  const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}`;
+  const p = scrapbookWallLayout(item, index);
+  const neon = stableNeon(item.id || String(index), index);
   const when = item.at ? fmtNodeStamp(item.at, key) : '';
+  const caption = item.caption || '';
   const adminEdit = isAdmin() && opts.nodeId
     ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(opts.nodeId)}" data-scrap-key="${esc(key)}">Edit</button>`
     : '';
-  const caption = item.caption || '';
-  const backBody = [
-    when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : '',
-    caption ? `<h3 class="flip-caption">${esc(caption)}</h3>` : '',
-    item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : '',
-    adminEdit,
-    `<span class="flip-hint-back">tap to flip back</span>`,
-  ].filter(Boolean).join('');
+  const backHtml = `${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
+    ${caption ? `<h3 class="flip-caption">${esc(caption)}</h3>` : ''}
+    ${item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : ''}
+    ${adminEdit}
+    <span class="flip-hint-back">tap to flip back</span>`;
 
-  return `<figure class="photo-flip scrap-item${wideClass}${sizeClass}" style="${style}" data-scrap-id="${esc(item.id)}">
-    <div class="photo-flip-scene card-scene-border">
+  return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide ? ' layout-wide' : ''} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+    <div class="photo-flip-scene">
       <div class="photo-flip-inner">
         <div class="photo-flip-face photo-flip-front">
           <div class="photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
           <figcaption class="photo-caption">${esc(caption || 'Pulse')}</figcaption>
           <span class="flip-hint-front">↻ story</span>
         </div>
-        <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${backBody}</div></div>
+        <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${backHtml}</div></div>
+      </div>
+    </div>
+  </figure>`;
+}
+
+function buildScrapbookWritingFlip(item, index, key, opts){
+  const p = scrapbookWallLayout(item, index);
+  const neon = opts.neon || '#9b5cff';
+  const when = opts.when || '';
+  const title = opts.title || '';
+  const body = opts.body || '';
+  const typeLabel = opts.typeLabel || '';
+  const adminEdit = opts.adminEdit || '';
+  const extraClass = opts.wide ? ' layout-wide' : '';
+
+  return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide || opts.wide ? ' layout-wide' : ''} size-${p.size} has-story scrap-item--writing" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+    <div class="photo-flip-scene">
+      <div class="photo-flip-inner">
+        <div class="photo-flip-face photo-flip-front">
+          ${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
+          ${typeLabel ? `<span class="scrap-pulse-type">${typeLabel}</span>` : ''}
+          ${title ? `<h3 class="scrap-pulse-title">${esc(title)}</h3>` : ''}
+          ${body && body.length <= 120 ? `<p class="scrap-pulse-body">${esc(body)}</p>` : ''}
+          <span class="flip-hint-front">↻ read</span>
+        </div>
+        <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">
+          ${body ? `<p class="flip-desc">${esc(body)}</p>` : ''}
+          ${adminEdit}
+          <span class="flip-hint-back">tap to flip back</span>
+        </div></div>
       </div>
     </div>
   </figure>`;
 }
 
 function buildScrapbookWallItem(item, index, key){
-  const layout = resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
-  const wideClass = layout.gridWide ? ' layout-wide' : '';
-  const sizeClass = ` size-${layout.size}`;
-  const style = `--rot:${layout.rotate}deg;--shift-x:${layout.shiftX}px;--shift-y:${layout.shiftY}px;`;
-
   if(item.kind === 'photo'){
     return buildScrapbookPhotoPost(item, index, key);
   }
 
   if(item.kind === 'diary'){
-    const neon = '#9b5cff';
-    const when = item.at ? fmtNodeStamp(item.at, key) : '';
-    return `<figure class="photo-flip scrap-item scrap-item--writing${wideClass}${sizeClass}" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
-      <div class="photo-flip-scene card-scene-border">
-        <div class="scrap-pulse-card">
-          ${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
-          <span class="scrap-pulse-type">Diary</span>
-          <p class="scrap-pulse-body">${esc(item.text)}</p>
-        </div>
-      </div>
-    </figure>`;
+    return buildScrapbookWritingFlip(item, index, key, {
+      neon: '#9b5cff',
+      when: item.at ? fmtNodeStamp(item.at, key) : '',
+      title: 'Diary',
+      body: item.text || '',
+      typeLabel: 'Diary',
+      wide: true,
+    });
   }
 
   const node = item.node;
   const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
-  const neon = meta.neon;
   const when = fmtNodeStamp(node.at, key);
   const title = getPulseNodeTitle(node);
   const body = node.body || node.data?.body || '';
   const text = body || (node.text && node.text !== title ? node.text : '');
   const isWriting = ['note', 'story', 'dream', 'memory', 'idea', 'event', 'news'].includes(node.type) || (text && text.length > 80);
-  const writeWide = isWriting ? ' layout-wide' : wideClass;
   const adminEdit = isAdmin()
     ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
     : '';
@@ -4474,14 +4487,10 @@ function buildScrapbookWallItem(item, index, key){
   }
 
   if(node.type === 'video' && node.video){
-    const when = fmtNodeStamp(node.at, key);
-    const title = getPulseNodeTitle(node);
-    const body = node.body || node.data?.body || '';
-    const adminEdit = isAdmin()
-      ? `<button type="button" class="btn scrap-pulse-edit" data-scrap-pulse-edit="${esc(node.id)}" data-scrap-key="${esc(key)}">Edit</button>`
-      : '';
-    return `<figure class="photo-flip scrap-item layout-wide size-md" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
-      <div class="photo-flip-scene card-scene-border">
+    const p = scrapbookWallLayout(item, index);
+    const neon = meta.neon;
+    return `<figure class="photo-flip layout-${p.layoutPreset} layout-wide size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+      <div class="photo-flip-scene">
         <div class="photo-flip-inner">
           <div class="photo-flip-face photo-flip-front">
             <div class="photo-frame"><video src="${esc(node.video)}" muted playsinline preload="metadata"></video></div>
@@ -4491,7 +4500,7 @@ function buildScrapbookWallItem(item, index, key){
           <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">
             ${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
             ${title ? `<h3 class="flip-caption">${esc(title)}</h3>` : ''}
-            ${body ? `<p class="flip-desc">${esc(body)}</p>` : ''}
+            ${text ? `<p class="flip-desc">${esc(text)}</p>` : ''}
             ${adminEdit}
             <span class="flip-hint-back">tap to flip back</span>
           </div></div>
@@ -4500,60 +4509,25 @@ function buildScrapbookWallItem(item, index, key){
     </figure>`;
   }
 
-  if(node.type === 'photo' && node.photo){
-    const photoDetails = getPulsePhotoDetails(node);
+  if(node.photo){
     return buildScrapbookPhotoPost({
       id: item.id,
       src: node.photo,
-      caption: photoDetails.caption,
-      place: photoDetails.place,
+      caption: title || meta.label,
+      place: '',
       at: node.at,
     }, index, key, { nodeId: node.id });
   }
 
-  if(node.photo){
-    return `<figure class="photo-flip scrap-item${writeWide}${sizeClass}" style="${style}--flip-neon:${neon}" data-scrap-id="${esc(item.id)}">
-      <div class="photo-flip-scene">
-        <div class="photo-flip-inner">
-          <div class="photo-flip-face photo-flip-front">
-            <div class="photo-frame"><img src="${esc(node.photo)}" alt="" loading="lazy"></div>
-            <figcaption class="photo-caption">${esc(title || meta.label)} · ${esc(when)}</figcaption>
-          </div>
-          <div class="photo-flip-face photo-flip-back">
-            <div class="flip-back-inner">
-              <time class="scrap-pulse-time">${esc(when)}</time>
-              <span class="scrap-pulse-type">${meta.icon} ${meta.label}</span>
-              ${title ? `<h3 class="flip-caption">${esc(title)}</h3>` : ''}
-              ${text ? `<p class="flip-desc">${esc(text)}</p>` : ''}
-              <span class="flip-hint-back">tap to flip back</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </figure>`;
-  }
-
-  return `<figure class="photo-flip scrap-item scrap-item--writing${writeWide}${sizeClass}" style="${style}--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
-    <div class="photo-flip-scene card-scene-border">
-      <div class="photo-flip-inner">
-        <div class="photo-flip-face photo-flip-front">
-          <div class="scrap-pulse-card scrap-pulse-card--front">
-            <time class="scrap-pulse-time">${esc(when)}</time>
-            <span class="scrap-pulse-type">${meta.icon} ${meta.label}</span>
-            ${title ? `<h3 class="scrap-pulse-title">${esc(title)}</h3>` : ''}
-            <span class="flip-hint-front">↻ read</span>
-          </div>
-        </div>
-        <div class="photo-flip-face photo-flip-back">
-          <div class="scrap-pulse-card">
-            ${text ? `<p class="scrap-pulse-body">${esc(text)}</p>` : ''}
-            ${adminEdit}
-            <span class="flip-hint-back">tap to flip back</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </figure>`;
+  return buildScrapbookWritingFlip(item, index, key, {
+    neon: meta.neon,
+    when,
+    title,
+    body: text,
+    typeLabel: `${meta.icon} ${meta.label}`,
+    adminEdit,
+    wide: isWriting,
+  });
 }
 
 function buildEmptyScrapbookPage(key, nav){
@@ -4587,21 +4561,17 @@ function buildDayScrapbookHTML(key, e, nav = {}){
     ? `${fmtNodeStamp(stream.startedAt, key)}${stream.endedAt ? ` → ${fmtNodeStamp(stream.endedAt, key)}` : ''}${duration ? ` · ${duration}` : ''}`
     : '';
 
-  return `<div class="scrapbook-day" style="--db-mood:${moodColor(moodId)}">
+  return `<div class="scrapbook-day scrapbook-day--wall" style="--db-mood:${moodColor(moodId)}">
     ${buildScrapbookChrome(key, nav)}
-    <div class="scrapbook-meta card-panel">
+    <div class="scrapbook-strip">
       <span class="scrapbook-status${completed ? ' is-sealed' : ''}">${statusLabel}</span>
       ${moodId ? `<span class="scrapbook-mood">${moodIcon(moodId)} ${esc(moodLabel(moodId))}</span>` : ''}
       ${spanLine ? `<span class="scrapbook-span">${esc(spanLine)}</span>` : ''}
     </div>
     ${renderDayScoreChips(deltas)}
-    <div class="scrapbook-body">
-      <div class="scrapbook-main">
-        ${renderScrapbookTodos(key)}
-        <div class="photo-wall scrapbook-wall">${wallItems.map((item, i) => buildScrapbookWallItem(item, i, key)).join('')}</div>
-        ${renderDayReflectionHTML(n.dayReflection)}
-      </div>
-    </div>
+    ${renderScrapbookTodos(key)}
+    <div class="photo-wall scrapbook-wall">${wallItems.map((item, i) => buildScrapbookWallItem(item, i, key)).join('')}</div>
+    ${renderDayReflectionHTML(n.dayReflection)}
   </div>`;
 }
 
