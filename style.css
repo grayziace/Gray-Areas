@@ -3650,14 +3650,14 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 }
 .evidence-surface{
   position:relative;z-index:2;
-  width:100%;max-width:960px;
+  width:var(--wall-w,920px);max-width:100%;
   min-height:var(--wall-h,520px);
   margin:0 auto;padding:36px 12px 24px;
 }
 .evidence-fragment{
   position:absolute;
-  left:var(--frag-left-pct,8%);top:var(--frag-top-pct,8%);
-  width:min(var(--frag-w,220px),88vw);
+  left:var(--frag-left,24px);top:var(--frag-top,24px);
+  width:min(var(--frag-w,220px),calc(var(--wall-w,920px) - 32px));
   z-index:var(--frag-z,2);
   transform:rotate(var(--frag-rot,-1deg));
   filter:drop-shadow(4px 7px 14px rgba(0,0,0,0.55));

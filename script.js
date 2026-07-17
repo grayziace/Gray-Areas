@@ -4747,106 +4747,119 @@ function groupEvidenceClusters(fragments){
   });
 }
 
-function layoutEvidenceFragments(fragments){
-  if(!fragments.length) return { fragments: [], wallHeight: 420, tethers: [] };
-  const sorted = [...fragments].sort((a, b) => b.weight - a.weight);
-  const heroCand = sorted.find(f => f.tier === 'hero' && (f.shape === 'photo' || f.shape === 'video')) || sorted[0];
-  heroCand.isHero = true;
-  heroCand.tier = 'hero';
-  const clusters = groupEvidenceClusters(fragments);
-  const heroCluster = clusters.find(c => c.some(f => f.id === heroCand.id)) || [heroCand];
-  const placed = new Set();
-  const wallW = 920;
-  const groupGap = 110;
+function evidenceOccupiedRect(left, top, w, h){
+  return { left, top, w, h };
+}
 
-  const applyLayout = (f, leftPx, topPx, z, rot) => {
-    f.layout = { leftPx, topPx, z, rot };
-    placed.add(f.id);
+function evidenceRectsCollide(a, b, gap = 18){
+  return a.left < b.left + b.w + gap
+    && a.left + a.w + gap > b.left
+    && a.top < b.top + b.h + gap
+    && a.top + a.h + gap > b.top;
+}
+
+function evidenceBoardQuadrants(wallW, wallH){
+  const midX = Math.round(wallW * 0.5);
+  const midY = Math.round(wallH * 0.46);
+  return {
+    mc: { x0: Math.round(wallW * 0.26), x1: Math.round(wallW * 0.74), y0: 40, y1: Math.round(wallH * 0.58) },
+    tl: { x0: 10, x1: midX - 24, y0: 36, y1: midY },
+    tr: { x0: midX + 24, x1: wallW - 10, y0: 36, y1: midY },
+    bl: { x0: 10, x1: midX - 24, y0: midY + 20, y1: wallH - 20 },
+    br: { x0: midX + 24, x1: wallW - 10, y0: midY + 20, y1: wallH - 20 },
   };
+}
+
+function evidenceTryPlace(f, quad, occupied, seed){
+  if(!quad) return null;
+  const rangeX = Math.max(8, quad.x1 - quad.x0 - f.w);
+  const rangeY = Math.max(8, quad.y1 - quad.y0 - f.h);
+  for(let i = 0; i < 48; i++){
+    const left = quad.x0 + ((seed + i * 37) % rangeX);
+    const top = quad.y0 + ((seed + i * 53) % rangeY);
+    const box = evidenceOccupiedRect(left, top, f.w, f.h);
+    if(!occupied.some(o => evidenceRectsCollide(box, o))) return { left, top };
+  }
+  return null;
+}
+
+function evidenceOrbitSlot(f, hero, slotIdx, occupied, wallW){
+  const hl = hero.layout.leftPx;
+  const ht = hero.layout.topPx;
+  const gap = 22;
+  const slots = [
+    { left: hl + hero.w + gap, top: ht + Math.round(hero.h * 0.12) },
+    { left: hl - f.w - gap, top: ht + Math.round(hero.h * 0.28) },
+    { left: hl + Math.round(hero.w * 0.08), top: ht + hero.h + gap },
+    { left: hl + hero.w - f.w + 6, top: ht - f.h - gap + 4 },
+    { left: hl + hero.w + gap, top: ht + hero.h - f.h - 6 },
+    { left: hl - f.w + 12, top: ht + hero.h + gap },
+  ];
+  for(let j = 0; j < slots.length; j++){
+    const s = slots[(slotIdx + j) % slots.length];
+    const left = Math.max(8, Math.min(wallW - f.w - 8, s.left));
+    const top = Math.max(32, s.top);
+    const box = evidenceOccupiedRect(left, top, f.w, f.h);
+    if(!occupied.some(o => evidenceRectsCollide(box, o, 12))) return { left, top };
+  }
+  return null;
+}
+
+function layoutEvidenceFragments(fragments){
+  const BOARD_W = 920;
+  if(!fragments.length) return { fragments: [], wallHeight: 420, wallW: BOARD_W, tethers: [] };
+
+  let wallH = 620;
+  const occupied = [];
+  const sorted = [...fragments].sort((a, b) => b.weight - a.weight);
+  const hero = sorted.find(f => f.shape === 'photo' || f.shape === 'video') || sorted[0];
+  hero.isHero = true;
+  hero.tier = 'hero';
 
   const hSeed = scrapbookSeedFromId(fragments.map(f => f.id).join(''));
-  const heroLeft = Math.round(wallW * (0.24 + (hSeed % 14) / 100));
-  const heroTop = Math.round(32 + (hSeed % 22));
-  applyLayout(heroCand, heroLeft, heroTop, 18, pinRotation(heroCand.seed, 'hero'));
+  const clusters = groupEvidenceClusters(fragments);
+  const heroCluster = clusters.find(c => c.some(x => x.id === hero.id)) || [hero];
+  const heroMateIds = new Set(heroCluster.map(x => x.id));
 
-  const pinSpots = [
-    { dx: 0.68, dy: 0.72, z: 20 },
-    { dx: -0.28, dy: 0.12, z: 17 },
-    { dx: 0.08, dy: 1.02, z: 16 },
-    { dx: 0.82, dy: -0.06, z: 19 },
-  ];
-  heroCluster.filter(f => f.id !== heroCand.id).forEach((f, i) => {
-    const spot = pinSpots[i % pinSpots.length];
-    const tier = f.tier || 'sticker';
-    applyLayout(
-      f,
-      Math.round(heroLeft + heroCand.w * spot.dx + (f.seed % 18) - 8),
-      Math.round(heroTop + heroCand.h * spot.dy + (f.seed % 14) - 6),
-      spot.z + (tier === 'sticker' ? 1 : 0),
-      pinRotation(f.seed, tier),
-    );
+  const quads = evidenceBoardQuadrants(BOARD_W, wallH);
+  const heroPos = evidenceTryPlace(hero, quads.mc, occupied, hSeed)
+    || { left: Math.round(BOARD_W * 0.34), top: 52 };
+  hero.layout = { leftPx: heroPos.left, topPx: heroPos.top, z: 20, rot: pinRotation(hero.seed, 'hero') };
+  occupied.push(evidenceOccupiedRect(heroPos.left, heroPos.top, hero.w, hero.h));
+
+  const mates = fragments.filter(f => f.id !== hero.id && heroMateIds.has(f.id));
+  const others = fragments.filter(f => f.id !== hero.id && !heroMateIds.has(f.id));
+
+  mates.forEach((f, i) => {
+    let pos = evidenceOrbitSlot(f, hero, i, occupied, BOARD_W);
+    if(!pos){
+      const side = i % 2 ? quads.tr : quads.tl;
+      pos = evidenceTryPlace(f, side, occupied, f.seed);
+    }
+    if(!pos) pos = { left: heroPos.left + hero.w + 28 + i * 8, top: heroPos.top + 40 + i * 36 };
+    f.layout = { leftPx: pos.left, topPx: pos.top, z: 24 + i, rot: pinRotation(f.seed, f.tier || 'sticker') };
+    occupied.push(evidenceOccupiedRect(pos.left, pos.top, f.w, f.h));
   });
 
-  const zones = [
-    { x: 0.58, y: 0.06 },
-    { x: 0.02, y: 0.38 },
-    { x: 0.55, y: 0.52 },
-    { x: 0.08, y: 0.68 },
-    { x: 0.62, y: 0.72 },
-  ];
-  let zoneIdx = 0;
-
-  clusters.forEach(cluster => {
-    if(cluster.every(f => placed.has(f.id))) return;
-    const zone = zones[zoneIdx++ % zones.length];
-    const anchorLeft = Math.round(wallW * zone.x + (hSeed % 16));
-    const anchorTop = Math.round(48 + zone.y * 380 + zoneIdx * groupGap * 0.12);
-    const unplaced = cluster.filter(f => !placed.has(f.id));
-    if(!unplaced.length) return;
-    const clusterHero = unplaced.find(f => f.tier === 'hero') || unplaced.reduce((a, b) => (a.weight >= b.weight ? a : b));
-    applyLayout(clusterHero, anchorLeft, anchorTop, 12, pinRotation(clusterHero.seed, clusterHero.tier || 'support'));
-    unplaced.filter(f => f.id !== clusterHero.id).forEach((f, i) => {
-      const tier = f.tier || 'sticker';
-      const refW = clusterHero.w || 200;
-      const refH = clusterHero.h || 160;
-      const offsets = [
-        { dx: refW * 0.75, dy: refH * 0.68 },
-        { dx: -f.w * 0.22, dy: refH * 0.08 },
-        { dx: refW * 0.04, dy: refH + 14 },
-        { dx: refW + 10, dy: refH * 0.2 },
-      ];
-      const off = offsets[i % offsets.length];
-      applyLayout(
-        f,
-        Math.round(clusterHero.layout.leftPx + off.dx + (f.seed % 10)),
-        Math.round(clusterHero.layout.topPx + off.dy + ((f.seed >> 2) % 12)),
-        10 + i + (tier === 'sticker' ? 2 : 0),
-        pinRotation(f.seed, tier),
-      );
-    });
+  const quadCycle = ['tl', 'tr', 'bl', 'br'];
+  others.forEach((f, i) => {
+    let pos = null;
+    for(let attempt = 0; attempt < 4 && !pos; attempt++){
+      const q = evidenceBoardQuadrants(BOARD_W, wallH)[quadCycle[(i + attempt) % quadCycle.length]];
+      pos = evidenceTryPlace(f, q, occupied, f.seed + i * 11);
+    }
+    if(!pos){
+      wallH += 130;
+      pos = evidenceTryPlace(f, evidenceBoardQuadrants(BOARD_W, wallH).bl, occupied, f.seed + i * 19)
+        || { left: 14 + (i % 4) * 150, top: wallH - 110 };
+    }
+    f.layout = { leftPx: pos.left, topPx: pos.top, z: 10 + i, rot: pinRotation(f.seed, f.tier || 'sticker') };
+    occupied.push(evidenceOccupiedRect(pos.left, pos.top, f.w, f.h));
   });
 
-  fragments.filter(f => !placed.has(f.id)).forEach((f, i) => {
-    const tier = f.tier || 'sticker';
-    applyLayout(
-      f,
-      Math.round(wallW * (0.06 + ((i * 17 + f.seed) % 62) / 100)),
-      Math.round(80 + i * 96 + groupGap * 0.4 + (f.seed % 20)),
-      6 + (i % 4),
-      pinRotation(f.seed, tier),
-    );
-  });
-
-  let maxBottom = 360;
+  let maxBottom = 380;
   fragments.forEach(f => {
-    if(!f.layout) return;
-    maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 64);
-  });
-
-  fragments.forEach(f => {
-    if(!f.layout) return;
-    f.layout.leftPct = Math.max(1, Math.min(72, (f.layout.leftPx / wallW) * 100));
-    f.layout.topPct = Math.max(2, (f.layout.topPx / maxBottom) * 100);
+    if(f.layout) maxBottom = Math.max(maxBottom, f.layout.topPx + f.h + 56);
   });
 
   fragments.forEach(f => {
@@ -4856,21 +4869,21 @@ function layoutEvidenceFragments(fragments){
   const tethers = [];
   clusters.forEach(cluster => {
     if(cluster.length < 2) return;
-    const hub = cluster.find(f => f.isHero || f.tier === 'hero') || cluster[0];
+    const hub = cluster.find(f => f.isHero) || cluster[0];
     if(!hub?.layout) return;
     const hx = hub.layout.leftPx + hub.w * 0.5;
-    const hy = hub.layout.topPx + hub.h * 0.42;
+    const hy = hub.layout.topPx + hub.h * 0.45;
     cluster.filter(f => f.id !== hub.id && f.layout).forEach(f => {
       tethers.push({
         x1: hx, y1: hy,
-        x2: f.layout.leftPx + f.w * 0.4,
-        y2: f.layout.topPx + f.h * 0.35,
+        x2: f.layout.leftPx + f.w * 0.5,
+        y2: f.layout.topPx + f.h * 0.5,
         neon: stableNeon(hub.id, 1),
       });
     });
   });
 
-  return { fragments, wallHeight: maxBottom, wallW, tethers };
+  return { fragments, wallHeight: maxBottom, wallW: BOARD_W, tethers };
 }
 
 function scrapbookDoodleCategory(item){
@@ -4931,7 +4944,7 @@ function buildScrapbookFlipCard(item, index, opts){
   const h = frag?.h || 180;
   const hideCaption = tier === 'sticker' && opts.frameHtml?.includes('scrap-note-preview');
   const style = layout
-    ? `--frag-left-pct:${layout.leftPct};--frag-top-pct:${layout.topPct};--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
+    ? `--frag-left:${layout.leftPx}px;--frag-top:${layout.topPx}px;--frag-z:${layout.z};--frag-rot:${layout.rot}deg;--frag-w:${w}px;--frag-h:${h}px;--frag-neon:${neon}`
     : `--frag-neon:${neon};--frag-w:${w}px;--frag-h:${h}px`;
   const heroCls = frag?.isHero ? ' is-hero' : '';
   const tierCls = ` pin-${tier}`;
