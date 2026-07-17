@@ -1276,6 +1276,7 @@ const STREAM_NODE_META = {
   reflection: { label: 'Reflection', neon: '#fcd34d', icon: '✦' },
   mandarin: { label: 'Mandarin', neon: '#dc2626', icon: '文' },
   hobby: { label: 'Hobby', neon: '#e879f9', icon: '✦' },
+  hangout: { label: 'Hangout', neon: '#fb7185', icon: '🫂' },
   nap: { label: 'Rest', neon: '#64748b', icon: '⋯' },
   event: { label: 'Event', neon: '#f97316', icon: '◈' },
   todo: { label: 'To-do done', neon: '#e8c547', icon: '✓' },
@@ -1304,6 +1305,133 @@ function getHobbyCardNames(){
   if(typeof getSkills !== 'function') return [];
   const names = getSkills().flatMap(s => typeof getHobbyNamesForSkill === 'function' ? getHobbyNamesForSkill(s) : [s.name]);
   return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getPulseLinkedCards(data = {}, type){
+  const d = data || {};
+  const people = [...(d.linkedPeople || [])];
+  const animals = [...(d.linkedAnimals || [])];
+  const places = [...(d.linkedPlaces || [])];
+  const hobbies = [...(d.linkedHobbies || [])];
+  if(type === 'person' && d.name && !people.includes(d.name)) people.push(d.name);
+  if(type === 'place' && d.name && !places.includes(d.name)) places.push(d.name);
+  if(type === 'hobby' && d.what && !hobbies.includes(d.what)) hobbies.push(d.what);
+  if(type === 'hangout'){
+    if(d.title && !people.length && !places.length) { /* title only */ }
+  }
+  return { people, animals, places, hobbies };
+}
+
+function renderPulseCardLinkGrid(cards, selectedNames, containerId, addKind){
+  const inner = (cards || []).map(c => {
+    const name = typeof c === 'string' ? c : c.name;
+    const thumb = typeof c === 'string' ? '' : (c.image || c.avatar);
+    const checked = selectedNames.includes(name) ? 'checked' : '';
+    return `<label class="end-card-pick pulse-link-pick"><input type="checkbox" value="${esc(name)}" ${checked}>
+      ${thumb ? `<img src="${esc(thumb)}" alt="">` : `<span class="end-card-pick-ph">${esc((name || '?')[0])}</span>`}
+      <span>${esc(name)}</span></label>`;
+  }).join('');
+  const addBtn = isAdmin() && addKind
+    ? `<button type="button" class="btn end-card-add pulse-link-add" data-pulse-link-add="${esc(addKind)}">+ New</button>`
+    : '';
+  return `<div class="pulse-link-grid" id="${containerId}">${inner || '<p class="empty-hint">No cards yet.</p>'}${addBtn}</div>`;
+}
+
+function renderPulseCardLinksSection(selected = {}){
+  const people = selected.people || [];
+  const animals = selected.animals || [];
+  const places = selected.places || [];
+  const hobbies = selected.hobbies || [];
+  const placeCards = (typeof getPlaces === 'function' ? getPlaces() : []).filter(p => p.unlocked !== false);
+  return `<section class="pulse-card-links">
+    <p class="pulse-card-links-kicker">Link cards</p>
+    <p class="field-hint">Optional — attach people, animals, places &amp; hobbies to any pulse.</p>
+    <div class="field"><label>People</label>${renderPulseCardLinkGrid(getPeopleCards('person'), people, 'pulseLinkPeople', 'person')}</div>
+    <div class="field"><label>Animals</label>${renderPulseCardLinkGrid(getPeopleCards('pet'), animals, 'pulseLinkAnimals', 'pet')}</div>
+    <div class="field"><label>Places</label>${renderPulseCardLinkGrid(placeCards, places, 'pulseLinkPlaces', 'place')}</div>
+    <div class="field"><label>Hobbies</label>${renderPulseCardLinkGrid(getHobbyCardNames().map(n => ({ name: n })), hobbies, 'pulseLinkHobbies', 'hobby')}</div>
+  </section>`;
+}
+
+function readPulseCardLinks(){
+  return {
+    linkedPeople: readEndCardPicks('pulseLinkPeople'),
+    linkedAnimals: readEndCardPicks('pulseLinkAnimals'),
+    linkedPlaces: readEndCardPicks('pulseLinkPlaces'),
+    linkedHobbies: readEndCardPicks('pulseLinkHobbies'),
+  };
+}
+
+function ensurePetCard(name){
+  if(!name) return null;
+  ensureContentState();
+  let c = state.content.characters.find(x => (x.name || '').toLowerCase() === name.toLowerCase());
+  if(!c){
+    c = { id: uid('char'), name, isPet: true, pokeCard: { level: 1 }, cardDescription: '' };
+    state.content.characters.push(c);
+    LiveSync?.cardUnlocked('player', name);
+    if(typeof awardGrayPoints === 'function') awardGrayPoints(GRAY_XP_AWARDS.new_card.xp, 'new_card');
+  } else if(!c.isPet){
+    c.isPet = true;
+  }
+  saveState();
+  return c;
+}
+
+function applyPulseCardLinks(data, metaKey){
+  if(!data || !metaKey) return;
+  const entry = normalizeEntry(state.entries[metaKey] || {});
+  const patch = {};
+  let people = [...entry.people];
+  let places = [...entry.places];
+  let hobbyLogs = [...(entry.hobbyLogs || [])];
+  (data.linkedPeople || []).forEach(name => {
+    ensureCharacterCard(name);
+    if(name && !people.includes(name)) people.push(name);
+    LiveSync?.playerMet(name);
+  });
+  (data.linkedAnimals || []).forEach(name => {
+    ensurePetCard(name);
+    if(name && !people.includes(name)) people.push(name);
+  });
+  (data.linkedPlaces || []).forEach(name => {
+    ensurePlaceCard(name);
+    if(name && !places.includes(name)) places.push(name);
+    if(name && !state.unlockedZones.includes(name)) state.unlockedZones.push(name);
+    LiveSync?.placeVisited(name);
+  });
+  (data.linkedHobbies || []).forEach(name => {
+    if(!name) return;
+    LiveSync?.hobbyLogged(name, 0);
+    if(!hobbyLogs.some(h => (h.hobby || h.name) === name)) hobbyLogs.push({ hobby: name, hours: 0 });
+  });
+  if(people.length !== entry.people.length) patch.people = people;
+  if(places.length !== entry.places.length) patch.places = places;
+  if(hobbyLogs.length !== (entry.hobbyLogs || []).length) patch.hobbyLogs = hobbyLogs;
+  if(Object.keys(patch).length){
+    state.entries[metaKey] = { ...state.entries[metaKey], ...patch };
+  }
+}
+
+function formatPulseLinksSummary(data){
+  const links = getPulseLinkedCards(data);
+  const parts = [];
+  if(links.people.length) parts.push(links.people.join(', '));
+  if(links.animals.length) parts.push('🐾 ' + links.animals.join(', '));
+  if(links.places.length) parts.push('📍 ' + links.places.join(', '));
+  if(links.hobbies.length) parts.push('✦ ' + links.hobbies.join(', '));
+  return parts.join(' · ');
+}
+
+function formatPulseLinksHtml(data){
+  const links = getPulseLinkedCards(data);
+  const chips = [
+    ...links.people.map(n => `<span class="scrap-link-tag">👤 ${esc(n)}</span>`),
+    ...links.animals.map(n => `<span class="scrap-link-tag">🐾 ${esc(n)}</span>`),
+    ...links.places.map(n => `<span class="scrap-link-tag">📍 ${esc(n)}</span>`),
+    ...links.hobbies.map(n => `<span class="scrap-link-tag">✦ ${esc(n)}</span>`),
+  ];
+  return chips.length ? `<div class="scrap-link-tags">${chips.join('')}</div>` : '';
 }
 
 function cardPickOptions(entity){
@@ -1504,6 +1632,10 @@ const PULSE_TYPE_DEFS = {
     { id: 'what', label: 'Hobby', type: 'card_pick', entity: 'hobby', required: true },
     { id: 'hours', label: 'Hours', type: 'number', min: 0, step: 0.5 },
     { id: 'body', label: 'Notes', type: 'textarea', rows: 4 },
+  ]},
+  hangout: { fields: [
+    { id: 'title', label: 'Hangout', type: 'text', required: true, placeholder: 'Coffee, walk, movie night…' },
+    { id: 'body', label: 'What happened', type: 'textarea', rows: 6, placeholder: 'Who was there, vibes, highlights…' },
   ]},
   nap: { fields: [
     { id: 'duration', label: 'Duration (min)', type: 'number', min: 0 },
@@ -2162,44 +2294,49 @@ function compressPulsePhoto(dataUrl, maxW = 900){
 
 function buildPulseSummary(type, data){
   const join = (...parts) => parts.filter(Boolean).join(' · ');
+  let summary;
   switch(type){
     case 'note':
-    case 'story': return data.title || (data.body || '').slice(0, 120);
-    case 'photo': return join(data.title, data.caption?.split('\n')[0], data.place);
-    case 'video': return join(data.title, data.place);
-    case 'mood': return join(`Mood ${data.mood || '?'}/10`, (data.body || '').slice(0, 80));
-    case 'food': return join(data.what, data.where, data.rating ? `${data.rating}/10` : '');
-    case 'drink': return join(data.what, data.where);
-    case 'person': return join('Met', data.name, data.context);
-    case 'place': return join('Found', data.name, data.area);
+    case 'story': summary = data.title || (data.body || '').slice(0, 120); break;
+    case 'photo': summary = join(data.title, data.caption?.split('\n')[0], data.place); break;
+    case 'video': summary = join(data.title, data.place); break;
+    case 'mood': summary = join(`Mood ${data.mood || '?'}/10`, (data.body || '').slice(0, 80)); break;
+    case 'food': summary = join(data.what, data.where, data.rating ? `${data.rating}/10` : ''); break;
+    case 'drink': summary = join(data.what, data.where); break;
+    case 'person': summary = join('Met', data.name, data.context); break;
+    case 'place': summary = join('Found', data.name, data.area); break;
     case 'song':
     case 'book':
-    case 'film': return join(data.title, data.progress || data.context);
-    case 'workout': return join(data.what, data.duration ? `${data.duration}m` : '');
-    case 'health': return data.what;
-    case 'work': return join(data.what, data.hours ? `${data.hours}h` : '');
-    case 'travel': return join(data.from ? `${data.from} →` : '', data.to, data.mode);
-    case 'weather': return join(data.what, data.temp ? `${data.temp}°C` : '');
-    case 'purchase': return join(data.what, data.cost);
+    case 'film': summary = join(data.title, data.progress || data.context); break;
+    case 'workout': summary = join(data.what, data.duration ? `${data.duration}m` : ''); break;
+    case 'health': summary = data.what; break;
+    case 'work': summary = join(data.what, data.hours ? `${data.hours}h` : ''); break;
+    case 'travel': summary = join(data.from ? `${data.from} →` : '', data.to, data.mode); break;
+    case 'weather': summary = join(data.what, data.temp ? `${data.temp}°C` : ''); break;
+    case 'purchase': summary = join(data.what, data.cost); break;
     case 'idea':
     case 'dream':
     case 'win':
     case 'event':
     case 'news':
     case 'vibe':
-    case 'memory': return data.title || (data.body || '').slice(0, 100);
-    case 'anxiety': return join(data.trigger, data.intensity ? `intensity ${data.intensity}/10` : '');
-    case 'gratitude': return data.what;
+    case 'memory': summary = data.title || (data.body || '').slice(0, 100); break;
+    case 'anxiety': summary = join(data.trigger, data.intensity ? `intensity ${data.intensity}/10` : ''); break;
+    case 'gratitude': summary = data.what; break;
     case 'mandarin':
-    case 'hobby': return join(data.what, data.hours ? `${data.hours}h` : '');
-    case 'nap': return join('Rest', data.duration ? `${data.duration}m` : '');
-    case 'call': return join('Call', data.who, data.duration ? `${data.duration}m` : '');
-    case 'message': return join(data.who, (data.body || '').slice(0, 60));
-    case 'learn': return data.what;
-    case 'quote': return join('“' + (data.text || '').slice(0, 80) + (data.text?.length > 80 ? '…”' : '”'), data.who);
-    case 'quest': return join('Quest', data.title, data.from, data.status);
-    default: return data.body || data.title || data.what || data.name || data.text || '';
+    case 'hobby': summary = join(data.what, data.hours ? `${data.hours}h` : ''); break;
+    case 'hangout': summary = join(data.title, formatPulseLinksSummary(data)); break;
+    case 'nap': summary = join('Rest', data.duration ? `${data.duration}m` : ''); break;
+    case 'call': summary = join('Call', data.who, data.duration ? `${data.duration}m` : ''); break;
+    case 'message': summary = join(data.who, (data.body || '').slice(0, 60)); break;
+    case 'learn': summary = data.what; break;
+    case 'quote': summary = join('“' + (data.text || '').slice(0, 80) + (data.text?.length > 80 ? '…”' : '”'), data.who); break;
+    case 'quest': summary = join('Quest', data.title, data.from, data.status); break;
+    default: summary = data.body || data.title || data.what || data.name || data.text || '';
   }
+  const links = formatPulseLinksSummary(data);
+  if(links && !['hangout', 'person', 'place', 'hobby'].includes(type)) summary = join(summary, links);
+  return summary || links || '';
 }
 
 function streamDiaryDraft(nodes){
@@ -3163,6 +3300,7 @@ const HomeCheckIn = {
     this.pulseType = type && PULSE_TYPE_DEFS[type] ? type : (type || this.pulseType || 'note');
     this.pulsePhotoData = '';
     this.pulseVideoData = '';
+    this._pulseLinkSelection = {};
     document.getElementById('pulseDate').value = getActiveDayKey();
     document.getElementById('pulseTime').value = nowTimeInputValue();
     this.renderPulseTypeGrid();
@@ -3182,6 +3320,7 @@ const HomeCheckIn = {
     this.pulseType = PULSE_TYPE_DEFS[node.type] ? node.type : 'note';
     this.pulsePhotoData = node.photo || node.data?.photo || '';
     this.pulseVideoData = node.video || node.data?.video || '';
+    this._pulseLinkSelection = getPulseLinkedCards(node.data || {}, node.type);
     if(node.at){
       const d = new Date(node.at);
       if(!Number.isNaN(d.getTime())){
@@ -3235,6 +3374,14 @@ const HomeCheckIn = {
       const val = data[field.id];
       if(val != null && val !== '') el.value = val;
     });
+    const links = getPulseLinkedCards(data, this.pulseType);
+    ['pulseLinkPeople', 'pulseLinkAnimals', 'pulseLinkPlaces', 'pulseLinkHobbies'].forEach((id, i) => {
+      const keys = ['people', 'animals', 'places', 'hobbies'];
+      const names = links[keys[i]] || [];
+      document.querySelectorAll(`#${id} input[type=checkbox]`).forEach(cb => {
+        cb.checked = names.includes(cb.value);
+      });
+    });
   },
 
   updatePulseComposerChrome(){
@@ -3249,6 +3396,7 @@ const HomeCheckIn = {
     document.getElementById('pulseComposerBack')?.classList.add('hidden');
     this.pulsePhotoData = '';
     this.pulseVideoData = '';
+    this._pulseLinkSelection = {};
     this.editingNodeId = null;
     this.editingStreamKey = null;
     this.updatePulseComposerChrome();
@@ -3313,8 +3461,9 @@ const HomeCheckIn = {
         ? ` min="${field.min ?? ''}" max="${field.max ?? ''}" step="${field.step ?? 1}"`
         : '';
       return `<div class="field"><label>${field.label}</label><input type="${inputType}" id="${id}"${extra} placeholder="${esc(field.placeholder || '')}"></div>`;
-    }).join('');
+    }).join('') + renderPulseCardLinksSection(this._pulseLinkSelection || {});
 
+    this.bindPulseCardLinkAdds();
     def.fields.forEach(field => {
       const el = document.getElementById(`pulseField_${field.id}`);
       if(!el) return;
@@ -3385,10 +3534,28 @@ const HomeCheckIn = {
     });
   },
 
+  bindPulseCardLinkAdds(){
+    document.querySelectorAll('[data-pulse-link-add]').forEach(btn => {
+      if(btn.dataset.bound) return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.pulseLinkAdd;
+        if(kind === 'place') openContentEditor('place', null, true);
+        else if(kind === 'hobby'){
+          alert('Add hobbies under Skill Cards, then link them here.');
+          navigateToView('skills');
+        } else {
+          window.__gaNewCharacterIsPet = kind === 'pet';
+          openContentEditor('character', null, true);
+        }
+      });
+    });
+  },
+
   readPulseForm(){
     const def = PULSE_TYPE_DEFS[this.pulseType];
     const data = {};
-    if(!def) return data;
+    if(!def) return { ...readPulseCardLinks() };
     def.fields.forEach(field => {
       if(field.type === 'photo') data.photo = this.pulsePhotoData;
       else if(field.type === 'video') data.video = this.pulseVideoData;
@@ -3399,7 +3566,7 @@ const HomeCheckIn = {
         data[field.id] = el.value?.trim?.() ?? el.value;
       }
     });
-    return data;
+    return { ...data, ...readPulseCardLinks() };
   },
 
   validatePulseForm(data){
@@ -3485,6 +3652,7 @@ const HomeCheckIn = {
     }
 
     const metaKey = ensureStreamForDate(dateStr);
+    applyPulseCardLinks(data, metaKey);
     const entry = normalizeEntry(state.entries[metaKey]);
     const patch = {};
     if(this.pulseType === 'person' && data.name){
@@ -4099,7 +4267,7 @@ function renderHomeCheckIn(){
   spread.className = admin ? 'live-broadcast live-broadcast--edit' : 'live-broadcast';
   if(sealed) spread.classList.add('is-sealed');
 
-  const pulseQuickTypes = ['note','story','photo','video','mood','food','person','place','work','health','travel','song','book','film','win','idea','event'];
+  const pulseQuickTypes = ['note','story','photo','video','mood','food','hangout','person','place','work','health','travel','song','book','film','win','idea','event'];
 
   spread.innerHTML = `
     <aside class="live-rail-col live-rail-col--wide${sealed ? ' is-sealed' : ''}">
@@ -4395,18 +4563,30 @@ function getScrapbookWallItems(key, e, stream){
 }
 
 function scrapbookLayout(item, index){
-  return resolveGalleryLayout({ id: item.id || String(index), layoutPreset: index % GALLERY_LAYOUTS.length }, index);
+  const p = resolveGalleryLayout({ id: item.id || String(index), layoutPreset: index % GALLERY_LAYOUTS.length }, index);
+  const rot = Number(p.rotate) || 0;
+  const sx = Number(p.shiftX) || 0;
+  const sy = Number(p.shiftY) || 0;
+  return {
+    ...p,
+    rotate: Math.sign(rot || 1) * Math.min(Math.abs(rot), 2.5),
+    shiftX: Math.round(sx * 0.35),
+    shiftY: Math.round(sy * 0.35),
+    gridWide: false,
+  };
 }
 
 function buildScrapbookFlipCard(item, index, opts){
   const p = opts.layout || scrapbookLayout(item, index);
   const neon = opts.neon || stableNeon(item.id || String(index), index);
   const caption = opts.caption || 'Untitled';
+  const stamp = opts.stamp || '';
   const hint = opts.hintFront || '↻ story';
-  return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide ? ' layout-wide' : ''} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+  return `<figure class="photo-flip scrapbook-sticker layout-${p.layoutPreset} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
     <div class="photo-flip-scene">
       <div class="photo-flip-inner">
         <div class="photo-flip-face photo-flip-front">
+          ${stamp ? `<time class="scrapbook-stamp">${esc(stamp)}</time>` : ''}
           <div class="photo-frame">${opts.frameHtml}</div>
           <figcaption class="photo-caption">${esc(caption)}</figcaption>
           <span class="flip-hint-front">${hint}</span>
@@ -4437,10 +4617,11 @@ function buildScrapbookPhotoPost(item, index, key, opts = {}){
   const backHtml = `${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
     ${caption ? `<h3 class="flip-caption">${esc(caption)}</h3>` : ''}
     ${item.place ? `<span class="scrap-location-tag">📍 ${esc(item.place)}</span>` : ''}
+    ${opts.linksHtml || ''}
     ${adminEdit}
     <span class="flip-hint-back">tap to flip back</span>`;
   const frameHtml = `<img src="${esc(item.src)}" alt="" loading="lazy">`;
-  return buildScrapbookFlipCard(item, index, { layout: p, neon, caption, frameHtml, backHtml });
+  return buildScrapbookFlipCard(item, index, { layout: p, neon, caption, stamp: when, frameHtml, backHtml });
 }
 
 function buildScrapbookWritingFlip(item, index, key, opts){
@@ -4456,12 +4637,14 @@ function buildScrapbookWritingFlip(item, index, key, opts){
     ${typeLabel ? `<span class="scrap-pulse-type">${esc(typeLabel)}</span>` : ''}
     ${title ? `<h3 class="flip-caption">${esc(title)}</h3>` : ''}
     ${body ? `<p class="flip-desc">${esc(body)}</p>` : ''}
+    ${opts.linksHtml || ''}
     ${adminEdit}
     <span class="flip-hint-back">tap to flip back</span>`;
   return buildScrapbookFlipCard(item, index, {
     layout: p,
     neon,
     caption,
+    stamp: when,
     frameHtml: buildScrapbookNoteFrame(typeLabel, body || title),
     backHtml,
     hintFront: '↻ read',
@@ -4484,6 +4667,8 @@ function buildScrapbookWallItem(item, index, key){
   }
 
   const node = item.node;
+  const nodeData = node.data || {};
+  const linksHtml = formatPulseLinksHtml(nodeData);
   const meta = STREAM_NODE_META[node.type] || { label: node.type, neon: '#3ad6e0', icon: '•' };
   const when = fmtNodeStamp(node.at, key);
   const title = getPulseNodeTitle(node);
@@ -4501,21 +4686,22 @@ function buildScrapbookWallItem(item, index, key){
       caption: photoDetails.caption || getPulseNodeTitle(node),
       place: photoDetails.place,
       at: node.at,
-    }, index, key, { nodeId: node.id });
+    }, index, key, { nodeId: node.id, linksHtml });
   }
 
   if(node.type === 'video' && node.video){
     const neon = meta.neon;
     const vidCaption = title || 'Video';
-    const when = fmtNodeStamp(node.at, key);
     const backHtml = `${when ? `<time class="scrap-pulse-time">${esc(when)}</time>` : ''}
       ${title ? `<h3 class="flip-caption">${esc(title)}</h3>` : ''}
       ${text ? `<p class="flip-desc">${esc(text)}</p>` : ''}
+      ${linksHtml}
       ${adminEdit}
       <span class="flip-hint-back">tap to flip back</span>`;
     return buildScrapbookFlipCard(item, index, {
       neon,
       caption: vidCaption,
+      stamp: when,
       frameHtml: `<video src="${esc(node.video)}" muted playsinline preload="metadata"></video>`,
       backHtml,
       hintFront: '↻ notes',
@@ -4529,7 +4715,7 @@ function buildScrapbookWallItem(item, index, key){
       caption: title || meta.label,
       place: '',
       at: node.at,
-    }, index, key, { nodeId: node.id });
+    }, index, key, { nodeId: node.id, linksHtml });
   }
 
   return buildScrapbookWritingFlip(item, index, key, {
@@ -4539,6 +4725,7 @@ function buildScrapbookWallItem(item, index, key){
     body: text,
     typeLabel: meta.label,
     adminEdit,
+    linksHtml,
   });
 }
 
