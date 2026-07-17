@@ -536,7 +536,7 @@ function isSiteUnlocked(){
 
 function ensureSiteOpen(){
   try{ sessionStorage.setItem('ga-site-mode', 'watch'); }catch(e){}
-  enterMainSite();
+  if(!document.body.classList.contains('intro-active')) enterMainSite();
 }
 
 function enterCardCreationMode(){
@@ -1379,6 +1379,7 @@ function showEntryGate(opts = {}){
 }
 
 function enterMainSite(){
+  document.body.classList.remove('intro-active');
   document.getElementById('loginPage')?.classList.add('hidden');
   document.getElementById('loginPage')?.setAttribute('hidden', '');
   document.getElementById('app')?.classList.remove('hidden');

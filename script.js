@@ -2490,6 +2490,7 @@ function dismissLoading(){
     el.dataset.dismissed = '1';
     el.classList.add('is-dismissed');
     document.body.classList.add('app-ready');
+    document.body.classList.remove('intro-active');
     try{
       sessionStorage.setItem('ga-saw-intro', '1');
       sessionStorage.setItem('ga-site-mode', 'watch');
@@ -4335,12 +4336,18 @@ function buildScrapbookChrome(key, nav = {}){
     ? `<button type="button" class="btn scrapbook-edit-day" data-scrap-edit-day="${key}">Edit this day</button>`
     : '';
   return `<header class="scrapbook-chrome">
-    <button type="button" class="btn" data-scrap-day="${prevKey}" aria-label="Previous day">←</button>
-    <div class="scrapbook-date-head">
-      <span class="scrapbook-weekday">${esc(weekday)}</span>
-      <span class="scrapbook-month">${esc(monthYear)}</span>
+    <div class="scrapbook-date-nav">
+      <button type="button" class="scrapbook-neon-nav" data-scrap-day="${prevKey}" aria-label="Previous day">
+        <span class="scrapbook-neon-gem" aria-hidden="true"></span>
+      </button>
+      <div class="scrapbook-date-head">
+        <span class="scrapbook-weekday">${esc(weekday)}</span>
+        <span class="scrapbook-month">${esc(monthYear)}</span>
+      </div>
+      <button type="button" class="scrapbook-neon-nav" data-scrap-day="${nextKey}" aria-label="Next day">
+        <span class="scrapbook-neon-gem is-next" aria-hidden="true"></span>
+      </button>
     </div>
-    <button type="button" class="btn" data-scrap-day="${nextKey}" aria-label="Next day">→</button>
     ${adminEdit}
   </header>`;
 }
@@ -4387,8 +4394,30 @@ function getScrapbookWallItems(key, e, stream){
   return items;
 }
 
+const SCRAPBOOK_LAYOUTS = [
+  { size: 'sm', rotate: -5, shiftX: -14, shiftY: 12, capRot: -3 },
+  { size: 'md', rotate: 4, shiftX: 16, shiftY: -10, capRot: 2 },
+  { size: 'sm', rotate: -2, shiftX: -10, shiftY: 18, capRot: -1 },
+  { size: 'md', rotate: 6, shiftX: 12, shiftY: 8, capRot: 3 },
+  { size: 'sm', rotate: -4, shiftX: 8, shiftY: -12, capRot: -2 },
+  { size: 'md', rotate: 3, shiftX: -16, shiftY: 14, capRot: 1 },
+  { size: 'sm', rotate: 5, shiftX: -8, shiftY: 10, capRot: -4 },
+  { size: 'md', rotate: -3, shiftX: 14, shiftY: -8, capRot: 2 },
+  { size: 'sm', rotate: 2, shiftX: -12, shiftY: 16, capRot: -1 },
+];
+
 function scrapbookWallLayout(item, index){
-  return resolveGalleryLayout({ id: item.id, layoutPreset: index % GALLERY_LAYOUTS.length }, index);
+  const presetIdx = (index + String(item.id || '').length) % SCRAPBOOK_LAYOUTS.length;
+  const preset = SCRAPBOOK_LAYOUTS[presetIdx];
+  return {
+    layoutPreset: presetIdx,
+    size: preset.size,
+    rotate: preset.rotate,
+    shiftX: preset.shiftX,
+    shiftY: preset.shiftY,
+    capRot: preset.capRot,
+    gridWide: false,
+  };
 }
 
 function buildScrapbookPhotoPost(item, index, key, opts = {}){
@@ -4405,12 +4434,12 @@ function buildScrapbookPhotoPost(item, index, key, opts = {}){
     ${adminEdit}
     <span class="flip-hint-back">tap to flip back</span>`;
 
-  return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide ? ' layout-wide' : ''} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+  return `<figure class="photo-flip scrap-sticker layout-${p.layoutPreset} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--cap-rot:${p.capRot}deg;--scrap-z:${index + 1};--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
     <div class="photo-flip-scene">
       <div class="photo-flip-inner">
         <div class="photo-flip-face photo-flip-front">
           <div class="photo-frame"><img src="${esc(item.src)}" alt="" loading="lazy"></div>
-          <figcaption class="photo-caption">${esc(caption || 'Pulse')}</figcaption>
+          ${caption ? `<figcaption class="photo-caption scrap-sticker-caption">${esc(caption)}</figcaption>` : ''}
           <span class="flip-hint-front">↻ story</span>
         </div>
         <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">${backHtml}</div></div>
@@ -4429,7 +4458,7 @@ function buildScrapbookWritingFlip(item, index, key, opts){
   const adminEdit = opts.adminEdit || '';
   const extraClass = opts.wide ? ' layout-wide' : '';
 
-  return `<figure class="photo-flip layout-${p.layoutPreset}${p.gridWide || opts.wide ? ' layout-wide' : ''} size-${p.size} has-story scrap-item--writing" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+  return `<figure class="photo-flip scrap-sticker layout-${p.layoutPreset} size-${p.size} has-story scrap-item--writing" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--cap-rot:${p.capRot}deg;--scrap-z:${index + 1};--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
     <div class="photo-flip-scene">
       <div class="photo-flip-inner">
         <div class="photo-flip-face photo-flip-front">
@@ -4461,7 +4490,6 @@ function buildScrapbookWallItem(item, index, key){
       title: 'Diary',
       body: item.text || '',
       typeLabel: 'Diary',
-      wide: true,
     });
   }
 
@@ -4490,12 +4518,13 @@ function buildScrapbookWallItem(item, index, key){
   if(node.type === 'video' && node.video){
     const p = scrapbookWallLayout(item, index);
     const neon = meta.neon;
-    return `<figure class="photo-flip layout-${p.layoutPreset} layout-wide size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
+    const vidCaption = title || 'Video';
+    return `<figure class="photo-flip scrap-sticker layout-${p.layoutPreset} size-${p.size} has-story" style="--rot:${p.rotate}deg;--shift-x:${p.shiftX}px;--shift-y:${p.shiftY}px;--cap-rot:${p.capRot}deg;--scrap-z:${index + 1};--flip-neon:${neon};--pc-accent:${neon}" data-scrap-id="${esc(item.id)}">
       <div class="photo-flip-scene">
         <div class="photo-flip-inner">
           <div class="photo-flip-face photo-flip-front">
             <div class="photo-frame"><video src="${esc(node.video)}" muted playsinline preload="metadata"></video></div>
-            <figcaption class="photo-caption">${esc(title || 'Video')}</figcaption>
+            <figcaption class="photo-caption scrap-sticker-caption">${esc(vidCaption)}</figcaption>
             <span class="flip-hint-front">↻ notes</span>
           </div>
           <div class="photo-flip-face photo-flip-back"><div class="flip-back-inner">

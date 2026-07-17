@@ -81,17 +81,22 @@ body{
 }
 #skyline .neon-bar{filter:drop-shadow(0 0 6px currentColor);}
 
-/* ===== Loading — title over skyline ===== */
+/* ===== Loading — title over skyline (app hidden until dismiss) ===== */
+body.intro-active #app{display:none!important;}
 #loading{
   position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
   background:transparent;
   transition:opacity 0.6s ease;overflow:hidden;pointer-events:none;
 }
+#loading::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 38%,transparent 0%,rgba(11,7,20,0.35) 100%);
+}
 #loading.is-dismissed{opacity:0;}
 #loading .skip-btn{pointer-events:auto;}
 
 .loading-brand{
-  position:relative;text-align:center;padding:32px 24px 52px;opacity:0;transform:scale(0.96);
+  position:relative;z-index:2;text-align:center;padding:32px 24px 52px;opacity:0;transform:scale(0.96);
   transition:opacity 0.9s ease, transform 0.9s ease;pointer-events:auto;
 }
 .loading-brand.in{opacity:1;transform:scale(1);}
@@ -3565,8 +3570,65 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
   display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;
   padding:8px 14px 12px;font-size:12px;color:var(--text-mid);
 }
-.scrapbook-chrome{padding:12px 14px 6px;}
-.scrapbook-wall{margin:0;padding:12px 8px 24px;min-height:52vh;}
+.scrapbook-chrome{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:16px 14px 10px;
+}
+.scrapbook-date-nav{
+  display:flex;align-items:center;justify-content:center;
+  gap:clamp(18px,5vw,36px);width:100%;max-width:520px;
+}
+.scrapbook-neon-nav{
+  background:none;border:none;padding:10px 6px;cursor:pointer;flex-shrink:0;line-height:0;
+}
+.scrapbook-neon-gem{
+  display:block;width:12px;height:32px;border-radius:3px;
+  background:linear-gradient(180deg,var(--neon-cyan),var(--neon-purple));
+  box-shadow:0 0 10px var(--neon-cyan),0 0 22px rgba(58,214,224,0.4);
+  transform:skewY(-10deg) rotate(-8deg);
+  transition:transform 0.2s ease,box-shadow 0.2s ease;
+}
+.scrapbook-neon-gem.is-next{
+  background:linear-gradient(180deg,var(--neon-purple),var(--neon-pink));
+  box-shadow:0 0 10px var(--neon-pink),0 0 22px rgba(255,79,216,0.35);
+  transform:skewY(10deg) rotate(8deg);
+}
+.scrapbook-neon-nav:hover .scrapbook-neon-gem{
+  transform:scale(1.18) skewY(-10deg) rotate(-8deg);
+  box-shadow:0 0 16px var(--neon-cyan),0 0 30px rgba(58,214,224,0.55);
+}
+.scrapbook-neon-nav:hover .scrapbook-neon-gem.is-next{
+  transform:scale(1.18) skewY(10deg) rotate(8deg);
+  box-shadow:0 0 16px var(--neon-pink),0 0 30px rgba(255,79,216,0.5);
+}
+.scrapbook-wall{margin:0;padding:12px 6px 28px;min-height:52vh;}
+.scrapbook-wall.photo-wall{
+  display:grid;grid-template-columns:repeat(12,1fr);
+  gap:0;row-gap:4px;padding:8px 4px 32px;align-items:start;
+}
+.scrapbook-wall .photo-flip{
+  grid-column:span 4;width:100%!important;
+  margin:0 0 -18px;z-index:var(--scrap-z,1);
+}
+.scrapbook-wall .photo-flip.layout-wide{grid-column:span 4;}
+.scrapbook-wall .photo-flip-front{overflow:visible;padding-bottom:18px;}
+.scrapbook-wall .photo-frame{position:relative;z-index:1;}
+.scrapbook-wall .scrap-sticker-caption,
+.scrapbook-wall .photo-caption{
+  position:absolute;left:8%;right:8%;bottom:-4px;margin:0;
+  padding:7px 11px;font-family:var(--font-sketch);font-size:13px;line-height:1.25;
+  text-align:center;color:var(--text-hi);
+  background:var(--card-face);
+  border:2px solid color-mix(in srgb,var(--flip-neon,var(--neon-cyan)) 55%,var(--border-glass));
+  border-radius:10px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.38),0 0 14px color-mix(in srgb,var(--flip-neon,var(--neon-cyan)) 18%,transparent);
+  transform:rotate(var(--cap-rot,-2deg));
+  z-index:4;
+}
+@media(max-width:720px){
+  .scrapbook-wall.photo-wall{grid-template-columns:repeat(12,1fr);}
+  .scrapbook-wall .photo-flip,.scrapbook-wall .photo-flip.layout-wide{grid-column:span 4;}
+}
 .scrapbook-todos{
   margin:0 8px 10px;padding:10px 14px;
   background:var(--card-face);
@@ -3576,7 +3638,7 @@ body[data-active-view="ledger"] #app{max-width:none;padding-left:14px;padding-ri
 }
 .scrap-item--writing .photo-flip-front{padding:14px;text-align:left;background:var(--card-face);}
 .scrap-item--writing .photo-flip-front .scrap-pulse-title{margin:6px 0 0;font-size:15px;}
-.scrapbook-date-head{text-align:center;flex:1;min-width:160px;}
+.scrapbook-date-head{text-align:center;flex:0 1 auto;min-width:140px;}
 .scrapbook-weekday{display:block;font-family:var(--font-display);font-size:clamp(18px,3vw,26px);color:var(--text-hi);letter-spacing:0.06em;text-transform:uppercase;}
 .scrapbook-month{display:block;font-family:var(--font-data);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#9b5cff;margin-top:4px;}
 .scrapbook-edit-day{margin-left:auto;}
