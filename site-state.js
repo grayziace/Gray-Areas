@@ -165,6 +165,99 @@ const SITE_STATE = {
             "hasSnap": true
           }
         ]
+      },
+      "scrapbookLayout": {
+        "stickers": {
+          "n-1784194015559-d5zs": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-auto-1784194140209-i2yb": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-1784226530045-ng0z": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-todo-1784240276485": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-1784240336930-4beh": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-1784240389875-upi9": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "diary-2026-07-16": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          },
+          "n-reflect-1784274950285": {
+            "placed": false,
+            "left": 80,
+            "top": 120,
+            "rot": 0,
+            "scale": 1,
+            "z": 4,
+            "pinned": false,
+            "tape": false,
+            "doodle": ""
+          }
+        },
+        "initialized": false
       }
     },
     "2026-07-01": {
@@ -517,14 +610,52 @@ const SITE_STATE = {
   "instructionsRevision": 2,
   "coderActivity": [
     {
-      "id": "act-1784232908147-g2mn",
-      "at": "2026-07-16T20:15:08.147Z",
+      "id": "act-1784149184320-fwhw",
+      "at": "2026-07-15T20:59:44.320Z",
       "type": "xp_award",
       "coderId": "coder-1784129011494-5pqk",
       "name": "Nick",
       "detail": "Nick +3 XP · Daily login",
       "amount": 3,
       "reason": "login"
+    },
+    {
+      "id": "act-1784139493423-l3mg",
+      "at": "2026-07-15T18:18:13.423Z",
+      "type": "quest_sent",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick sent quest: I miss you"
+    },
+    {
+      "id": "act-1784139493388-dxmv",
+      "at": "2026-07-15T18:18:13.388Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +5 XP · Quest sent",
+      "amount": 5,
+      "reason": "quest_submit"
+    },
+    {
+      "id": "act-1784139459019-pb39",
+      "at": "2026-07-15T18:17:39.019Z",
+      "type": "xp_award",
+      "coderId": "coder-1784129011494-5pqk",
+      "name": "Nick",
+      "detail": "Nick +3 XP · Daily login",
+      "amount": 3,
+      "reason": "login"
+    },
+    {
+      "id": "act-1784136392674-oln1",
+      "at": "2026-07-15T17:26:32.674Z",
+      "type": "xp_award",
+      "coderId": "coder-1784136277276-1f50",
+      "name": "Rena",
+      "detail": "Rena +45 XP · Helped Gray practically",
+      "amount": 45,
+      "reason": "practical_help"
     },
     {
       "id": "act-1784221220831-xl0w",
@@ -597,56 +728,25 @@ const SITE_STATE = {
       "detail": "Rena updated their card"
     },
     {
-      "id": "act-1784149184320-fwhw",
-      "at": "2026-07-15T20:59:44.320Z",
+      "id": "act-1784232908147-g2mn",
+      "at": "2026-07-16T20:15:08.147Z",
       "type": "xp_award",
       "coderId": "coder-1784129011494-5pqk",
       "name": "Nick",
       "detail": "Nick +3 XP · Daily login",
       "amount": 3,
       "reason": "login"
-    },
-    {
-      "id": "act-1784139493423-l3mg",
-      "at": "2026-07-15T18:18:13.423Z",
-      "type": "quest_sent",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick sent quest: I miss you"
-    },
-    {
-      "id": "act-1784139493388-dxmv",
-      "at": "2026-07-15T18:18:13.388Z",
-      "type": "xp_award",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick +5 XP · Quest sent",
-      "amount": 5,
-      "reason": "quest_submit"
-    },
-    {
-      "id": "act-1784139459019-pb39",
-      "at": "2026-07-15T18:17:39.019Z",
-      "type": "xp_award",
-      "coderId": "coder-1784129011494-5pqk",
-      "name": "Nick",
-      "detail": "Nick +3 XP · Daily login",
-      "amount": 3,
-      "reason": "login"
-    },
-    {
-      "id": "act-1784136392674-oln1",
-      "at": "2026-07-15T17:26:32.674Z",
-      "type": "xp_award",
-      "coderId": "coder-1784136277276-1f50",
-      "name": "Rena",
-      "detail": "Rena +45 XP · Helped Gray practically",
-      "amount": 45,
-      "reason": "practical_help"
     }
   ],
-  "playerPoints": 94,
+  "playerPoints": 99,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784404428255-h79k",
+      "at": "2026-07-18T19:53:48.255Z",
+      "amount": 5,
+      "reason": "login",
+      "label": "Daily login"
+    },
     {
       "id": "gxp-1784274950387-r484",
       "at": "2026-07-17T07:55:50.387Z",
