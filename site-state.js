@@ -429,7 +429,8 @@ const SITE_STATE = {
       "status": "completed",
       "imagePrompt": "Documentary",
       "image": "",
-      "currentEpisode": 1
+      "currentEpisode": 1,
+      "finalReview": "Louis Theroux is always great at letting people be honest about themselves and dig their own grave. That being said, there is little impact that can be done. Quite scary."
     }
   },
   "hiddenDramas": [
@@ -776,8 +777,85 @@ const SITE_STATE = {
       "reason": "login"
     }
   ],
-  "playerPoints": 104,
+  "playerPoints": 379,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784404611661-bvg8",
+      "at": "2026-07-18T19:56:51.661Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404611477-lxac",
+      "at": "2026-07-18T19:56:51.477Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404611260-lkji",
+      "at": "2026-07-18T19:56:51.260Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404611044-8iix",
+      "at": "2026-07-18T19:56:51.044Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404610870-umv3",
+      "at": "2026-07-18T19:56:50.870Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404610578-aauw",
+      "at": "2026-07-18T19:56:50.578Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404610215-ee11",
+      "at": "2026-07-18T19:56:50.215Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404609737-71um",
+      "at": "2026-07-18T19:56:49.737Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404607665-gp4l",
+      "at": "2026-07-18T19:56:47.665Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404605467-redt",
+      "at": "2026-07-18T19:56:45.467Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
+    {
+      "id": "gxp-1784404602770-rqvu",
+      "at": "2026-07-18T19:56:42.770Z",
+      "amount": 25,
+      "reason": "final_review",
+      "label": "Final media review written"
+    },
     {
       "id": "gxp-1784404520415-wryb",
       "at": "2026-07-18T19:55:20.415Z",
