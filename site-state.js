@@ -408,7 +408,19 @@ const SITE_STATE = {
       "finalReview": ""
     },
     "media-1784404477069": {
-      "episodes": {},
+      "episodes": {
+        "1": {
+          "watchedDate": "2026-07-18",
+          "ratings": {
+            "engagement": 5,
+            "pace": 5,
+            "visuals": 4,
+            "story": 5,
+            "payoff": 4
+          },
+          "review": ""
+        }
+      },
       "title": "Louis Theroux: Inside the Manosphere",
       "mediaType": "film",
       "genre": "Documentary",
@@ -764,8 +776,15 @@ const SITE_STATE = {
       "reason": "login"
     }
   ],
-  "playerPoints": 99,
+  "playerPoints": 104,
   "playerXpHistory": [
+    {
+      "id": "gxp-1784404520415-wryb",
+      "at": "2026-07-18T19:55:20.415Z",
+      "amount": 5,
+      "reason": "media_review",
+      "label": "Media unit rated"
+    },
     {
       "id": "gxp-1784404428255-h79k",
       "at": "2026-07-18T19:53:48.255Z",
