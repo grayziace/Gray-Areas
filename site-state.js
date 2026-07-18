@@ -342,7 +342,21 @@ const SITE_STATE = {
       }
     },
     "2026-07-18": {
-      "plannedTodos": []
+      "plannedTodos": [],
+      "stream": {
+        "startedAt": null,
+        "endedAt": null,
+        "nodes": [
+          {
+            "id": "n-auto-1784404496314-nlou",
+            "at": "2026-07-18T19:54:56.314Z",
+            "type": "film",
+            "source": "drama",
+            "text": "Louis Theroux: Inside the Manosphere · ep 1",
+            "auto": true
+          }
+        ]
+      }
     },
     "2026-07-19": {
       "plannedTodos": []
@@ -392,6 +406,18 @@ const SITE_STATE = {
     "media-1784113987712": {
       "episodes": {},
       "finalReview": ""
+    },
+    "media-1784404477069": {
+      "episodes": {},
+      "title": "Louis Theroux: Inside the Manosphere",
+      "mediaType": "film",
+      "genre": "Documentary",
+      "country": "",
+      "totalEpisodes": 1,
+      "status": "completed",
+      "imagePrompt": "Documentary",
+      "image": "",
+      "currentEpisode": 1
     }
   },
   "hiddenDramas": [

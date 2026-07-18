@@ -497,8 +497,8 @@ const CONTENT = {
       "title": "Louis Theroux: Inside the Manosphere",
       "mediaType": "film",
       "genre": "Documentary",
-      "totalEpisodes": 2,
-      "currentEpisode": 0,
+      "totalEpisodes": 1,
+      "currentEpisode": 1,
       "status": "completed",
       "image": "",
     }
